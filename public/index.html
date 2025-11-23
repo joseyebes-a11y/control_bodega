@@ -102,18 +102,61 @@ body::after {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: rgba(8, 4, 15, 0.95);
-            border: 1px solid rgba(255,255,255,0.15);
+            background: radial-gradient(circle at 30% 30%, rgba(243, 200, 123, 0.28), transparent 45%),
+                        linear-gradient(145deg, rgba(243, 200, 123, 0.3), rgba(195, 169, 255, 0.24));
+            border: 1px solid rgba(255,255,255,0.32);
             cursor: pointer;
-            padding: 2px 10px 4px;
-            border-radius: 18px;
-            transition: background 0.2s ease;
-            box-shadow: 0 18px 35px rgba(0,0,0,0.35);
+            padding: 16px 26px;
+            border-radius: 28px;
+            transition: transform 0.18s ease, box-shadow 0.22s ease, background 0.2s ease;
+            box-shadow:
+              0 20px 50px rgba(0,0,0,0.6),
+              0 8px 20px rgba(0,0,0,0.35),
+              0 0 0 1px rgba(255,255,255,0.1) inset;
+            min-width: 260px;
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+.topbar-title button::before {
+            content: "";
+            position: absolute;
+            inset: -2px;
+            border-radius: 32px;
+            background: conic-gradient(from 120deg, rgba(243,199,123,0.35), rgba(195,169,255,0.35), rgba(243,199,123,0.35));
+            opacity: 0.2;
+            filter: blur(6px);
+            z-index: -1;
+        }
+
+.topbar-title button::after {
+            content: "";
+            position: absolute;
+            top: -140%;
+            left: -30%;
+            width: 60%;
+            height: 400%;
+            background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+            transform: rotate(12deg);
+            opacity: 0;
+            transition: opacity 0.25s ease;
         }
 
 .topbar-title button:hover,
 .topbar-title button.open {
-            background: rgba(20, 10, 30, 0.95);
+            background: linear-gradient(145deg, rgba(243, 200, 123, 0.4), rgba(195, 169, 255, 0.34));
+            box-shadow:
+              0 22px 56px rgba(0,0,0,0.65),
+              0 10px 24px rgba(0,0,0,0.38),
+              0 0 0 1px rgba(255,255,255,0.14) inset;
+            transform: translateY(-3px);
+        }
+
+.topbar-title button:hover::after,
+.topbar-title button.open::after {
+            opacity: 1;
+            animation: shimmer 1s ease forwards;
         }
 
         .topbar-title .marca {
@@ -121,18 +164,36 @@ body::after {
             font-weight: 600;
             letter-spacing: 2.5px;
             text-transform: uppercase;
-            font-size: 24px;
-            color: #f8e9ff;
+            font-size: 36px;
+            background: linear-gradient(120deg, #fdf6ff 0%, #f3c77b 55%, #c2a9ff 100%);
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow:
+              0 10px 24px rgba(0,0,0,0.48),
+              0 2px 0 rgba(255,255,255,0.25),
+              0 0 14px rgba(243, 200, 123, 0.25);
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
         }
 
         .topbar-title .submarca {
             font-family: "Playfair Display", "Times New Roman", serif;
             font-weight: 600;
             letter-spacing: 6px;
-            font-size: 15px;
-            color: #f48fb1;
-            margin-top: 4px;
+            font-size: 20px;
+            color: #f3c77b;
+            margin-top: 8px;
+            text-shadow:
+              0 6px 18px rgba(0,0,0,0.4),
+              0 2px 0 rgba(255,255,255,0.16),
+              0 0 12px rgba(243, 200, 123, 0.3);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.32));
         }
+
+@keyframes shimmer {
+        0% { transform: translateX(-120%) rotate(12deg); opacity: 0; }
+        30% { opacity: 1; }
+        100% { transform: translateX(220%) rotate(12deg); opacity: 0; }
+}
 
         .topbar-title button .caret {
             margin-top: 6px;
@@ -1434,8 +1495,8 @@ label {
     <div class="topbar">
         <div class="topbar-title">
             <button type="button" id="navToggle">
-                <span class="marca">Bodega VegaLuna</span>
-                <span class="submarca">INDÓMITO</span>
+                <span class="marca" id="marcaTexto">Bodega VegaLuna</span>
+                <span class="submarca" id="submarcaTexto"></span>
                 <span class="caret">▼</span>
             </button>
             <div class="nav-dropdown-menu" id="navMenu">
@@ -4925,6 +4986,8 @@ function obtenerInicialesUsuario(usuario) {
 
 async function cargarUsuarioActivo() {
   const badge = document.getElementById("userBadge");
+  const marca = document.getElementById("marcaTexto");
+  const submarca = document.getElementById("submarcaTexto");
   if (!badge) return;
   badge.textContent = "—";
   try {
@@ -4936,6 +4999,12 @@ async function cargarUsuarioActivo() {
     const data = await res.json();
     badge.textContent = obtenerInicialesUsuario(data.usuario);
     badge.setAttribute("title", data.usuario);
+    if (marca && data.bodega_nombre) {
+      marca.textContent = data.bodega_nombre;
+    }
+    if (submarca) {
+      submarca.textContent = "";
+    }
   } catch (err) {
     console.error("Error cargando usuario:", err);
     badge.textContent = "!!";

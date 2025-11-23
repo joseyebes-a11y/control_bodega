@@ -2211,7 +2211,10 @@ app.get("/api/me", async (req, res) => {
   }
   try {
     const usuario = await db.get(
-      "SELECT id, usuario, bodega_id FROM usuarios WHERE id = ?",
+      `SELECT u.id, u.usuario, u.bodega_id, b.nombre AS bodega_nombre
+       FROM usuarios u
+       LEFT JOIN bodegas b ON b.id = u.bodega_id
+       WHERE u.id = ?`,
       req.session.userId
     );
     if (!usuario) {
@@ -2225,12 +2228,17 @@ app.get("/api/me", async (req, res) => {
 });
 
 app.post("/register", async (req, res) => {
-  const { usuario, password } = req.body;
+  const { usuario, password, bodega_nombre } = req.body;
 
   if (!usuario || !password) {
     return res
       .status(400)
       .json({ error: "Usuario y contraseña son obligatorios" });
+  }
+
+  const nombreBodega = (bodega_nombre || "").trim();
+  if (!nombreBodega) {
+    return res.status(400).json({ error: "El nombre de la bodega es obligatorio." });
   }
 
   try {
@@ -2252,7 +2260,6 @@ app.post("/register", async (req, res) => {
       [usuario, hash]
     );
     const userId = resultadoUsuario.lastID;
-    const nombreBodega = `Bodega de ${usuario}`;
     const resultadoBodega = await db.run(
       "INSERT INTO bodegas (user_id, nombre) VALUES (?, ?)",
       [userId, nombreBodega]
@@ -2275,6 +2282,7 @@ const PORT = process.env.PORT || 3000;
 async function ensureAdminUser() {
   const adminEmail = "joseyebes@gmail.com"; 
   const adminPassword = "1234"; 
+  const adminBodegaNombre = "Bodega VegaLuna INDÓMITO";
 
   const existing = await db.get(
     "SELECT id, bodega_id FROM usuarios WHERE usuario = ?",
@@ -2282,7 +2290,7 @@ async function ensureAdminUser() {
   );
 
   if (existing) {
-    await ensureBodegaParaUsuario(existing.id, DEFAULT_BODEGA_NAME);
+    await ensureBodegaParaUsuario(existing.id, adminBodegaNombre);
     return; 
   }
 
@@ -2293,7 +2301,7 @@ async function ensureAdminUser() {
     [adminEmail, hash]
   );
   const adminId = resultadoUsuario.lastID;
-  const bodegaId = await ensureBodegaParaUsuario(adminId, DEFAULT_BODEGA_NAME);
+  const bodegaId = await ensureBodegaParaUsuario(adminId, adminBodegaNombre);
   await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", bodegaId, adminId);
 
   console.log("✅ Usuario admin creado:", adminEmail);

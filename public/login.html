@@ -156,6 +156,10 @@
             <label for="reg-password">Contraseña</label>
             <input autocomplete="new-password" type="password" id="reg-password" name="password" required />
           </div>
+          <div class="field">
+            <label for="reg-bodega">Nombre de tu bodega</label>
+            <input type="text" id="reg-bodega" name="bodega_nombre" placeholder="Ej: Bodega Los Pinos" required />
+          </div>
           <button type="submit">Crear usuario</button>
           <div id="register-mensaje" class="msg"></div>
         </form>
@@ -209,12 +213,13 @@
 
       const usuario = document.getElementById("reg-usuario").value.trim();
       const password = document.getElementById("reg-password").value.trim();
+      const bodega_nombre = document.getElementById("reg-bodega").value.trim();
 
       try {
         const res = await fetch("/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ usuario, password }),
+          body: JSON.stringify({ usuario, password, bodega_nombre }),
         });
 
         const data = await res.json();
@@ -263,6 +268,7 @@
       });
       document.getElementById("reg-usuario").value = "";
       document.getElementById("reg-password").value = "";
+      document.getElementById("reg-bodega").value = "";
       prepararCamposAuto();
     }
 
