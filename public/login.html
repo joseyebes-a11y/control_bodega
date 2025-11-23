@@ -128,14 +128,16 @@
       <!-- LOGIN -->
       <div>
         <div class="section-title">Entrar</div>
-        <form id="login-form">
-          <div class="field">
+        <input type="text" autocomplete="username" name="fake-user" id="fake-user" style="position:absolute;left:-9999px" tabindex="-1" />
+        <input type="password" autocomplete="new-password" name="fake-pass" id="fake-pass" style="position:absolute;left:-9999px" tabindex="-1" />
+        <form id="login-form" autocomplete="off">
+        <div class="field">
             <label for="usuario">Usuario (email)</label>
-            <input type="text" id="usuario" name="usuario" required />
+            <input autocomplete="username" type="text" id="usuario" name="usuario" required />
           </div>
           <div class="field">
             <label for="password">Contraseña</label>
-            <input type="password" id="password" name="password" required />
+            <input autocomplete="current-password" type="password" id="password" name="password" required />
           </div>
           <button type="submit">Entrar en la bodega</button>
           <div id="login-mensaje" class="msg"></div>
@@ -145,14 +147,14 @@
       <!-- REGISTRO -->
       <div>
         <div class="section-title">Crear nuevo usuario</div>
-        <form id="register-form">
+        <form id="register-form" autocomplete="off">
           <div class="field">
             <label for="reg-usuario">Usuario (email)</label>
-            <input type="email" id="reg-usuario" name="usuario" required />
+            <input autocomplete="new-username" type="email" id="reg-usuario" name="usuario" required />
           </div>
           <div class="field">
             <label for="reg-password">Contraseña</label>
-            <input type="password" id="reg-password" name="password" required />
+            <input autocomplete="new-password" type="password" id="reg-password" name="password" required />
           </div>
           <button type="submit">Crear usuario</button>
           <div id="register-mensaje" class="msg"></div>
@@ -230,6 +232,48 @@
         regMsg.textContent = "Error de conexión con el servidor.";
         regMsg.classList.add("error");
       }
+    });
+
+    const camposLogin = [
+      document.getElementById("usuario"),
+      document.getElementById("password"),
+    ];
+
+    function prepararCamposAuto() {
+      camposLogin.forEach(campo => {
+        if (!campo) return;
+        campo.readOnly = true;
+        campo.addEventListener(
+          "focus",
+          () => {
+            campo.readOnly = false;
+          },
+          { once: true }
+        );
+      });
+    }
+
+    function limpiarCamposInicio() {
+      loginForm.reset();
+      regForm.reset();
+      camposLogin.forEach(campo => {
+        if (campo) {
+          campo.value = "";
+        }
+      });
+      document.getElementById("reg-usuario").value = "";
+      document.getElementById("reg-password").value = "";
+      prepararCamposAuto();
+    }
+
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) {
+        limpiarCamposInicio();
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      limpiarCamposInicio();
     });
   </script>
 </body>
