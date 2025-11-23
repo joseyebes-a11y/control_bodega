@@ -133,12 +133,12 @@ body::after {
 .topbar-title button::after {
             content: "";
             position: absolute;
-            top: -140%;
-            left: -30%;
-            width: 60%;
-            height: 400%;
-            background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
-            transform: rotate(12deg);
+            top: -190%;
+            left: -70%;
+            width: 180%;
+            height: 500%;
+            background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.52) 55%, transparent 100%);
+            transform: rotate(12deg) translateX(-300%);
             opacity: 0;
             transition: opacity 0.25s ease;
         }
@@ -190,9 +190,9 @@ body::after {
         }
 
 @keyframes shimmer {
-        0% { transform: translateX(-120%) rotate(12deg); opacity: 0; }
-        30% { opacity: 1; }
-        100% { transform: translateX(220%) rotate(12deg); opacity: 0; }
+        0% { transform: translateX(-300%) rotate(12deg); opacity: 0; }
+        20% { opacity: 1; }
+        100% { transform: translateX(300%) rotate(12deg); opacity: 0; }
 }
 
         .topbar-title button .caret {
@@ -217,6 +217,7 @@ body::after {
             border-radius: 18px;
             padding: 12px;
             min-width: 230px;
+            width: 240px;
             box-shadow: 0 25px 60px rgba(0,0,0,0.45);
             backdrop-filter: blur(18px);
             z-index: 20;
@@ -227,7 +228,7 @@ body::after {
         }
 
 .nav-dropdown-menu a {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             color: #f9e5ff;
             padding: 10px 18px;
@@ -239,6 +240,11 @@ body::after {
             border: 1px solid transparent;
             background: rgba(255,255,255,0.04);
             margin: 4px 0;
+            width: 100%;
+            min-width: 210px;
+            justify-content: flex-start;
+            box-sizing: border-box;
+            min-height: 44px;
         }
 
 .nav-dropdown-menu a:hover {
@@ -318,6 +324,26 @@ body::after {
             filter: brightness(0.85);
         }
 
+.nav-barricas-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            width: 230px;
+            box-sizing: border-box;
+            height: 40px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+.nav-barricas-icon {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.35));
+            background: transparent;
+            mix-blend-mode: multiply;
+        }
+
 .nav-dropdown-menu a.activo {
             background: linear-gradient(120deg, rgba(241,92,146,0.9), rgba(95,44,130,0.9));
             color: #fff;
@@ -358,6 +384,12 @@ body::after {
 
         .icon-barrica::before { top: 4px; }
         .icon-barrica::after { bottom: 4px; }
+
+.h1-emoji {
+            font-size: 36px;
+            display: inline-block;
+            margin-right: 10px;
+        }
 
         .content {
             padding: 60px 70px 110px;
@@ -1502,19 +1534,12 @@ label {
             <div class="nav-dropdown-menu" id="navMenu">
                 <a href="#" data-section="entradas" onclick="cerrarNavMenu(); mostrarSeccion('entradas')">🍇 Entradas de uva</a>
                 <a href="#" data-section="depositos" onclick="cerrarNavMenu(); mostrarSeccion('depositos')">🛢 Depósitos</a>
-                <a href="#" data-section="barricas" onclick="cerrarNavMenu(); mostrarSeccion('barricas')">
-                    <span class="emoji-barrica-lateral" aria-hidden="true">
-                        <span class="sobrio-shadow"></span>
-                        <span class="sobrio-body"></span>
-                        <span class="sobrio-ring superior"></span>
-                        <span class="sobrio-ring inferior"></span>
-                        <span class="sobrio-head back"></span>
-                        <span class="sobrio-head front"></span>
-                    </span>
+                <a href="#" data-section="barricas" onclick="cerrarNavMenu(); mostrarSeccion('barricas')" class="nav-barricas-link">
+                    <img src="/barricas.png" alt="Barricas" class="nav-barricas-icon" />
                     Barricas
                 </a>
                 <a href="#" data-section="plano" onclick="cerrarNavMenu(); mostrarSeccion('plano')">🗺 Plano bodega</a>
-                <a href="#" data-section="flujo" onclick="cerrarNavMenu(); mostrarSeccion('flujo')">🔗 Flujo trazabilidad</a>
+                <a href="#" data-section="flujo" onclick="cerrarNavMenu(); mostrarSeccion('flujo')">🔗 Mapa de nodos</a>
                 <a href="#" data-section="movimientos" onclick="cerrarNavMenu(); mostrarSeccion('movimientos')">🔄 Movimientos</a>
                 <a href="#" data-section="embotellado" onclick="cerrarNavMenu(); mostrarSeccion('embotellado')">🍾 Embotellado</a>
                 <a href="#" data-section="enologicos" onclick="cerrarNavMenu(); mostrarSeccion('enologicos')">🧪 Productos enológicos</a>
@@ -1532,7 +1557,7 @@ label {
 
         <!-- SECCIÓN BODEGA (RESUMEN GENERAL) -->
         <section id="bodega" class="card visible">
-            <h1>Resumen de la bodega</h1>
+            <h1><span class="h1-emoji">🏠</span>Resumen de la bodega</h1>
             <p>Visión rápida de cómo va todo.</p>
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">
@@ -1609,14 +1634,6 @@ label {
                 </div>
             </div>
 
-            <div class="acciones-rapidas">
-                <button onclick="mostrarSeccion('entradas')">Registrar entrada</button>
-                <button onclick="mostrarSeccion('depositos')">Nuevo depósito</button>
-                <button onclick="mostrarSeccion('barricas')">Nueva barrica</button>
-                <button onclick="mostrarSeccion('movimientos')">Registrar movimiento</button>
-                <button onclick="mostrarSeccion('embotellado')">Nuevo embotellado</button>
-            </div>
-
             <div class="card" style="margin-top:24px;">
                 <h2>Aprovechamiento por añada</h2>
                 <p>Relación entre los kilos de uva registrados y los litros actuales por cada añada.</p>
@@ -1637,7 +1654,7 @@ label {
         </section>
         <!-- SECCIÓN FLUJO -->
         <section id="flujo" class="card" style="display:none;">
-            <h1>Mapa de nodos de vinificación</h1>
+            <h1><span class="h1-emoji">🗺</span>Mapa de nodos de vinificación</h1>
             <p>Diseña visualmente el recorrido de cada partida: arrastra nodos, conéctalos y edita la información con doble clic.</p>
         <div class="flow-toolbar">
                 <div class="flow-toolbar-group">
@@ -1688,7 +1705,7 @@ label {
         </div>
         <!-- SECCIÓN ENTRADAS DE UVA -->
         <section id="entradas" class="card" style="display:none;">
-            <h1>Entradas de uva</h1>
+            <h1><span class="h1-emoji">🍇</span>Entradas de uva</h1>
 
             <form id="formEntradaUva" onsubmit="crearEntradaUva(event)">
                 <label>Fecha</label>
@@ -1769,7 +1786,7 @@ label {
 
         <!-- SECCIÓN DEPÓSITOS -->
         <section id="depositos" class="card" style="display:none;">
-            <h1>Depósitos</h1>
+            <h1><span class="h1-emoji">🛢</span>Depósitos</h1>
             <p>Registro de depósitos con su capacidad, tipo y material. La variedad y los litros asignados se actualizan automáticamente cuando un nodo se conecta al depósito.</p>
 
 <table>
@@ -1870,7 +1887,7 @@ label {
 
         <!-- SECCIÓN ALMACÉN LIMPIEZA -->
         <section id="limpieza" class="card" style="display:none;">
-            <h1>Almacén de limpieza</h1>
+            <h1><span class="h1-emoji">🧽</span>Almacén de limpieza</h1>
             <p>Control de stock y consumo de productos de limpieza con trazabilidad por lote.</p>
 
             <div class="grid-almacen">
@@ -1915,7 +1932,7 @@ label {
 
         <!-- SECCIÓN PRODUCTOS ENOLÓGICOS -->
         <section id="enologicos" class="card" style="display:none;">
-            <h1>Productos enológicos</h1>
+            <h1><span class="h1-emoji">🧪</span>Productos enológicos</h1>
             <p>Registro de aditivos y productos empleados en la elaboración del vino.</p>
 
             <div class="grid-almacen">
@@ -1960,7 +1977,7 @@ label {
 
         <!-- SECCIÓN EMBOTELLADO -->
         <section id="embotellado" class="card" style="display:none;">
-            <h1>Registro de embotellado</h1>
+            <h1><span class="h1-emoji">🍾</span>Registro de embotellado</h1>
             <p>Documenta cada lote embotellado con trazabilidad completa.</p>
 
             <div class="grid-almacen">
@@ -2016,7 +2033,7 @@ label {
 
         <!-- SECCIÓN PLANO BODEGA -->
         <section id="plano" class="card" style="display:none;">
-            <h1>Plano de la bodega</h1>
+            <h1><span class="h1-emoji">🗺</span>Plano de la bodega</h1>
             <p>Arrastra los depósitos, mastelones y barricas sobre la cuadrícula para ubicarlos en el espacio.</p>
 
             <div class="plano-wrapper">
@@ -2028,7 +2045,10 @@ label {
         </section>
         <!-- SECCIÓN BARRICAS -->
         <section id="barricas" class="card" style="display:none;">
-            <h1>Barricas</h1>
+            <h1 style="display:flex; align-items:center; gap:10px;">
+                <img src="/barricas.png" alt="Barricas" style="width:30px; height:30px; object-fit:contain; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.35)); mix-blend-mode:multiply; background:transparent;">
+                Barricas
+            </h1>
             <p>Control de barricas y litros dentro.</p>
 
             <table>
@@ -2099,7 +2119,7 @@ label {
 
         <!-- SECCIÓN MOVIMIENTOS -->
         <section id="movimientos" class="card" style="display:none;">
-            <h1>Movimientos de vino</h1>
+            <h1><span class="h1-emoji">🔄</span>Movimientos de vino</h1>
             <p>Trasiegos, mermas, embotellados, ajustes… Todo queda registrado.</p>
 
             <div class="filtros-movimientos">
@@ -2229,7 +2249,7 @@ label {
 
         <!-- SECCIÓN REGISTROS ANALÍTICOS -->
         <section id="analiticos" class="card" style="display:none;">
-            <h1>Registros analíticos</h1>
+            <h1><span class="h1-emoji">📊</span>Registros analíticos</h1>
             <p>Densidad, temperatura, etc. por depósito, mastelone o barrica.</p>
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">
@@ -2305,7 +2325,7 @@ label {
 
         <!-- SECCIÓN ANÁLISIS LABORATORIO -->
         <section id="analisisLab" class="card" style="display:none;">
-            <h1>Análisis de laboratorio externos</h1>
+            <h1><span class="h1-emoji">📄</span>Análisis de laboratorio externos</h1>
             <p>Sube PDFs de laboratorios externos y asócialos a un depósito o mastelone.</p>
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">
@@ -5000,7 +5020,9 @@ async function cargarUsuarioActivo() {
     badge.textContent = obtenerInicialesUsuario(data.usuario);
     badge.setAttribute("title", data.usuario);
     if (marca && data.bodega_nombre) {
-      marca.textContent = data.bodega_nombre;
+      const nombre = data.bodega_nombre || "";
+      const prefijo = /^bodega\b/i.test(nombre.trim()) ? nombre.trim() : `Bodega ${nombre.trim()}`;
+      marca.textContent = prefijo;
     }
     if (submarca) {
       submarca.textContent = "";
