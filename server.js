@@ -30,11 +30,24 @@ function requireLogin(req, res, next) {
     next();
 }
 
-function requireApiAuth(req, res, next) {
-    if (!req.session.userId || !req.session.bodegaId) {
-        return res.status(401).json({ error: "No autorizado" });
+async function requireApiAuth(req, res, next) {
+  if (!req.session.userId || !req.session.bodegaId) {
+    return res.status(401).json({ error: "No autorizado" });
+  }
+  try {
+    const pertenece = await db.get(
+      "SELECT id FROM bodegas WHERE id = ? AND user_id = ?",
+      req.session.bodegaId,
+      req.session.userId
+    );
+    if (!pertenece) {
+      return res.status(401).json({ error: "No autorizado" });
     }
     next();
+  } catch (err) {
+    console.error("Error validando bodega del usuario:", err);
+    return res.status(500).json({ error: "Error interno" });
+  }
 }
 
 let db;
@@ -52,248 +65,96 @@ async function initDB() {
     driver: sqlite3.Database,
   });
 
+  await db.exec("PRAGMA foreign_keys = ON");
   // Ejecutar el schema inicial (por si hay tablas que crear)
   const schemaPath = path.join(__dirname, "schema.sql");
   const schemaSql = fs.readFileSync(schemaPath, "utf-8");
   await db.exec(schemaSql);
 
-  // A partir de aquí, adaptamos la tabla movimientos_vino
-  // para que encaje con la nueva lógica sin romper lo antiguo.
-
-  // Puede que ya exista fecha_hora (viejo esquema) con NOT NULL.
-  // Añadimos columnas nuevas solo si no existen.
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN fecha TEXT");
-    console.log("Columna 'fecha' añadida a movimientos_vino");
-  } catch (e) {}
-
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN litros REAL");
-    console.log("Columna 'litros' añadida a movimientos_vino");
-  } catch (e) {}
-
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN origen_tipo TEXT");
-    console.log("Columna 'origen_tipo' añadida a movimientos_vino");
-  } catch (e) {}
-
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN origen_id INTEGER");
-    console.log("Columna 'origen_id' añadida a movimientos_vino");
-  } catch (e) {}
-
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN destino_tipo TEXT");
-    console.log("Columna 'destino_tipo' añadida a movimientos_vino");
-  } catch (e) {}
-
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN destino_id INTEGER");
-    console.log("Columna 'destino_id' añadida a movimientos_vino");
-  } catch (e) {}
-
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN nota TEXT");
-    console.log("Columna 'nota' añadida a movimientos_vino");
-  } catch (e) {}
-
-  try {
-    await db.exec("ALTER TABLE movimientos_vino ADD COLUMN perdida_litros REAL");
-    console.log("Columna 'perdida_litros' añadida a movimientos_vino");
-  } catch (e) {}
-
   console.log("✔️ Base de datos inicializada");
 }
 
-async function ensureBodegasSchema() {
-  if (defaultBodegaId) {
-    return defaultBodegaId;
-  }
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS bodegas (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nombre TEXT NOT NULL,
-      creado_en TEXT DEFAULT (datetime('now'))
-    )
-  `);
-
-  let fila = await db.get("SELECT id FROM bodegas WHERE nombre = ? LIMIT 1", DEFAULT_BODEGA_NAME);
-  if (!fila) {
-    fila = await db.get("SELECT id FROM bodegas ORDER BY id LIMIT 1");
-  }
-  if (!fila) {
-    const resultado = await db.run("INSERT INTO bodegas (nombre) VALUES (?)", DEFAULT_BODEGA_NAME);
-    defaultBodegaId = resultado.lastID;
-  } else {
-    defaultBodegaId = fila.id;
-  }
-  return defaultBodegaId;
-}
-
-async function ensureBodegaColumn(tableName) {
-  if (!defaultBodegaId) {
-    throw new Error("defaultBodegaId no está inicializado");
-  }
+async function assertColumns(tableName, requiredColumns) {
   const cols = await db.all(`PRAGMA table_info(${tableName})`);
   const nombres = cols.map(c => c.name);
-  if (!nombres.includes("bodega_id")) {
-    await db.run(
-      `ALTER TABLE ${tableName} ADD COLUMN bodega_id INTEGER DEFAULT ${defaultBodegaId}`
+  const faltantes = requiredColumns.filter(col => !nombres.includes(col));
+  if (faltantes.length) {
+    throw new Error(
+      `Faltan columnas en ${tableName}: ${faltantes.join(
+        ", "
+      )}. Borra la base de datos para regenerarla con el nuevo esquema multiusuario.`
     );
-    console.log(`Columna 'bodega_id' añadida a ${tableName}`);
-  }
-  await db.run(
-    `UPDATE ${tableName} SET bodega_id = ? WHERE bodega_id IS NULL`,
-    defaultBodegaId
-  );
-}
-
-async function ensureFlujoNodosSchema() {
-  try {
-    await db.run(`
-      INSERT INTO flujo_nodos (id, snapshot, updated_at)
-      SELECT 1, '[]', datetime('now')
-      WHERE NOT EXISTS (SELECT 1 FROM flujo_nodos WHERE id = 1)
-    `);
-  } catch (err) {
-    console.error("Error asegurando esquema de flujo:", err);
   }
 }
 
-async function ensureDepositosSchema() {
-  try {
-    await ensureBodegaColumn("depositos");
-    const cols = await db.all("PRAGMA table_info(depositos)");
-    const nombres = cols.map(c => c.name);
-
-    if (!nombres.includes("clase")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN clase TEXT DEFAULT 'deposito'");
-      console.log("Columna 'clase' añadida a depositos");
-    }
-    await db.run("UPDATE depositos SET clase = 'deposito' WHERE clase IS NULL OR clase = ''");
-
-    if (!nombres.includes("litros_actuales")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN litros_actuales REAL DEFAULT 0");
-      console.log("Columna 'litros_actuales' añadida a depositos");
-    }
-
-    if (!nombres.includes("contenido")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN contenido TEXT");
-      console.log("Columna 'contenido' añadida a depositos");
-    }
-
-    if (!nombres.includes("vino_tipo")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN vino_tipo TEXT");
-      console.log("Columna 'vino_tipo' añadida a depositos");
-    }
-
-    if (!nombres.includes("vino_anio")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN vino_anio TEXT");
-      console.log("Columna 'vino_anio' añadida a depositos");
-    }
-
-    if (!nombres.includes("fecha_uso")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN fecha_uso TEXT");
-      console.log("Columna 'fecha_uso' añadida a depositos");
-    }
-
-    if (!nombres.includes("elaboracion")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN elaboracion TEXT");
-      console.log("Columna 'elaboracion' añadida a depositos");
-    }
-
-    if (!nombres.includes("pos_x")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN pos_x REAL");
-      console.log("Columna 'pos_x' añadida a depositos");
-    }
-
-    if (!nombres.includes("pos_y")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN pos_y REAL");
-      console.log("Columna 'pos_y' añadida a depositos");
-    }
-    if (!nombres.includes("estado")) {
-      await db.run("ALTER TABLE depositos ADD COLUMN estado TEXT DEFAULT 'vacio'");
-      console.log("Columna 'estado' añadida a depositos");
-    }
-  } catch (err) {
-    console.error("Error ajustando esquema de depositos:", err);
-  }
-}
-
-async function ensureBarricasSchema() {
-  try {
-    await ensureBodegaColumn("barricas");
-    const cols = await db.all("PRAGMA table_info(barricas)");
-    const nombres = cols.map(c => c.name);
-
-    if (!nombres.includes("marca")) {
-      await db.run("ALTER TABLE barricas ADD COLUMN marca TEXT");
-      console.log("Columna 'marca' añadida a barricas");
-    }
-
-    if (!nombres.includes("anio")) {
-      await db.run("ALTER TABLE barricas ADD COLUMN anio TEXT");
-      console.log("Columna 'anio' añadida a barricas");
-    }
-
-    if (!nombres.includes("pos_x")) {
-      await db.run("ALTER TABLE barricas ADD COLUMN pos_x REAL");
-      console.log("Columna 'pos_x' añadida a barricas");
-    }
-
-    if (!nombres.includes("pos_y")) {
-      await db.run("ALTER TABLE barricas ADD COLUMN pos_y REAL");
-      console.log("Columna 'pos_y' añadida a barricas");
-    }
-
-    if (!nombres.includes("vino_tipo")) {
-      await db.run("ALTER TABLE barricas ADD COLUMN vino_tipo TEXT");
-      console.log("Columna 'vino_tipo' añadida a barricas");
-    }
-
-    if (!nombres.includes("vino_anio")) {
-      await db.run("ALTER TABLE barricas ADD COLUMN vino_anio TEXT");
-      console.log("Columna 'vino_anio' añadida a barricas");
-    }
-  } catch (err) {
-    console.error("Error ajustando esquema de barricas:", err);
-  }
-}
-
-async function ensureEntradasSchema() {
-  try {
-    await ensureBodegaColumn("entradas_uva");
-    const cols = await db.all("PRAGMA table_info(entradas_uva)");
-    const nombres = cols.map(c => c.name);
-
-    if (!nombres.includes("viticultor")) {
-      await db.run("ALTER TABLE entradas_uva ADD COLUMN viticultor TEXT");
-      console.log("Columna 'viticultor' añadida a entradas_uva");
-    }
-
-    if (!nombres.includes("tipo_suelo")) {
-      await db.run("ALTER TABLE entradas_uva ADD COLUMN tipo_suelo TEXT");
-      console.log("Columna 'tipo_suelo' añadida a entradas_uva");
-    }
-
-    if (!nombres.includes("anos_vid")) {
-      await db.run("ALTER TABLE entradas_uva ADD COLUMN anos_vid TEXT");
-      console.log("Columna 'anos_vid' añadida a entradas_uva");
-    }
-
-    if (!nombres.includes("parcela")) {
-      await db.run("ALTER TABLE entradas_uva ADD COLUMN parcela TEXT");
-      console.log("Columna 'parcela' añadida a entradas_uva");
-    }
-
-    if (!nombres.includes("anada")) {
-      await db.run("ALTER TABLE entradas_uva ADD COLUMN anada TEXT");
-      console.log("Columna 'anada' añadida a entradas_uva");
-    }
-
-  } catch (err) {
-    console.error("Error ajustando esquema de entradas_uva:", err);
-  }
+async function ensureTables() {
+  await assertColumns("bodegas", ["user_id", "nombre"]);
+  await assertColumns("depositos", [
+    "user_id",
+    "bodega_id",
+    "codigo",
+    "clase",
+    "estado",
+    "pos_x",
+    "pos_y",
+    "contenido",
+    "vino_tipo",
+    "vino_anio",
+    "fecha_uso",
+    "elaboracion",
+    "activo",
+  ]);
+  await assertColumns("barricas", [
+    "user_id",
+    "bodega_id",
+    "codigo",
+    "capacidad_l",
+    "pos_x",
+    "pos_y",
+    "activo",
+  ]);
+  await assertColumns("entradas_uva", ["user_id", "bodega_id", "fecha", "variedad", "kilos"]);
+  await assertColumns("entradas_destinos", [
+    "user_id",
+    "bodega_id",
+    "entrada_id",
+    "contenedor_tipo",
+    "contenedor_id",
+    "kilos",
+    "movimiento_id",
+    "directo_prensa",
+    "merma_factor",
+  ]);
+  await assertColumns("flujo_nodos", ["user_id", "snapshot", "updated_at"]);
+  await assertColumns("registros_analiticos", [
+    "user_id",
+    "bodega_id",
+    "contenedor_tipo",
+    "contenedor_id",
+    "fecha_hora",
+  ]);
+  await assertColumns("analisis_laboratorio", [
+    "user_id",
+    "bodega_id",
+    "deposito_id",
+    "contenedor_tipo",
+    "archivo_fichero",
+  ]);
+  await assertColumns("movimientos_vino", ["user_id", "bodega_id", "fecha", "tipo", "litros"]);
+  await assertColumns("embotellados", [
+    "user_id",
+    "bodega_id",
+    "fecha",
+    "contenedor_tipo",
+    "contenedor_id",
+    "litros",
+    "movimiento_id",
+  ]);
+  await assertColumns("productos_limpieza", ["user_id", "bodega_id", "nombre", "lote"]);
+  await assertColumns("consumos_limpieza", ["user_id", "bodega_id", "producto_id", "cantidad"]);
+  await assertColumns("productos_enologicos", ["user_id", "bodega_id", "nombre", "lote"]);
+  await assertColumns("consumos_enologicos", ["user_id", "bodega_id", "producto_id", "cantidad"]);
+  await assertColumns("usuarios", ["usuario", "password_hash", "bodega_id"]);
 }
 
 const CLASES_DEPOSITO = new Set(["deposito", "mastelone", "barrica"]);
@@ -309,9 +170,7 @@ const ESTADOS_DEPOSITO = [
   { id: "mantenimiento", nombre: "Mantenimiento / Limpieza" },
   { id: "analitica", nombre: "Analítica pendiente" },
 ];
-
 const DEFAULT_BODEGA_NAME = "Bodega general";
-let defaultBodegaId = null;
 
 function normalizarClaseDeposito(valor) {
   if (!valor) return "deposito";
@@ -336,9 +195,9 @@ function normalizarEstadoDeposito(valor) {
   return encontrado ? encontrado.id : "vacio";
 }
 
-async function normalizarDestinosEntrada(destinos, kilosTotales, bodegaId = defaultBodegaId) {
-  if (!bodegaId) {
-    throw new Error("Bodega inválida");
+async function normalizarDestinosEntrada(destinos, kilosTotales, bodegaId, userId) {
+  if (!bodegaId || !userId) {
+    throw new Error("Usuario o bodega inválidos");
   }
   if (!Array.isArray(destinos) || !destinos.length) return [];
   const resultado = [];
@@ -355,7 +214,7 @@ async function normalizarDestinosEntrada(destinos, kilosTotales, bodegaId = defa
     if (!kilos || Number.isNaN(kilos) || kilos <= 0) {
       throw new Error("Los kilos asignados deben ser mayores que 0");
     }
-    const existe = await obtenerContenedor(tipo, contenedorId, bodegaId);
+    const existe = await obtenerContenedor(tipo, contenedorId, bodegaId, userId);
     if (!existe) {
       throw new Error("El contenedor destino no existe");
     }
@@ -391,9 +250,9 @@ async function normalizarDestinosEntrada(destinos, kilosTotales, bodegaId = defa
   return resultado;
 }
 
-async function insertarDestinosEntrada(entradaId, destinos, fecha, bodegaId = defaultBodegaId) {
-  if (!bodegaId) {
-    throw new Error("Bodega inválida");
+async function insertarDestinosEntrada(entradaId, destinos, fecha, bodegaId, userId) {
+  if (!bodegaId || !userId) {
+    throw new Error("Usuario o bodega inválidos");
   }
   if (!destinos || !destinos.length) return;
   for (const destino of destinos) {
@@ -406,13 +265,15 @@ async function insertarDestinosEntrada(entradaId, destinos, fecha, bodegaId = de
       Boolean(destino.directo_prensa),
       destino.kilos,
       destino.merma_factor,
-      bodegaId
+      bodegaId,
+      userId
     );
     await db.run(
       `INSERT INTO entradas_destinos
-        (entrada_id, contenedor_tipo, contenedor_id, kilos, movimiento_id, directo_prensa, merma_factor, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (entrada_id, user_id, contenedor_tipo, contenedor_id, kilos, movimiento_id, directo_prensa, merma_factor, bodega_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       entradaId,
+      userId,
       destino.contenedor_tipo,
       destino.contenedor_id,
       destino.kilos,
@@ -433,11 +294,12 @@ async function registrarMovimientoEntrada(
   esPrensa = false,
   kilosOriginales = null,
   mermaFactor = null,
-  bodegaId = defaultBodegaId
+  bodegaId,
+  userId
 ) {
   const fechaReal = fecha || new Date().toISOString();
-  if (!bodegaId) {
-    throw new Error("Bodega inválida");
+  if (!bodegaId || !userId) {
+    throw new Error("Usuario o bodega inválidos");
   }
   const notaBase = esPrensa
     ? `Entrada prensa #${entradaId}${
@@ -448,14 +310,15 @@ async function registrarMovimientoEntrada(
     : `Entrada uva #${entradaId}`;
   const resultado = await db.run(
     `INSERT INTO movimientos_vino
-      (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, bodega_id)
-     VALUES (?, 'entrada_uva', NULL, NULL, ?, ?, ?, ?, ?)`,
+      (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, bodega_id, user_id)
+     VALUES (?, 'entrada_uva', NULL, NULL, ?, ?, ?, ?, ?, ?)`,
     fechaReal,
     destino_tipo,
     destino_id,
     litrosEfectivos,
     notaBase,
-    bodegaId
+    bodegaId,
+    userId
   );
   return resultado.lastID;
 }
@@ -463,12 +326,10 @@ async function registrarMovimientoEntrada(
 async function backfillEntradasDestinosMovimientos() {
   try {
     const pendientes = await db.all(
-      `SELECT ed.id, ed.entrada_id, ed.contenedor_tipo, ed.contenedor_id, ed.kilos, ed.directo_prensa, ed.merma_factor, e.fecha, e.bodega_id
+      `SELECT ed.id, ed.entrada_id, ed.contenedor_tipo, ed.contenedor_id, ed.kilos, ed.directo_prensa, ed.merma_factor, e.fecha, ed.bodega_id, ed.user_id
        FROM entradas_destinos ed
        JOIN entradas_uva e ON e.id = ed.entrada_id
-       WHERE ed.movimiento_id IS NULL
-         AND e.bodega_id = ?`,
-      defaultBodegaId
+       WHERE ed.movimiento_id IS NULL`
     );
     for (const registro of pendientes) {
       try {
@@ -488,13 +349,15 @@ async function backfillEntradasDestinosMovimientos() {
           directo,
           registro.kilos,
           merma,
-          registro.bodega_id || defaultBodegaId
+          registro.bodega_id,
+          registro.user_id
         );
         await db.run(
-          "UPDATE entradas_destinos SET movimiento_id = ? WHERE id = ? AND bodega_id = ?",
+          "UPDATE entradas_destinos SET movimiento_id = ? WHERE id = ? AND bodega_id = ? AND user_id = ?",
           movimientoId,
           registro.id,
-          registro.bodega_id || defaultBodegaId
+          registro.bodega_id,
+          registro.user_id
         );
       } catch (err) {
         console.error("Error generando movimiento para entrada destino:", err);
@@ -505,153 +368,26 @@ async function backfillEntradasDestinosMovimientos() {
   }
 }
 
-async function eliminarMovimientosEntrada(entradaId, bodegaId = defaultBodegaId) {
-  if (!bodegaId) {
+async function eliminarMovimientosEntrada(entradaId, bodegaId, userId) {
+  if (!bodegaId || !userId) {
     return;
   }
   const filas = await db.all(
-    "SELECT movimiento_id FROM entradas_destinos WHERE entrada_id = ? AND movimiento_id IS NOT NULL AND bodega_id = ?",
+    "SELECT movimiento_id FROM entradas_destinos WHERE entrada_id = ? AND movimiento_id IS NOT NULL AND bodega_id = ? AND user_id = ?",
     entradaId,
-    bodegaId
+    bodegaId,
+    userId
   );
   if (!filas.length) return;
   const ids = filas.map(f => f.movimiento_id).filter(Boolean);
   if (!ids.length) return;
   const placeholders = ids.map(() => "?").join(",");
-  await db.run(`DELETE FROM movimientos_vino WHERE id IN (${placeholders}) AND bodega_id = ?`, ...ids, bodegaId);
-}
-
-async function ensureRegistrosAnaliticosSchema() {
-  try {
-    await ensureBodegaColumn("registros_analiticos");
-    const cols = await db.all("PRAGMA table_info(registros_analiticos)");
-    const nombres = cols.map(c => c.name);
-    if (!nombres.includes("nota_sensorial")) {
-      await db.run("ALTER TABLE registros_analiticos ADD COLUMN nota_sensorial TEXT");
-      console.log("Columna 'nota_sensorial' añadida a registros_analiticos");
-    }
-  } catch (err) {
-    console.error("Error ajustando registros_analiticos:", err);
-  }
-}
-
-async function ensureEntradasDestinosSchema() {
-  try {
-    await ensureBodegaColumn("entradas_destinos");
-    const cols = await db.all("PRAGMA table_info(entradas_destinos)");
-    const nombres = cols.map(c => c.name);
-    if (!nombres.includes("movimiento_id")) {
-      await db.run("ALTER TABLE entradas_destinos ADD COLUMN movimiento_id INTEGER");
-      console.log("Columna 'movimiento_id' añadida a entradas_destinos");
-    }
-    if (!nombres.includes("directo_prensa")) {
-      await db.run("ALTER TABLE entradas_destinos ADD COLUMN directo_prensa INTEGER DEFAULT 0");
-      console.log("Columna 'directo_prensa' añadida a entradas_destinos");
-    }
-    if (!nombres.includes("merma_factor")) {
-      await db.run("ALTER TABLE entradas_destinos ADD COLUMN merma_factor REAL");
-      console.log("Columna 'merma_factor' añadida a entradas_destinos");
-    }
-  } catch (err) {
-    console.error("Error ajustando entradas_destinos:", err);
-  }
-}
-
-async function ensureAnalisisLabSchema() {
-  try {
-    await ensureBodegaColumn("analisis_laboratorio");
-    const cols = await db.all("PRAGMA table_info(analisis_laboratorio)");
-    const nombres = cols.map(c => c.name);
-    if (!nombres.includes("contenedor_tipo")) {
-      await db.run(
-        "ALTER TABLE analisis_laboratorio ADD COLUMN contenedor_tipo TEXT DEFAULT 'deposito'"
-      );
-      console.log("Columna 'contenedor_tipo' añadida a analisis_laboratorio");
-    }
-  } catch (err) {
-    console.error("Error ajustando analisis_laboratorio:", err);
-  }
-}
-
-async function ensureMovimientosSchema() {
-  try {
-    await ensureBodegaColumn("movimientos_vino");
-  } catch (err) {
-    console.error("Error ajustando movimientos_vino:", err);
-  }
-}
-
-async function ensureEmbotelladosSchema() {
-  try {
-    await ensureBodegaColumn("embotellados");
-  } catch (err) {
-    console.error("Error ajustando embotellados:", err);
-  }
-}
-
-async function ensureProductosLimpiezaSchema() {
-  try {
-    await ensureBodegaColumn("productos_limpieza");
-  } catch (err) {
-    console.error("Error ajustando productos_limpieza:", err);
-  }
-}
-
-async function ensureConsumosLimpiezaSchema() {
-  try {
-    await ensureBodegaColumn("consumos_limpieza");
-  } catch (err) {
-    console.error("Error ajustando consumos_limpieza:", err);
-  }
-}
-
-async function ensureProductosEnologicosSchema() {
-  try {
-    await ensureBodegaColumn("productos_enologicos");
-  } catch (err) {
-    console.error("Error ajustando productos_enologicos:", err);
-  }
-}
-
-async function ensureConsumosEnologicosSchema() {
-  try {
-    await ensureBodegaColumn("consumos_enologicos");
-  } catch (err) {
-    console.error("Error ajustando consumos_enologicos:", err);
-  }
-}
-
-async function ensureUsuariosSchema() {
-  try {
-    await ensureBodegaColumn("usuarios");
-  } catch (err) {
-    console.error("Error ajustando usuarios:", err);
-  }
-}
-
-async function normalizarUsuariosBodegas() {
-  try {
-    const usuarios = await db.all("SELECT id, usuario, bodega_id FROM usuarios ORDER BY id ASC");
-    const grupos = usuarios.reduce((acc, usuario) => {
-      const clave = usuario.bodega_id || 0;
-      if (!acc[clave]) acc[clave] = [];
-      acc[clave].push(usuario);
-      return acc;
-    }, {});
-    for (const clave of Object.keys(grupos)) {
-      const grupo = grupos[clave];
-      if (grupo.length <= 1) continue;
-      for (let i = 1; i < grupo.length; i++) {
-        const usuario = grupo[i];
-        const nombreBodega = `Bodega de ${usuario.usuario}`;
-        const resultado = await db.run("INSERT INTO bodegas (nombre) VALUES (?)", nombreBodega);
-        await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", resultado.lastID, usuario.id);
-        console.log("Asignada bodega nueva a usuario duplicado:", usuario.usuario, resultado.lastID);
-      }
-    }
-  } catch (err) {
-    console.error("Error normalizando bodegas de usuarios:", err);
-  }
+  await db.run(
+    `DELETE FROM movimientos_vino WHERE id IN (${placeholders}) AND bodega_id = ? AND user_id = ?`,
+    ...ids,
+    bodegaId,
+    userId
+  );
 }
 
 function sanitizarNombreArchivo(nombre) {
@@ -667,64 +403,116 @@ function extraerBufferDesdeBase64(data) {
   return { buffer: Buffer.from(base64, "base64"), mime };
 }
 
-async function obtenerContenedor(tipo, id, bodegaId = defaultBodegaId) {
-  if (!TIPOS_CONTENEDOR.has(tipo) || !bodegaId) return null;
-  if (tipo === "barrica") {
-    return db.get("SELECT * FROM barricas WHERE id = ? AND bodega_id = ?", id, bodegaId);
+async function ensureBodegaParaUsuario(userId, nombre = null) {
+  const existente = await db.get(
+    "SELECT id FROM bodegas WHERE user_id = ? ORDER BY id ASC LIMIT 1",
+    userId
+  );
+  if (existente) {
+    await db.run(
+      "UPDATE usuarios SET bodega_id = COALESCE(bodega_id, ?) WHERE id = ?",
+      existente.id,
+      userId
+    );
+    return existente.id;
   }
-  const fila = await db.get("SELECT * FROM depositos WHERE id = ? AND bodega_id = ?", id, bodegaId);
+  const usuario = await db.get("SELECT usuario FROM usuarios WHERE id = ?", userId);
+  const nombreBodega = nombre || (usuario ? `Bodega de ${usuario.usuario}` : `Bodega de usuario ${userId}`);
+  const resultado = await db.run(
+    "INSERT INTO bodegas (user_id, nombre) VALUES (?, ?)",
+    userId,
+    nombreBodega
+  );
+  await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", resultado.lastID, userId);
+  return resultado.lastID;
+}
+
+async function obtenerContenedor(tipo, id, bodegaId, userId) {
+  if (!TIPOS_CONTENEDOR.has(tipo) || !bodegaId || !userId) return null;
+  if (tipo === "barrica") {
+    return db.get(
+      "SELECT * FROM barricas WHERE id = ? AND bodega_id = ? AND user_id = ?",
+      id,
+      bodegaId,
+      userId
+    );
+  }
+  const fila = await db.get(
+    "SELECT * FROM depositos WHERE id = ? AND bodega_id = ? AND user_id = ?",
+    id,
+    bodegaId,
+    userId
+  );
   if (!fila) return null;
   const clase = normalizarClaseDeposito(fila.clase || "deposito");
   if (tipo === "mastelone" && clase !== "mastelone") return null;
   return fila;
 }
 
-async function obtenerLitrosActuales(tipo, id, bodegaId = defaultBodegaId) {
-  if (!TIPOS_CONTENEDOR.has(tipo) || !bodegaId) return null;
+async function obtenerLitrosActuales(tipo, id, bodegaId, userId) {
+  if (!TIPOS_CONTENEDOR.has(tipo) || !bodegaId || !userId) return null;
   const fila = await db.get(
     `
     SELECT 
       COALESCE((
         SELECT SUM(litros) FROM movimientos_vino
-        WHERE destino_tipo = ? AND destino_id = ? AND bodega_id = ?
+        WHERE destino_tipo = ? AND destino_id = ? AND bodega_id = ? AND user_id = ?
       ), 0) -
       COALESCE((
         SELECT SUM(litros) FROM movimientos_vino
-        WHERE origen_tipo = ? AND origen_id = ? AND bodega_id = ?
+        WHERE origen_tipo = ? AND origen_id = ? AND bodega_id = ? AND user_id = ?
       ), 0) AS litros
     `,
     tipo,
     id,
     bodegaId,
+    userId,
     tipo,
     id,
-    bodegaId
+    bodegaId,
+    userId
   );
   return fila ? fila.litros : 0;
 }
 
-async function existeCodigo(tabla, codigo, bodegaId = defaultBodegaId) {
-  if (!codigo || !bodegaId) return false;
-  const fila = await db.get(`SELECT id FROM ${tabla} WHERE codigo = ? AND bodega_id = ?`, codigo, bodegaId);
+async function existeCodigo(tabla, codigo, bodegaId, userId) {
+  if (!codigo || !bodegaId || !userId) return false;
+  const fila = await db.get(
+    `SELECT id FROM ${tabla} WHERE codigo = ? AND bodega_id = ? AND user_id = ?`,
+    codigo,
+    bodegaId,
+    userId
+  );
   return !!fila;
 }
 
-async function verificarDestinoMovimiento(tipo, id, bodegaId = defaultBodegaId) {
+async function verificarDestinoMovimiento(tipo, id, bodegaId, userId) {
   if (!tipo || id == null) return;
-  const cont = await obtenerContenedor(tipo, id, bodegaId);
+  const cont = await obtenerContenedor(tipo, id, bodegaId, userId);
   if (!cont) {
     throw new Error("El contenedor destino no existe");
   }
 }
 
-async function registrarConsumoProducto(tablaProductos, tablaConsumos, productoId, cantidad, destino_tipo, destino_id, nota, bodegaId = defaultBodegaId) {
-  if (!bodegaId) {
-    throw new Error("Bodega inválida");
+async function registrarConsumoProducto(
+  tablaProductos,
+  tablaConsumos,
+  productoId,
+  cantidad,
+  destino_tipo,
+  destino_id,
+  nota,
+  bodegaId,
+  userId
+) {
+  if (!bodegaId || !userId) {
+    throw new Error("Usuario o bodega inválidos");
   }
   const producto = await db.get(
-    `SELECT * FROM ${tablaProductos} WHERE id = ? AND bodega_id = ?`,
+    `SELECT * FROM ${tablaProductos} WHERE id = ? AND bodega_id = ? AND user_id = ?`,
     productoId,
-    bodegaId
+    bodegaId,
+    userId
   );
   if (!producto) {
     throw new Error("Producto no encontrado");
@@ -736,56 +524,68 @@ async function registrarConsumoProducto(tablaProductos, tablaConsumos, productoI
     throw new Error("No hay suficiente stock de este producto");
   }
   if (destino_tipo && destino_id != null) {
-    await verificarDestinoMovimiento(destino_tipo, destino_id, bodegaId);
+    await verificarDestinoMovimiento(destino_tipo, destino_id, bodegaId, userId);
   }
   const fecha = new Date().toISOString();
-  await db.run(
-    `INSERT INTO ${tablaConsumos}
-      (producto_id, fecha, cantidad, destino_tipo, destino_id, nota, bodega_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  const columnas =
+    "(producto_id, user_id, fecha, cantidad, destino_tipo, destino_id, nota, bodega_id)";
+  const placeholders = "?, ?, ?, ?, ?, ?, ?, ?";
+  const insertParams = [
     productoId,
+    userId,
     fecha,
     cantidad,
     destino_tipo || null,
     destino_id || null,
     nota || null,
     bodegaId
+  ];
+  await db.run(
+    `INSERT INTO ${tablaConsumos}
+      ${columnas}
+     VALUES (${placeholders})`,
+    ...insertParams
   );
   await db.run(
     `UPDATE ${tablaProductos}
        SET cantidad_disponible = cantidad_disponible - ?
-     WHERE id = ? AND bodega_id = ?`,
+     WHERE id = ? AND bodega_id = ? AND user_id = ?`,
     cantidad,
     productoId,
-    bodegaId
+    bodegaId,
+    userId
   );
 }
 
-async function registrarMovimientoEmbotellado(origen_tipo, origen_id, litros, nota, bodegaId = defaultBodegaId) {
+async function registrarMovimientoEmbotellado(origen_tipo, origen_id, litros, nota, bodegaId, userId) {
   const origenId = Number(origen_id);
   const litrosNum = Number(litros);
   if (!origen_tipo || Number.isNaN(origenId) || !litrosNum || litrosNum <= 0) {
     throw new Error("Datos de embotellado inválidos");
   }
-  const cont = await obtenerContenedor(origen_tipo, origenId, bodegaId);
+  if (!bodegaId || !userId) {
+    throw new Error("Usuario o bodega inválidos");
+  }
+  const cont = await obtenerContenedor(origen_tipo, origenId, bodegaId, userId);
   if (!cont) {
     throw new Error("El contenedor de origen no existe");
   }
-  const disponibles = await obtenerLitrosActuales(origen_tipo, origenId, bodegaId);
+  const disponibles = await obtenerLitrosActuales(origen_tipo, origenId, bodegaId, userId);
   if (disponibles != null && litrosNum > disponibles + 1e-6) {
     throw new Error(`El contenedor solo tiene ${disponibles.toFixed(2)} L disponibles`);
   }
   const fecha = new Date().toISOString();
   const stmt = await db.run(
     `INSERT INTO movimientos_vino
-      (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, bodega_id)
-     VALUES (?, 'embotellado', ?, ?, 'embotellado', NULL, ?, ?, ?)`,
+      (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, bodega_id, user_id)
+     VALUES (?, 'embotellado', ?, ?, 'embotellado', NULL, ?, ?, ?, ?)`,
     fecha,
     origen_tipo,
     origenId,
     litrosNum,
     nota || "",
-    bodegaId
+    bodegaId,
+    userId
   );
   return { movimientoId: stmt.lastID, fecha };
 }
@@ -802,6 +602,7 @@ function extraerAnadaDesdeFecha(fechaStr) {
 app.get("/api/depositos", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
       `
       SELECT
@@ -830,6 +631,7 @@ app.get("/api/depositos", async (req, res) => {
           END
             AND destino_id = d.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) +
         COALESCE((
           SELECT SUM(
@@ -846,6 +648,7 @@ app.get("/api/depositos", async (req, res) => {
             END
             AND contenedor_id = d.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) -
         COALESCE((
           SELECT SUM(litros) FROM movimientos_vino
@@ -856,15 +659,21 @@ app.get("/api/depositos", async (req, res) => {
           END
             AND origen_id = d.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) AS litros_actuales
       FROM depositos d
       WHERE d.activo = 1
         AND d.bodega_id = ?
+        AND d.user_id = ?
     `,
-      bodegaId,
-      bodegaId,
-      bodegaId,
-      bodegaId
+      bodegaId,  // destino movs
+      userId,    // destino movs user
+      bodegaId,  // entradas_destinos
+      userId,    // entradas_destinos user
+      bodegaId,  // origen movs
+      userId,    // origen movs user
+      bodegaId,  // where depositos
+      userId     // where depositos
     );
     res.json(filas);
   } catch (err) {
@@ -875,7 +684,7 @@ app.get("/api/depositos", async (req, res) => {
 
 app.get("/api/flujo", async (req, res) => {
   try {
-    const fila = await db.get("SELECT snapshot FROM flujo_nodos WHERE id = 1");
+    const fila = await db.get("SELECT snapshot FROM flujo_nodos WHERE user_id = ?", req.session.userId);
     if (!fila || !fila.snapshot) {
       return res.json({ nodos: [] });
     }
@@ -900,9 +709,10 @@ app.post("/api/flujo", async (req, res) => {
   }
   try {
     await db.run(
-      `INSERT INTO flujo_nodos (id, snapshot, updated_at)
-       VALUES (1, ?, datetime('now'))
-       ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot, updated_at = excluded.updated_at`,
+      `INSERT INTO flujo_nodos (user_id, snapshot, updated_at)
+       VALUES (?, ?, datetime('now'))
+       ON CONFLICT(user_id) DO UPDATE SET snapshot = excluded.snapshot, updated_at = excluded.updated_at`,
+      req.session.userId,
       JSON.stringify(nodos)
     );
     res.json({ ok: true });
@@ -932,7 +742,8 @@ app.post("/api/depositos", async (req, res) => {
     return res.status(400).json({ error: "El código del depósito es obligatorio" });
   }
   const bodegaId = req.session.bodegaId;
-  if (await existeCodigo("depositos", codigoLimpio, bodegaId)) {
+  const userId = req.session.userId;
+  if (await existeCodigo("depositos", codigoLimpio, bodegaId, userId)) {
     return res.status(400).json({ error: "Ya existe un depósito con ese código" });
   }
   const capacidadNum =
@@ -953,8 +764,8 @@ app.post("/api/depositos", async (req, res) => {
   try {
     await db.run(
       `INSERT INTO depositos 
-        (codigo, tipo, capacidad_hl, ubicacion, contenido, vino_tipo, vino_anio, fecha_uso, elaboracion, clase, estado, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (codigo, tipo, capacidad_hl, ubicacion, contenido, vino_tipo, vino_anio, fecha_uso, elaboracion, clase, estado, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       codigoLimpio,
       tipo || null,
       capacidad_hl,
@@ -966,7 +777,8 @@ app.post("/api/depositos", async (req, res) => {
       elaboracion || null,
       clase,
       estadoNormalizado,
-      bodegaId
+      bodegaId,
+      userId
     );
 
     res.json({ ok: true });
@@ -979,7 +791,8 @@ app.post("/api/depositos", async (req, res) => {
 app.delete("/api/depositos/:id", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
-    await db.run("DELETE FROM depositos WHERE id = ? AND bodega_id = ?", req.params.id, bodegaId);
+    const userId = req.session.userId;
+    await db.run("DELETE FROM depositos WHERE id = ? AND bodega_id = ? AND user_id = ?", req.params.id, bodegaId, userId);
     res.json({ ok: true });
   } catch (err) {
     console.error("Error borrando depósito:", err);
@@ -1019,12 +832,14 @@ app.put("/api/depositos/:id", async (req, res) => {
 
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     if (codigo) {
       const fila = await db.get(
-        "SELECT id FROM depositos WHERE codigo = ? AND id != ? AND bodega_id = ?",
+        "SELECT id FROM depositos WHERE codigo = ? AND id != ? AND bodega_id = ? AND user_id = ?",
         codigo,
         req.params.id,
-        bodegaId
+        bodegaId,
+        userId
       );
       if (fila) {
         return res.status(400).json({ error: "Ya existe un depósito con ese código" });
@@ -1053,6 +868,7 @@ app.put("/api/depositos/:id", async (req, res) => {
     }
     valores.push(req.params.id);
     valores.push(bodegaId);
+    valores.push(userId);
     await db.run(
       `UPDATE depositos
          SET codigo = ?,
@@ -1065,7 +881,8 @@ app.put("/api/depositos/:id", async (req, res) => {
              vino_tipo = ?,
              vino_anio = ?${setClase}${setEstado}
       WHERE id = ?
-        AND bodega_id = ?`,
+        AND bodega_id = ?
+        AND user_id = ?`,
       ...valores
     );
     res.json({ ok: true });
@@ -1087,12 +904,14 @@ app.put("/api/depositos/:id/posicion", async (req, res) => {
   }
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     await db.run(
-      "UPDATE depositos SET pos_x = ?, pos_y = ? WHERE id = ? AND bodega_id = ?",
+      "UPDATE depositos SET pos_x = ?, pos_y = ? WHERE id = ? AND bodega_id = ? AND user_id = ?",
       x,
       y,
       req.params.id,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1106,6 +925,7 @@ app.put("/api/depositos/:id/posicion", async (req, res) => {
 app.get("/api/barricas", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
       `
       SELECT
@@ -1114,19 +934,25 @@ app.get("/api/barricas", async (req, res) => {
           SELECT SUM(litros) FROM movimientos_vino
           WHERE destino_tipo = 'barrica' AND destino_id = b.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) -
         COALESCE((
           SELECT SUM(litros) FROM movimientos_vino
           WHERE origen_tipo = 'barrica' AND origen_id = b.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) AS litros_actuales
       FROM barricas b
       WHERE b.activo = 1
         AND b.bodega_id = ?
+        AND b.user_id = ?
     `,
       bodegaId,
+      userId,
       bodegaId,
-      bodegaId
+      userId,
+      bodegaId,
+      userId
     );
     res.json(filas);
   } catch (err) {
@@ -1152,15 +978,16 @@ app.post("/api/barricas", async (req, res) => {
     return res.status(400).json({ error: "El código de la barrica es obligatorio" });
   }
   const bodegaId = req.session.bodegaId;
-  if (await existeCodigo("barricas", codigoLimpio, bodegaId)) {
+  const userId = req.session.userId;
+  if (await existeCodigo("barricas", codigoLimpio, bodegaId, userId)) {
     return res.status(400).json({ error: "Ya existe una barrica con ese código" });
   }
 
   try {
     await db.run(
       `INSERT INTO barricas
-         (codigo, capacidad_l, tipo_roble, tostado, marca, anio, vino_anio, ubicacion, vino_tipo, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (codigo, capacidad_l, tipo_roble, tostado, marca, anio, vino_anio, ubicacion, vino_tipo, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       codigoLimpio,
       capacidad_l,
       tipo_roble,
@@ -1170,7 +997,8 @@ app.post("/api/barricas", async (req, res) => {
       vino_anio || null,
       ubicacion || null,
       vino_tipo || null,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1182,7 +1010,8 @@ app.post("/api/barricas", async (req, res) => {
 app.delete("/api/barricas/:id", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
-    await db.run("DELETE FROM barricas WHERE id = ? AND bodega_id = ?", req.params.id, bodegaId);
+    const userId = req.session.userId;
+    await db.run("DELETE FROM barricas WHERE id = ? AND bodega_id = ? AND user_id = ?", req.params.id, bodegaId, userId);
     res.json({ ok: true });
   } catch (err) {
     console.error("Error borrando barrica:", err);
@@ -1196,12 +1025,14 @@ app.put("/api/barricas/:id", async (req, res) => {
 
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     if (codigo) {
       const fila = await db.get(
-        "SELECT id FROM barricas WHERE codigo = ? AND id != ? AND bodega_id = ?",
+        "SELECT id FROM barricas WHERE codigo = ? AND id != ? AND bodega_id = ? AND user_id = ?",
         codigo,
         req.params.id,
-        bodegaId
+        bodegaId,
+        userId
       );
       if (fila) {
         return res.status(400).json({ error: "Ya existe una barrica con ese código" });
@@ -1219,7 +1050,8 @@ app.put("/api/barricas/:id", async (req, res) => {
              ubicacion = ?,
              vino_tipo = ?
        WHERE id = ?
-         AND bodega_id = ?`,
+         AND bodega_id = ?
+         AND user_id = ?`,
       codigo,
       capacidad_l,
       tipo_roble || null,
@@ -1230,7 +1062,8 @@ app.put("/api/barricas/:id", async (req, res) => {
       ubicacion || null,
       vino_tipo || null,
       req.params.id,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1251,12 +1084,14 @@ app.put("/api/barricas/:id/posicion", async (req, res) => {
   }
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     await db.run(
-      "UPDATE barricas SET pos_x = ?, pos_y = ? WHERE id = ? AND bodega_id = ?",
+      "UPDATE barricas SET pos_x = ?, pos_y = ? WHERE id = ? AND bodega_id = ? AND user_id = ?",
       x,
       y,
       req.params.id,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1271,9 +1106,11 @@ app.put("/api/barricas/:id/posicion", async (req, res) => {
 app.get("/api/limpieza", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
-      "SELECT * FROM productos_limpieza WHERE bodega_id = ? ORDER BY fecha_registro DESC, id DESC",
-      bodegaId
+      "SELECT * FROM productos_limpieza WHERE bodega_id = ? AND user_id = ? ORDER BY fecha_registro DESC, id DESC",
+      bodegaId,
+      userId
     );
     res.json(filas);
   } catch (err) {
@@ -1289,11 +1126,12 @@ app.post("/api/limpieza", async (req, res) => {
     return res.status(400).json({ error: "Faltan datos del producto o la cantidad es inválida" });
   }
   const bodegaId = req.session.bodegaId;
+  const userId = req.session.userId;
   try {
     await db.run(
       `INSERT INTO productos_limpieza
-        (nombre, lote, cantidad_inicial, cantidad_disponible, unidad, nota, fecha_registro, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (nombre, lote, cantidad_inicial, cantidad_disponible, unidad, nota, fecha_registro, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       nombre,
       lote,
       cantidadNum,
@@ -1301,7 +1139,8 @@ app.post("/api/limpieza", async (req, res) => {
       unidad || null,
       nota || null,
       new Date().toISOString(),
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1315,6 +1154,7 @@ app.post("/api/limpieza/consumos", async (req, res) => {
   try {
     const cantidadNum = Number(cantidad);
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     await registrarConsumoProducto(
       "productos_limpieza",
       "consumos_limpieza",
@@ -1323,7 +1163,8 @@ app.post("/api/limpieza/consumos", async (req, res) => {
       destino_tipo,
       destino_id,
       nota,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1338,9 +1179,11 @@ app.post("/api/limpieza/consumos", async (req, res) => {
 app.get("/api/enologicos", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
-      "SELECT * FROM productos_enologicos WHERE bodega_id = ? ORDER BY fecha_registro DESC, id DESC",
-      bodegaId
+      "SELECT * FROM productos_enologicos WHERE bodega_id = ? AND user_id = ? ORDER BY fecha_registro DESC, id DESC",
+      bodegaId,
+      userId
     );
     res.json(filas);
   } catch (err) {
@@ -1356,11 +1199,12 @@ app.post("/api/enologicos", async (req, res) => {
     return res.status(400).json({ error: "Faltan datos del producto o la cantidad es inválida" });
   }
   const bodegaId = req.session.bodegaId;
+  const userId = req.session.userId;
   try {
     await db.run(
       `INSERT INTO productos_enologicos
-        (nombre, lote, cantidad_inicial, cantidad_disponible, unidad, nota, fecha_registro, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (nombre, lote, cantidad_inicial, cantidad_disponible, unidad, nota, fecha_registro, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       nombre,
       lote,
       cantidadNum,
@@ -1368,7 +1212,8 @@ app.post("/api/enologicos", async (req, res) => {
       unidad || null,
       nota || null,
       new Date().toISOString(),
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1382,6 +1227,7 @@ app.post("/api/enologicos/consumos", async (req, res) => {
   try {
     const cantidadNum = Number(cantidad);
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     await registrarConsumoProducto(
       "productos_enologicos",
       "consumos_enologicos",
@@ -1390,7 +1236,8 @@ app.post("/api/enologicos/consumos", async (req, res) => {
       destino_tipo,
       destino_id,
       nota,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1405,14 +1252,16 @@ app.post("/api/enologicos/consumos", async (req, res) => {
 app.get("/api/embotellados", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
       `SELECT e.*, 
-        (SELECT codigo FROM depositos WHERE id = e.contenedor_id AND e.contenedor_tipo = 'deposito') AS deposito_codigo,
-        (SELECT codigo FROM barricas WHERE id = e.contenedor_id AND e.contenedor_tipo = 'barrica') AS barrica_codigo
+        (SELECT codigo FROM depositos d WHERE d.id = e.contenedor_id AND e.contenedor_tipo = 'deposito' AND d.user_id = e.user_id AND d.bodega_id = e.bodega_id) AS deposito_codigo,
+        (SELECT codigo FROM barricas b WHERE b.id = e.contenedor_id AND e.contenedor_tipo = 'barrica' AND b.user_id = e.user_id AND b.bodega_id = e.bodega_id) AS barrica_codigo
        FROM embotellados e
-       WHERE e.bodega_id = ?
+       WHERE e.bodega_id = ? AND e.user_id = ?
        ORDER BY fecha DESC, id DESC`,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json(filas);
   } catch (err) {
@@ -1440,18 +1289,20 @@ app.post("/api/embotellados", async (req, res) => {
 
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const { movimientoId, fecha: fechaMovimiento } = await registrarMovimientoEmbotellado(
       contenedor_tipo,
       contenedorIdNum,
       litrosNum,
       nota,
-      bodegaId
+      bodegaId,
+      userId
     );
 
     await db.run(
       `INSERT INTO embotellados
-        (fecha, contenedor_tipo, contenedor_id, litros, botellas, lote, nota, movimiento_id, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (fecha, contenedor_tipo, contenedor_id, litros, botellas, lote, nota, movimiento_id, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       fecha || fechaMovimiento,
       contenedor_tipo,
       contenedorIdNum,
@@ -1460,7 +1311,8 @@ app.post("/api/embotellados", async (req, res) => {
       lote || null,
       nota || null,
       movimientoId,
-      bodegaId
+      bodegaId,
+      userId
     );
 
     res.json({ ok: true });
@@ -1476,19 +1328,25 @@ app.post("/api/embotellados", async (req, res) => {
 app.get("/api/entradas_uva", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
-      "SELECT * FROM entradas_uva WHERE bodega_id = ? ORDER BY fecha DESC, id DESC",
-      bodegaId
+      "SELECT * FROM entradas_uva WHERE bodega_id = ? AND user_id = ? ORDER BY fecha DESC, id DESC",
+      bodegaId,
+      userId
     );
     const destinos = await db.all(
       `SELECT ed.* FROM entradas_destinos ed
        JOIN entradas_uva e ON e.id = ed.entrada_id
        WHERE e.bodega_id = ?
+         AND e.user_id = ?
+         AND ed.user_id = ?
        ORDER BY ed.id ASC`,
-      bodegaId
+      bodegaId,
+      userId,
+      userId
     );
-    const codDepos = await db.all("SELECT id, codigo FROM depositos WHERE bodega_id = ?", bodegaId);
-    const codBarricas = await db.all("SELECT id, codigo FROM barricas WHERE bodega_id = ?", bodegaId);
+    const codDepos = await db.all("SELECT id, codigo FROM depositos WHERE bodega_id = ? AND user_id = ?", bodegaId, userId);
+    const codBarricas = await db.all("SELECT id, codigo FROM barricas WHERE bodega_id = ? AND user_id = ?", bodegaId, userId);
     const mapaDep = new Map(codDepos.map(d => [d.id, d.codigo]));
     const mapaBarr = new Map(codBarricas.map(b => [b.id, b.codigo]));
     const destinosConCodigo = destinos.map(d => {
@@ -1547,9 +1405,10 @@ app.post("/api/entradas_uva", async (req, res) => {
   }
 
   const bodegaId = req.session.bodegaId;
+  const userId = req.session.userId;
   let destinosNormalizados = [];
   try {
-    destinosNormalizados = await normalizarDestinosEntrada(destinos, kilosNum, bodegaId);
+    destinosNormalizados = await normalizarDestinosEntrada(destinos, kilosNum, bodegaId, userId);
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -1558,8 +1417,8 @@ app.post("/api/entradas_uva", async (req, res) => {
     await db.run("BEGIN");
     const resultado = await db.run(
       `INSERT INTO entradas_uva
-       (fecha, anada, variedad, kilos, viticultor, tipo_suelo, parcela, anos_vid, proveedor, grado_potencial, observaciones, bodega_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (fecha, anada, variedad, kilos, viticultor, tipo_suelo, parcela, anos_vid, proveedor, grado_potencial, observaciones, bodega_id, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       fecha,
       anada,
       variedad,
@@ -1570,12 +1429,12 @@ app.post("/api/entradas_uva", async (req, res) => {
       anos_vid || null,
       proveedor || null,
       grado_potencial || null,
-      observaciones || null
-      ,
-      bodegaId
+      observaciones || null,
+      bodegaId,
+      userId
     );
     const entradaId = resultado.lastID;
-    await insertarDestinosEntrada(entradaId, destinosNormalizados, fecha, bodegaId);
+    await insertarDestinosEntrada(entradaId, destinosNormalizados, fecha, bodegaId, userId);
     await db.run("COMMIT");
     res.json({ ok: true });
   } catch (err) {
@@ -1606,9 +1465,10 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
   }
 
   const bodegaId = req.session.bodegaId;
+  const userId = req.session.userId;
   let destinosNormalizados = [];
   try {
-    destinosNormalizados = await normalizarDestinosEntrada(destinos, kilosNum, bodegaId);
+    destinosNormalizados = await normalizarDestinosEntrada(destinos, kilosNum, bodegaId, userId);
   } catch (err) {
     return res.status(400).json({ error: err.message });
   }
@@ -1629,7 +1489,8 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
              grado_potencial = ?,
              observaciones = ?
        WHERE id = ?
-         AND bodega_id = ?`,
+         AND bodega_id = ?
+         AND user_id = ?`,
       fecha,
       anada,
       variedad,
@@ -1642,11 +1503,17 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
       grado_potencial || null,
       observaciones || null,
       req.params.id,
-      bodegaId
+      bodegaId,
+      userId
     );
-    await eliminarMovimientosEntrada(req.params.id, bodegaId);
-    await db.run("DELETE FROM entradas_destinos WHERE entrada_id = ? AND bodega_id = ?", req.params.id, bodegaId);
-    await insertarDestinosEntrada(req.params.id, destinosNormalizados, fecha, bodegaId);
+    await eliminarMovimientosEntrada(req.params.id, bodegaId, userId);
+    await db.run(
+      "DELETE FROM entradas_destinos WHERE entrada_id = ? AND bodega_id = ? AND user_id = ?",
+      req.params.id,
+      bodegaId,
+      userId
+    );
+    await insertarDestinosEntrada(req.params.id, destinosNormalizados, fecha, bodegaId, userId);
     await db.run("COMMIT");
     res.json({ ok: true });
   } catch (err) {
@@ -1659,9 +1526,15 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
 app.delete("/api/entradas_uva/:id", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
-    await eliminarMovimientosEntrada(req.params.id, bodegaId);
-    await db.run("DELETE FROM entradas_destinos WHERE entrada_id = ? AND bodega_id = ?", req.params.id, bodegaId);
-    await db.run("DELETE FROM entradas_uva WHERE id = ? AND bodega_id = ?", req.params.id, bodegaId);
+    const userId = req.session.userId;
+    await eliminarMovimientosEntrada(req.params.id, bodegaId, userId);
+    await db.run(
+      "DELETE FROM entradas_destinos WHERE entrada_id = ? AND bodega_id = ? AND user_id = ?",
+      req.params.id,
+      bodegaId,
+      userId
+    );
+    await db.run("DELETE FROM entradas_uva WHERE id = ? AND bodega_id = ? AND user_id = ?", req.params.id, bodegaId, userId);
     res.json({ ok: true });
   } catch (err) {
     console.error("Error borrando entrada de uva:", err);
@@ -1677,14 +1550,17 @@ app.get("/api/registros/:tipo/:id", async (req, res) => {
 
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
       `SELECT * FROM registros_analiticos
        WHERE contenedor_tipo = ? AND contenedor_id = ?
          AND bodega_id = ?
+         AND user_id = ?
        ORDER BY fecha_hora DESC`,
       tipo,
       id,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json(filas);
   } catch (err) {
@@ -1706,10 +1582,11 @@ app.post("/api/registros", async (req, res) => {
 
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     await db.run(
       `INSERT INTO registros_analiticos
-       (contenedor_tipo, contenedor_id, fecha_hora, densidad, temperatura_c, nota, nota_sensorial, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (contenedor_tipo, contenedor_id, fecha_hora, densidad, temperatura_c, nota, nota_sensorial, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       contenedor_tipo,
       contenedor_id,
       fecha_hora,
@@ -1717,7 +1594,8 @@ app.post("/api/registros", async (req, res) => {
       temperatura_c || null,
       nota || null,
       nota_sensorial || null,
-      bodegaId
+      bodegaId,
+      userId
     );
     res.json({ ok: true });
   } catch (err) {
@@ -1732,11 +1610,14 @@ app.post("/api/registros", async (req, res) => {
 app.get("/api/analisis-lab", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const { deposito_id, tipo } = req.query;
     const condiciones = [];
     const params = [];
     condiciones.push("bodega_id = ?");
     params.push(bodegaId);
+    condiciones.push("user_id = ?");
+    params.push(userId);
     if (deposito_id) {
       condiciones.push("deposito_id = ?");
       params.push(deposito_id);
@@ -1783,7 +1664,7 @@ app.post("/api/analisis-lab", async (req, res) => {
     }
     const bodegaId = req.session.bodegaId;
     const contenedor_tipo = normalizarTipoContenedor(contenedorTipoEntrada, "deposito");
-    const contenedor = await obtenerContenedor(contenedor_tipo, contenedorIdNum, bodegaId);
+    const contenedor = await obtenerContenedor(contenedor_tipo, contenedorIdNum, bodegaId, req.session.userId);
     if (!contenedor) {
       return res.status(404).json({ error: "El contenedor no existe" });
     }
@@ -1805,8 +1686,8 @@ app.post("/api/analisis-lab", async (req, res) => {
     await fs.promises.writeFile(rutaArchivo, infoArchivo.buffer);
     await db.run(
       `INSERT INTO analisis_laboratorio
-         (deposito_id, contenedor_tipo, fecha, laboratorio, descripcion, archivo_nombre, archivo_fichero, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (deposito_id, contenedor_tipo, fecha, laboratorio, descripcion, archivo_nombre, archivo_fichero, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       contenedorIdNum,
       contenedor_tipo,
       fecha || null,
@@ -1814,7 +1695,8 @@ app.post("/api/analisis-lab", async (req, res) => {
       descripcion || null,
       nombreOriginal,
       nombreGuardado,
-      bodegaId
+      bodegaId,
+      req.session.userId
     );
 
     res.json({ ok: true });
@@ -1831,6 +1713,7 @@ app.get("/api/contenedores/:tipo/:id/historial", async (req, res) => {
   }
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const analiticos = await db.all(
       `SELECT 
          'analitico' AS categoria,
@@ -1841,10 +1724,12 @@ app.get("/api/contenedores/:tipo/:id/historial", async (req, res) => {
          nota_sensorial
        FROM registros_analiticos
        WHERE contenedor_tipo = ? AND contenedor_id = ?
-         AND bodega_id = ?`,
+         AND bodega_id = ?
+         AND user_id = ?`,
       tipo,
       id,
-      bodegaId
+      bodegaId,
+      userId
     );
 
     const movimientos = await db.all(
@@ -1860,11 +1745,13 @@ app.get("/api/contenedores/:tipo/:id/historial", async (req, res) => {
          nota
        FROM movimientos_vino
        WHERE bodega_id = ?
+         AND user_id = ?
          AND (
            (origen_tipo = ? AND origen_id = ?)
            OR (destino_tipo = ? AND destino_id = ?)
          )`,
       bodegaId,
+      userId,
       tipo,
       id,
       tipo,
@@ -1897,11 +1784,14 @@ app.get("/api/movimientos", async (req, res) => {
   try {
     // No nombramos columnas a mano: traemos todo lo que haya
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
       `SELECT * FROM movimientos_vino
       WHERE bodega_id = ?
+        AND user_id = ?
       ORDER BY id DESC`,
-      bodegaId
+      bodegaId,
+      userId
     );
 
     res.json(filas);
@@ -1958,12 +1848,13 @@ app.post("/api/movimientos", async (req, res) => {
 
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     if (origenTipo && origenId != null) {
-      const cont = await obtenerContenedor(origenTipo, origenId, bodegaId);
+      const cont = await obtenerContenedor(origenTipo, origenId, bodegaId, userId);
       if (!cont) {
         return res.status(400).json({ error: "El contenedor origen no existe" });
       }
-      const disponibles = await obtenerLitrosActuales(origenTipo, origenId, bodegaId);
+      const disponibles = await obtenerLitrosActuales(origenTipo, origenId, bodegaId, userId);
       if (disponibles != null && litrosNum > disponibles + 0.0001) {
         return res.status(400).json({
           error: `El contenedor origen solo tiene ${disponibles.toFixed(2)} L disponibles`,
@@ -1972,7 +1863,7 @@ app.post("/api/movimientos", async (req, res) => {
     }
 
     if (destinoTipo && destinoId != null) {
-      const cont = await obtenerContenedor(destinoTipo, destinoId, bodegaId);
+      const cont = await obtenerContenedor(destinoTipo, destinoId, bodegaId, userId);
       if (!cont) {
         return res.status(400).json({ error: "El contenedor destino no existe" });
       }
@@ -1983,7 +1874,7 @@ app.post("/api/movimientos", async (req, res) => {
         capacidadLitros = cont.capacidad_l;
       }
       if (capacidadLitros) {
-        const actuales = await obtenerLitrosActuales(destinoTipo, destinoId, bodegaId);
+        const actuales = await obtenerLitrosActuales(destinoTipo, destinoId, bodegaId, userId);
         if (actuales + litrosNum > capacidadLitros + 0.0001) {
           return res.status(400).json({
             error: `Superas la capacidad del destino (${capacidadLitros} L)`,
@@ -1994,8 +1885,8 @@ app.post("/api/movimientos", async (req, res) => {
 
     await db.run(
       `INSERT INTO movimientos_vino
-        (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, perdida_litros, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, perdida_litros, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         fechaReal,
         tipo,
@@ -2006,7 +1897,8 @@ app.post("/api/movimientos", async (req, res) => {
         litrosNum,
         nota || "",
         perdidaValor || null,
-        bodegaId
+        bodegaId,
+        userId
       ]
     );
 
@@ -2020,7 +1912,8 @@ app.post("/api/movimientos", async (req, res) => {
 app.delete("/api/movimientos", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
-    await db.run("DELETE FROM movimientos_vino WHERE bodega_id = ?", bodegaId);
+    const userId = req.session.userId;
+    await db.run("DELETE FROM movimientos_vino WHERE bodega_id = ? AND user_id = ?", bodegaId, userId);
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al limpiar movimientos:", err);
@@ -2031,7 +1924,8 @@ app.delete("/api/movimientos", async (req, res) => {
 app.delete("/api/movimientos/:id", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
-    await db.run("DELETE FROM movimientos_vino WHERE id = ? AND bodega_id = ?", req.params.id, bodegaId);
+    const userId = req.session.userId;
+    await db.run("DELETE FROM movimientos_vino WHERE id = ? AND bodega_id = ? AND user_id = ?", req.params.id, bodegaId, userId);
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al borrar movimiento:", err);
@@ -2042,11 +1936,14 @@ app.delete("/api/movimientos/:id", async (req, res) => {
 app.get("/api/export/movimientos", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const filas = await db.all(
       `SELECT * FROM movimientos_vino
        WHERE bodega_id = ?
+         AND user_id = ?
        ORDER BY fecha DESC, id DESC`,
-      bodegaId
+      bodegaId,
+      userId
     );
     const headers = [
       "id",
@@ -2084,25 +1981,31 @@ app.get("/api/export/movimientos", async (req, res) => {
 app.get("/api/resumen", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
     const dep = await db.get(
-      "SELECT COUNT(*) AS total FROM depositos WHERE activo = 1 AND COALESCE(clase, 'deposito') = 'deposito' AND bodega_id = ?",
-      bodegaId
+      "SELECT COUNT(*) AS total FROM depositos WHERE activo = 1 AND COALESCE(clase, 'deposito') = 'deposito' AND bodega_id = ? AND user_id = ?",
+      bodegaId,
+      userId
     );
     const mast = await db.get(
-      "SELECT COUNT(*) AS total FROM depositos WHERE activo = 1 AND COALESCE(clase, 'deposito') = 'mastelone' AND bodega_id = ?",
-      bodegaId
+      "SELECT COUNT(*) AS total FROM depositos WHERE activo = 1 AND COALESCE(clase, 'deposito') = 'mastelone' AND bodega_id = ? AND user_id = ?",
+      bodegaId,
+      userId
     );
     const bar = await db.get(
-      "SELECT COUNT(*) AS total FROM barricas WHERE activo = 1 AND bodega_id = ?",
-      bodegaId
+      "SELECT COUNT(*) AS total FROM barricas WHERE activo = 1 AND bodega_id = ? AND user_id = ?",
+      bodegaId,
+      userId
     );
     const ent = await db.get(
-      "SELECT COALESCE(SUM(kilos), 0) AS kilos FROM entradas_uva WHERE bodega_id = ?",
-      bodegaId
+      "SELECT COALESCE(SUM(kilos), 0) AS kilos FROM entradas_uva WHERE bodega_id = ? AND user_id = ?",
+      bodegaId,
+      userId
     );
     const reg = await db.get(
-      "SELECT COUNT(*) AS total FROM registros_analiticos WHERE bodega_id = ?",
-      bodegaId
+      "SELECT COUNT(*) AS total FROM registros_analiticos WHERE bodega_id = ? AND user_id = ?",
+      bodegaId,
+      userId
     );
     const litrosDep = await db.get(
       `
@@ -2111,21 +2014,27 @@ app.get("/api/resumen", async (req, res) => {
           SELECT SUM(litros) FROM movimientos_vino
           WHERE destino_tipo = 'deposito' AND destino_id = d.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) -
         COALESCE((
           SELECT SUM(litros) FROM movimientos_vino
           WHERE origen_tipo = 'deposito' AND origen_id = d.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0)
       ), 0) AS litros
       FROM depositos d
       WHERE d.activo = 1
         AND COALESCE(d.clase, 'deposito') = 'deposito'
         AND d.bodega_id = ?
+        AND d.user_id = ?
     `,
       bodegaId,
+      userId,
       bodegaId,
-      bodegaId
+      userId,
+      bodegaId,
+      userId
     );
     const litrosMast = await db.get(
       `
@@ -2134,21 +2043,27 @@ app.get("/api/resumen", async (req, res) => {
           SELECT SUM(litros) FROM movimientos_vino
           WHERE destino_tipo = 'mastelone' AND destino_id = d.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) -
         COALESCE((
           SELECT SUM(litros) FROM movimientos_vino
           WHERE origen_tipo = 'mastelone' AND origen_id = d.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0)
       ), 0) AS litros
       FROM depositos d
       WHERE d.activo = 1
         AND COALESCE(d.clase, 'deposito') = 'mastelone'
         AND d.bodega_id = ?
+        AND d.user_id = ?
     `,
       bodegaId,
+      userId,
       bodegaId,
-      bodegaId
+      userId,
+      bodegaId,
+      userId
     );
     const litrosBar = await db.get(
       `
@@ -2157,20 +2072,26 @@ app.get("/api/resumen", async (req, res) => {
           SELECT SUM(litros) FROM movimientos_vino
           WHERE destino_tipo = 'barrica' AND destino_id = b.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0) -
         COALESCE((
           SELECT SUM(litros) FROM movimientos_vino
           WHERE origen_tipo = 'barrica' AND origen_id = b.id
             AND bodega_id = ?
+            AND user_id = ?
         ), 0)
       ), 0) AS litros
       FROM barricas b
       WHERE b.activo = 1
         AND b.bodega_id = ?
+        AND b.user_id = ?
     `,
       bodegaId,
+      userId,
       bodegaId,
-      bodegaId
+      userId,
+      bodegaId,
+      userId
     );
 
     res.json({
@@ -2193,15 +2114,54 @@ app.get("/api/resumen", async (req, res) => {
 //  SERVIR LA WEB (frontend estático)
 // ===================================================
 const publicPath = path.join(__dirname, "public");
-app.use(express.static(publicPath));
+
+const PUBLIC_HTML_WHITELIST = new Set(["/login", "/login.html"]);
+
+function enforceWebAuth(req, res, next) {
+  if (req.method !== "GET") {
+    return next();
+  }
+  const pathname = req.path;
+  if (pathname.startsWith("/api") || pathname.startsWith("/uploads")) {
+    return next();
+  }
+  if (PUBLIC_HTML_WHITELIST.has(pathname)) {
+    return next();
+  }
+  const ext = path.extname(pathname);
+  const isHtmlView =
+    pathname === "/" ||
+    pathname.endsWith(".html") ||
+    (!ext && pathname !== "");
+  if (!isHtmlView) {
+    return next();
+  }
+  return requireLogin(req, res, next);
+}
+
+app.use(enforceWebAuth);
 
 app.get("/login", (req, res) => {
   res.sendFile(path.join(publicPath, "login.html"));
 });
 
+app.get("/login.html", (req, res) => {
+  res.sendFile(path.join(publicPath, "login.html"));
+});
+
+app.get("/", requireLogin, (req, res) => {
+  res.sendFile(path.join(publicPath, "index.html"));
+});
+
+app.get("/index.html", requireLogin, (req, res) => {
+  res.sendFile(path.join(publicPath, "index.html"));
+});
+
 app.get("/usuarios", requireLogin, (req, res) => {
   res.sendFile(path.join(publicPath, "usuarios.html"));
 });
+
+app.use(express.static(publicPath));
 
 app.post("/login", async (req, res) => {
   const { usuario, password } = req.body;
@@ -2222,8 +2182,12 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Contraseña incorrecta" });
     }
 
+    const bodegaValida = user.bodega_id
+      ? await db.get("SELECT id FROM bodegas WHERE id = ? AND user_id = ?", user.bodega_id, user.id)
+      : null;
+    const bodegaId = bodegaValida?.id || (await ensureBodegaParaUsuario(user.id));
     req.session.userId = user.id;
-    req.session.bodegaId = user.bodega_id;
+    req.session.bodegaId = bodegaId;
     res.json({ ok: true });
   } catch (err) {
     console.error("Error en /login:", err);
@@ -2282,20 +2246,24 @@ app.post("/register", async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
+    await db.run("BEGIN");
+    const resultadoUsuario = await db.run(
+      "INSERT INTO usuarios (usuario, password_hash) VALUES (?, ?)",
+      [usuario, hash]
+    );
+    const userId = resultadoUsuario.lastID;
     const nombreBodega = `Bodega de ${usuario}`;
     const resultadoBodega = await db.run(
-      "INSERT INTO bodegas (nombre) VALUES (?)",
-      [nombreBodega]
+      "INSERT INTO bodegas (user_id, nombre) VALUES (?, ?)",
+      [userId, nombreBodega]
     );
     const nuevaBodegaId = resultadoBodega.lastID;
-
-    await db.run(
-      "INSERT INTO usuarios (usuario, password_hash, bodega_id) VALUES (?, ?, ?)",
-      [usuario, hash, nuevaBodegaId]
-    );
+    await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", nuevaBodegaId, userId);
+    await db.run("COMMIT");
 
     res.json({ ok: true });
   } catch (err) {
+    await db.run("ROLLBACK");
     console.error("Error en /register:", err);
     res
       .status(500)
@@ -2314,18 +2282,19 @@ async function ensureAdminUser() {
   );
 
   if (existing) {
-    if (!existing.bodega_id && defaultBodegaId) {
-      await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", defaultBodegaId, existing.id);
-    }
+    await ensureBodegaParaUsuario(existing.id, DEFAULT_BODEGA_NAME);
     return; 
   }
 
   const hash = await bcrypt.hash(adminPassword, 10);
 
-  await db.run(
-    "INSERT INTO usuarios (usuario, password_hash, bodega_id) VALUES (?, ?, ?)",
-    [adminEmail, hash, defaultBodegaId]
+  const resultadoUsuario = await db.run(
+    "INSERT INTO usuarios (usuario, password_hash) VALUES (?, ?)",
+    [adminEmail, hash]
   );
+  const adminId = resultadoUsuario.lastID;
+  const bodegaId = await ensureBodegaParaUsuario(adminId, DEFAULT_BODEGA_NAME);
+  await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", bodegaId, adminId);
 
   console.log("✅ Usuario admin creado:", adminEmail);
 }
@@ -2333,23 +2302,8 @@ async function ensureAdminUser() {
 async function startServer() {
   await initDB();
 
-  await ensureBodegasSchema();
-  await ensureUsuariosSchema();
-  await normalizarUsuariosBodegas();
+  await ensureTables();
   await ensureAdminUser();
-  await ensureDepositosSchema();
-  await ensureBarricasSchema();
-  await ensureEntradasSchema();
-  await ensureFlujoNodosSchema();
-  await ensureEntradasDestinosSchema();
-  await ensureRegistrosAnaliticosSchema();
-  await ensureAnalisisLabSchema();
-  await ensureMovimientosSchema();
-  await ensureEmbotelladosSchema();
-  await ensureProductosLimpiezaSchema();
-  await ensureConsumosLimpiezaSchema();
-  await ensureProductosEnologicosSchema();
-  await ensureConsumosEnologicosSchema();
   await backfillEntradasDestinosMovimientos();
 
   app.listen(PORT, () => {
