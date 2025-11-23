@@ -208,3 +208,10 @@ CREATE TABLE IF NOT EXISTS consumos_enologicos (
   nota TEXT,
   FOREIGN KEY (producto_id) REFERENCES productos_enologicos(id)
 );
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  creado_en TEXT DEFAULT (datetime('now'))
+);

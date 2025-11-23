@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gestión de usuarios · Bodega</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        sans-serif;
+      background: radial-gradient(circle at top left, #2a163c, #05030a);
+      color: #f7f1ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .panel {
+      background: rgba(15, 8, 34, 0.95);
+      border-radius: 22px;
+      padding: 24px 26px 26px;
+      width: 380px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 4px;
+    }
+    p {
+      margin: 0 0 18px;
+      font-size: 13px;
+      color: rgba(240, 230, 255, 0.75);
+    }
+    .field {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: rgba(240, 230, 255, 0.8);
+    }
+    input {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(8, 4, 20, 0.9);
+      color: #f7f1ff;
+      font-size: 13px;
+      outline: none;
+    }
+    input:focus {
+      border-color: #ff8bd5;
+      box-shadow: 0 0 0 1px rgba(255, 139, 213, 0.4);
+    }
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: linear-gradient(90deg, #ff8bd5, #ffb9b5);
+      color: #2a0b3c;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    button:hover {
+      filter: brightness(1.05);
+    }
+    .msg {
+      margin-top: 10px;
+      font-size: 13px;
+      min-height: 16px;
+    }
+    .msg.error {
+      color: #ffb3c7;
+    }
+    .msg.ok {
+      color: #b6ffd2;
+    }
+    .link {
+      margin-top: 16px;
+      font-size: 12px;
+      color: rgba(240, 230, 255, 0.7);
+    }
+    .link a {
+      color: #ff9ed9;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>Nuevo usuario</h1>
+    <p>Crea accesos para otras personas de la bodega.</p>
+
+    <form id="form-usuario">
+      <div class="field">
+        <label for="usuario">Usuario (email)</label>
+        <input type="email" id="usuario" name="usuario" required />
+      </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          minlength="6"
+          required
+        />
+      </div>
+      <button type="submit">Crear usuario</button>
+      <div id="mensaje" class="msg"></div>
+    </form>
+
+    <div class="link">
+      <a href="/">Volver al panel de la bodega</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("form-usuario");
+    const msg = document.getElementById("mensaje");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      msg.className = "msg";
+
+      const usuario = document.getElementById("usuario").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!usuario || !password) {
+        msg.textContent = "Rellena usuario y contraseña.";
+        msg.classList.add("error");
+        return;
+      }
+
+      try {
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario, password }),
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+          msg.textContent = "Usuario creado correctamente.";
+          msg.classList.add("ok");
+          form.reset();
+        } else {
+          msg.textContent = data.error || "No se pudo crear el usuario.";
+          msg.classList.add("error");
+        }
+      } catch (err) {
+        console.error(err);
+        msg.textContent = "Error de conexión con el servidor.";
+        msg.classList.add("error");
+      }
+    });
+  </script>
+</body>
+</html>

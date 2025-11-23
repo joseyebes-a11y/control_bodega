@@ -6,14 +6,29 @@ import { open } from "sqlite";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import session from 'express-session';
+import bcrypt from 'bcryptjs';
 
-// Necesario para __dirname en ESModules
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+ const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); 
+app.use(session({
+  secret: "mi_clave_super_secreta",
+  resave: false,
+  saveUninitialized: false
+}));
+
+function requireLogin(req, res, next) {
+    if (!req.session.userId) {
+        return res.redirect('/login.html');
+    }
+    next();
+}
 
 let db;
 const uploadsDir = path.join(__dirname, "uploads");
@@ -81,8 +96,6 @@ async function initDB() {
 
   console.log("✔️ Base de datos inicializada");
 }
-
-await initDB();
 
 async function ensureFlujoNodosSchema() {
   try {
@@ -228,15 +241,6 @@ async function ensureEntradasSchema() {
     console.error("Error ajustando esquema de entradas_uva:", err);
   }
 }
-
-await ensureDepositosSchema();
-await ensureBarricasSchema();
-await ensureEntradasSchema();
-await ensureFlujoNodosSchema();
-await ensureEntradasDestinosSchema();
-await ensureRegistrosAnaliticosSchema();
-await ensureAnalisisLabSchema();
-await backfillEntradasDestinosMovimientos();
 
 const CLASES_DEPOSITO = new Set(["deposito", "mastelone", "barrica"]);
 const TIPOS_CONTENEDOR = new Set(["deposito", "barrica", "mastelone"]);
@@ -1883,11 +1887,120 @@ app.get("/api/resumen", async (req, res) => {
 const publicPath = path.join(__dirname, "public");
 app.use(express.static(publicPath));
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(publicPath, "index.html"));
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(publicPath, "login.html"));
 });
 
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor iniciado en http://localhost:${PORT}`);
+app.get("/usuarios", requireLogin, (req, res) => {
+  res.sendFile(path.join(publicPath, "usuarios.html"));
+});
+
+app.post("/login", async (req, res) => {
+  const { usuario, password } = req.body;
+
+  try {
+    const user = await db.get(
+      "SELECT * FROM usuarios WHERE usuario = ?",
+      [usuario]
+    );
+
+    if (!user) {
+      return res.status(400).json({ error: "Usuario no encontrado" });
+    }
+
+    const isValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isValid) {
+      return res.status(400).json({ error: "Contraseña incorrecta" });
+    }
+
+    req.session.userId = user.id;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en /login:", err);
+    res.status(500).json({ error: "Error interno en el login." });
+  }
+});
+
+app.post("/register", async (req, res) => {
+  const { usuario, password } = req.body;
+
+  if (!usuario || !password) {
+    return res
+      .status(400)
+      .json({ error: "Usuario y contraseña son obligatorios" });
+  }
+
+  try {
+    const existing = await db.get(
+      "SELECT id FROM usuarios WHERE usuario = ?",
+      [usuario]
+    );
+
+    if (existing) {
+      return res
+        .status(400)
+        .json({ error: "Ese usuario ya está registrado." });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+
+    await db.run(
+      "INSERT INTO usuarios (usuario, password_hash) VALUES (?, ?)",
+      [usuario, hash]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en /register:", err);
+    res
+      .status(500)
+      .json({ error: "Error interno al registrar usuario." });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+async function ensureAdminUser() {
+  const adminEmail = "joseyebes@gmail.com"; 
+  const adminPassword = "1234"; 
+
+  const existing = await db.get(
+    "SELECT id FROM usuarios WHERE usuario = ?",
+    [adminEmail]
+  );
+
+  if (existing) {
+    return; 
+  }
+
+  const hash = await bcrypt.hash(adminPassword, 10);
+
+  await db.run(
+    "INSERT INTO usuarios (usuario, password_hash) VALUES (?, ?)",
+    [adminEmail, hash]
+  );
+
+  console.log("✅ Usuario admin creado:", adminEmail);
+}
+
+async function startServer() {
+  await initDB();
+
+  await ensureAdminUser();
+  await ensureDepositosSchema();
+  await ensureBarricasSchema();
+  await ensureEntradasSchema();
+  await ensureFlujoNodosSchema();
+  await ensureEntradasDestinosSchema();
+  await ensureRegistrosAnaliticosSchema();
+  await ensureAnalisisLabSchema();
+  await backfillEntradasDestinosMovimientos();
+
+  app.listen(PORT, () => {
+    console.log(`🔥 Servidor iniciado en el puerto ${PORT}`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error("Error al iniciar el servidor:", err);
 });

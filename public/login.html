@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso bodega</title>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #3b214e, #100815 55%, #050309);
+      color: #f8f2ff;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+    }
+
+    .login-card {
+      background: linear-gradient(
+          145deg,
+          rgba(255, 255, 255, 0.16),
+          rgba(255, 255, 255, 0.05)
+        );
+      border-radius: 26px;
+      padding: 24px 22px 22px;
+      box-shadow:
+        0 22px 45px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(22px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    h1 {
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    p {
+      font-size: 13px;
+      color: #d7cbe8;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 3px;
+      color: #e3d6f6;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(9, 5, 17, 0.65);
+      color: #f9f4ff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .field input::placeholder {
+      color: #a89cbc;
+    }
+
+    .field input:focus {
+      border-color: #f9b8e3;
+      background: rgba(15, 9, 26, 0.9);
+      box-shadow: 0 0 0 1px rgba(250, 181, 225, 0.6);
+    }
+
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #f79ad3, #f5d6ff);
+      color: #3b214e;
+      box-shadow:
+        0 12px 25px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.35);
+      margin-top: 6px;
+    }
+
+    button:hover {
+      filter: brightness(1.05);
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 18px 0 8px;
+      color: #f3e6ff;
+    }
+
+    .msg {
+      margin-top: 6px;
+      font-size: 12px;
+      min-height: 16px;
+    }
+    .msg.error { color: #ffb3c7; }
+    .msg.ok { color: #b6ffd2; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="login-card">
+      <h1>Acceso a la bodega</h1>
+      <p>Inicia sesión o crea un usuario nuevo para trabajar con la app.</p>
+
+      <!-- LOGIN -->
+      <div>
+        <div class="section-title">Entrar</div>
+        <form id="login-form">
+          <div class="field">
+            <label for="usuario">Usuario (email)</label>
+            <input type="text" id="usuario" name="usuario" required />
+          </div>
+          <div class="field">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" name="password" required />
+          </div>
+          <button type="submit">Entrar en la bodega</button>
+          <div id="login-mensaje" class="msg"></div>
+        </form>
+      </div>
+
+      <!-- REGISTRO -->
+      <div>
+        <div class="section-title">Crear nuevo usuario</div>
+        <form id="register-form">
+          <div class="field">
+            <label for="reg-usuario">Usuario (email)</label>
+            <input type="email" id="reg-usuario" name="usuario" required />
+          </div>
+          <div class="field">
+            <label for="reg-password">Contraseña</label>
+            <input type="password" id="reg-password" name="password" required />
+          </div>
+          <button type="submit">Crear usuario</button>
+          <div id="register-mensaje" class="msg"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // LOGIN
+    const loginForm = document.getElementById("login-form");
+    const loginMsg = document.getElementById("login-mensaje");
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginMsg.textContent = "";
+      loginMsg.className = "msg";
+
+      const usuario = document.getElementById("usuario").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      try {
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario, password }),
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+          window.location.href = "/";
+        } else {
+          loginMsg.textContent = data.error || "No se pudo iniciar sesión.";
+          loginMsg.classList.add("error");
+        }
+      } catch (err) {
+        console.error(err);
+        loginMsg.textContent = "Error de conexión con el servidor.";
+        loginMsg.classList.add("error");
+      }
+    });
+
+    // REGISTRO
+    const regForm = document.getElementById("register-form");
+    const regMsg = document.getElementById("register-mensaje");
+
+    regForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      regMsg.textContent = "";
+      regMsg.className = "msg";
+
+      const usuario = document.getElementById("reg-usuario").value.trim();
+      const password = document.getElementById("reg-password").value.trim();
+
+      try {
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario, password }),
+        });
+
+        const data = await res.json();
+
+        if (data.ok) {
+          regMsg.textContent = "Usuario creado correctamente.";
+          regMsg.classList.add("ok");
+          regForm.reset();
+        } else {
+          regMsg.textContent = data.error || "No se pudo crear el usuario.";
+          regMsg.classList.add("error");
+        }
+      } catch (err) {
+        console.error(err);
+        regMsg.textContent = "Error de conexión con el servidor.";
+        regMsg.classList.add("error");
+      }
+    });
+  </script>
+</body>
+</html>
