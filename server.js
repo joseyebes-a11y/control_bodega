@@ -2043,7 +2043,6 @@ async function startServer() {
 
   await ensureTables();
   await ensureAdminUser();
-  await backfillEntradasDestinosMovimientos();
 
   // 👇 IMPORTANTE: forzar 0.0.0.0 para Render
   app.listen(PORT, "0.0.0.0", () => {
