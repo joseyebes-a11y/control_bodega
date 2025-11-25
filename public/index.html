@@ -71,20 +71,7 @@ body::after {
         }
 
         .user-chip {
-            min-width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            border: 1px solid rgba(255,255,255,0.25);
-            background: rgba(255,255,255,0.12);
-            color: #fff;
-            font-weight: 600;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: default;
-            box-shadow: 0 12px 25px rgba(0,0,0,0.35);
-            text-transform: uppercase;
+            display: none;
         }
 
 .topbar-title {
@@ -1562,23 +1549,21 @@ label {
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">
                 <div class="card" style="flex:1;">
-                    <h3>Kilos de uva entrados</h3>
-                    <p id="resumenKilos" style="font-size:22px; font-weight:bold;">0 kg</p>
+                    <h3>🍇 Kilos de uva entrados</h3>
+                    <p id="resumenKilos" style="font-size:32px; font-weight:bold;">0 kg</p>
                 </div>
 
                 <div class="card" style="flex:1;">
-                    <h3>Depósitos registrados</h3>
-                    <p id="resumenDepositos" style="font-size:22px; font-weight:bold;">0</p>
+                    <h3>🛢 Depósitos registrados</h3>
+                    <p id="resumenDepositos" style="font-size:32px; font-weight:bold;">0</p>
                 </div>
 
                 <div class="card" style="flex:1;">
-                    <h3>Mastelones registrados</h3>
-                    <p id="resumenMastelones" style="font-size:22px; font-weight:bold;">0</p>
-                </div>
-
-                <div class="card" style="flex:1;">
-                    <h3>Barricas registradas</h3>
-                    <p id="resumenBarricas" style="font-size:22px; font-weight:bold;">0</p>
+                    <h3 style="display:flex; align-items:center; gap:8px;">
+                        <img src="/barricas.png" alt="Barricas" style="width:22px; height:22px; object-fit:contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25)); mix-blend-mode:multiply; background:transparent;">
+                        Barricas registradas
+                    </h3>
+                    <p id="resumenBarricas" style="font-size:32px; font-weight:bold;">0</p>
                 </div>
 
             </div>
@@ -1610,25 +1595,28 @@ label {
 
             <div class="indicadores-grid">
                 <div class="indicador-card">
-                    <h4>Depósitos</h4>
+                    <h4>🛢 Depósitos</h4>
                     <p id="indicadorDepositosPrincipal">--</p>
                     <small id="indicadorDepositosDetalle">Calculando ocupación...</small>
                     <small id="indicadorDepositosExtra"></small>
                 </div>
                 <div class="indicador-card">
-                    <h4>Mastelones</h4>
+                    <h4><span style="color:#c94458;">🪣</span> Mastelones</h4>
                     <p id="indicadorMastelonesPrincipal">--</p>
                     <small id="indicadorMastelonesDetalle">Calculando ocupación...</small>
                     <small id="indicadorMastelonesExtra"></small>
                 </div>
                 <div class="indicador-card">
-                    <h4>Barricas</h4>
+                    <h4 style="display:flex; align-items:center; gap:6px;">
+                        <img src="/barricas.png" alt="Barricas" style="width:18px; height:18px; object-fit:contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25)); mix-blend-mode:multiply; background:transparent;">
+                        Barricas
+                    </h4>
                     <p id="indicadorBarricasPrincipal">--</p>
                     <small id="indicadorBarricasDetalle">Calculando ocupación...</small>
                     <small id="indicadorBarricasExtra"></small>
                 </div>
                 <div class="indicador-card">
-                    <h4>Embotellado</h4>
+                    <h4>🍾 Embotellado</h4>
                     <p id="indicadorEmbotelladosPrincipal">--</p>
                     <small id="indicadorEmbotelladosDetalle">Sin registros</small>
                 </div>
@@ -1661,14 +1649,19 @@ label {
                     <button class="btnSecundario" type="button" onclick="sembrarNodosDesdeDatos()">Sembrar nodos desde datos</button>
                 </div>
                 <div class="flow-toolbar-group">
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('entrada')">+ Entrada de uva</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('estilo')">+ Estilo</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('deposito')">+ Depósito</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('coupage')">+ Coupage / Blend</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('barrica')">+ Crianza</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('embotellado')">+ Embotellado</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('almacen')">+ Almacén</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('salida')">+ Salida</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('entrada')">🍇 Entrada de uva</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('estilo')">⚗️ Elaboración</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('deposito')">🛢 Depósito</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('coupage')">🧪 Coupage / Blend</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('barrica')">
+                        <span style="display:inline-flex; align-items:center; gap:6px;">
+                          <img src="/barricas.png" alt="Barricas" style="width:18px; height:18px; object-fit:contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25)); mix-blend-mode:multiply; background:transparent;">
+                          Crianza
+                        </span>
+                    </button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('embotellado')">🍾 Embotellado</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('almacen')">📦 Almacén</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('salida')">🚚 Salida</button>
                 </div>
                 <div class="flow-toolbar-group">
                     <button class="btnSecundario" type="button" onclick="exportarNodosComoImagen()">Exportar imagen</button>
@@ -1988,7 +1981,6 @@ label {
                             <tr>
                                 <th>Fecha</th>
                                 <th>Origen</th>
-                                <th>Litros</th>
                                 <th>Botellas</th>
                                 <th>Lote</th>
                                 <th>Nota</th>
@@ -2013,11 +2005,8 @@ label {
                         <label>Contenedor (ID o código)</label>
                         <input type="text" id="embContenedor" placeholder="Ej. A1 o 3" required>
 
-                        <label>Litros</label>
-                        <input type="number" id="embLitros" min="0" step="0.1" required>
-
                         <label>Botellas</label>
-                        <input type="number" id="embBotellas" min="0" step="1">
+                        <input type="number" id="embBotellas" min="0" step="1" required>
 
                         <label>Lote embotellado</label>
                         <input type="text" id="embLote" placeholder="Referencia de lote">
@@ -3181,7 +3170,7 @@ const FLOW_NODE_TYPES = {
     campos: [
       {
         id: "estilo",
-        label: "Fermentación",
+        label: "Fermentación / Elaboración",
         tipo: "select",
         opciones: ["FA", "FML"],
         placeholder: "Selecciona tipo",
@@ -3190,7 +3179,7 @@ const FLOW_NODE_TYPES = {
     ],
   },
   estilo: {
-    label: "Estilo",
+    label: "Elaboración",
     icono: "⚗️",
     campos: [
       { id: "kilos", label: "Kilos asignados", tipo: "info" },
@@ -3200,7 +3189,7 @@ const FLOW_NODE_TYPES = {
         tipo: "select",
         opciones: ["Despalillado", "Pisado", "Prensado", "Uva entera", "Mixto", "Sangrado"],
       },
-      { id: "descripcion", label: "Descripción", tipo: "textarea", placeholder: "Detalles adicionales" },
+      { id: "descripcion", label: "Descripción de elaboración", tipo: "textarea", placeholder: "Detalles adicionales" },
     ],
   },
   deposito: {
@@ -5228,7 +5217,17 @@ function actualizarGraficosResumen(data) {
 
   const detalle = document.getElementById("chartLitrosDetalle");
   if (detalle) {
-    detalle.textContent = `Depósitos: ${Math.round(litrosDepositos).toLocaleString()} L · Mastelones: ${Math.round(litrosMastelones).toLocaleString()} L · Barricas: ${Math.round(litrosBarricas).toLocaleString()} L`;
+    const depTxt = `${Math.round(litrosDepositos).toLocaleString()} L`;
+    const mastTxt = `${Math.round(litrosMastelones).toLocaleString()} L`;
+    const barrTxt = `${Math.round(litrosBarricas).toLocaleString()} L`;
+    detalle.innerHTML = `
+      🛢 Depósitos: ${depTxt} ·
+      🪣 Mastelones: ${mastTxt} ·
+      <span style="display:inline-flex; align-items:center; gap:4px;">
+        <img src="/barricas.png" alt="Barricas" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); mix-blend-mode:multiply; background:transparent;">
+        Barricas: ${barrTxt}
+      </span>
+    `;
   }
 }
 
@@ -5316,17 +5315,17 @@ function actualizarIndicadores() {
     }
   }
 
-  const totalEmbotellado = (cacheEmbotellados || []).reduce(
-    (acc, e) => acc + (Number(e.litros) || 0),
+  const totalBotellas = (cacheEmbotellados || []).reduce(
+    (acc, e) => acc + (Number(e.botellas) || 0),
     0
   );
   const embPrincipal = document.getElementById("indicadorEmbotelladosPrincipal");
   if (embPrincipal) {
-    embPrincipal.textContent = formatearNumeroCorto(totalEmbotellado) + " L";
+    embPrincipal.textContent = `${formatearNumeroCorto(totalBotellas)} botellas`;
     const detalle = document.getElementById("indicadorEmbotelladosDetalle");
     if (detalle) {
-      detalle.textContent = totalEmbotellado
-        ? `${formatearLitrosPlano(totalEmbotellado)} embotellados este año`
+      detalle.textContent = totalBotellas
+        ? `${totalBotellas.toLocaleString("es-ES")} botellas embotelladas`
         : "Aún no hay embotellados recientes";
     }
   }
@@ -5704,11 +5703,6 @@ async function cargarResumen() {
 
     document.getElementById("resumenDepositos").textContent =
       data.depositos || 0;
-
-    const mastEl = document.getElementById("resumenMastelones");
-    if (mastEl) {
-      mastEl.textContent = data.mastelones || 0;
-    }
 
     document.getElementById("resumenBarricas").textContent =
       data.barricas || 0;
@@ -7566,7 +7560,7 @@ async function registrarUsoEnologico(id) {
 
                 if (!datos.length) {
                     const tr = document.createElement("tr");
-                    tr.innerHTML = '<td colspan="6">Aún no hay embotellados registrados.</td>';
+                    tr.innerHTML = '<td colspan="5">Aún no hay embotellados registrados.</td>';
                     tbody.appendChild(tr);
                     return;
                 }
@@ -7578,7 +7572,6 @@ async function registrarUsoEnologico(id) {
                     tr.innerHTML = `
                         <td>${fecha}</td>
                         <td>${origen}</td>
-                        <td>${e.litros ?? ""}</td>
                         <td>${e.botellas ?? ""}</td>
                         <td>${e.lote || ""}</td>
                         <td>${e.nota || ""}</td>
@@ -7597,7 +7590,6 @@ async function registrarUsoEnologico(id) {
             const fecha = document.getElementById("embFecha").value;
             const contenedor_tipo = document.getElementById("embTipo").value;
             const contenedorValor = document.getElementById("embContenedor").value.trim();
-            const litros = parseFloat(document.getElementById("embLitros").value || "0");
             const botellas = parseInt(document.getElementById("embBotellas").value || "0", 10) || null;
             const lote = document.getElementById("embLote").value.trim();
             const nota = document.getElementById("embNota").value.trim();
@@ -7607,10 +7599,13 @@ async function registrarUsoEnologico(id) {
                 alert("No encuentro ese contenedor.");
                 return;
             }
-            if (!litros || litros <= 0) {
-                alert("Los litros deben ser mayores que 0.");
+            if (!botellas || botellas <= 0) {
+                alert("Las botellas deben ser mayores que 0.");
                 return;
             }
+
+            // Volumen interno estimado para registrar el movimiento; 0.75 L por botella como referencia.
+            const litros = Number((botellas * 0.75).toFixed(3));
 
             const body = {
                 fecha,

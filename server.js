@@ -195,201 +195,6 @@ function normalizarEstadoDeposito(valor) {
   return encontrado ? encontrado.id : "vacio";
 }
 
-async function normalizarDestinosEntrada(destinos, kilosTotales, bodegaId, userId) {
-  if (!bodegaId || !userId) {
-    throw new Error("Usuario o bodega inválidos");
-  }
-  if (!Array.isArray(destinos) || !destinos.length) return [];
-  const resultado = [];
-  for (const destino of destinos) {
-    const tipo = normalizarTipoContenedor(destino.contenedor_tipo, "deposito");
-    if (!TIPOS_DESTINO_ENTRADA.has(tipo)) {
-      throw new Error("Solo se pueden asignar depósitos, mastelones o barricas");
-    }
-    const contenedorId = Number(destino.contenedor_id);
-    if (!contenedorId) {
-      throw new Error("Contenedor destino inválido");
-    }
-    const kilos = Number(destino.kilos);
-    if (!kilos || Number.isNaN(kilos) || kilos <= 0) {
-      throw new Error("Los kilos asignados deben ser mayores que 0");
-    }
-    const existe = await obtenerContenedor(tipo, contenedorId, bodegaId, userId);
-    if (!existe) {
-      throw new Error("El contenedor destino no existe");
-    }
-    const directoPrensa = Boolean(destino.directo_prensa);
-    let mermaFactor = directoPrensa
-      ? destino.merma_factor != null && destino.merma_factor !== ""
-        ? Number(destino.merma_factor)
-        : FACTOR_MERMA_PRENSA
-      : 0;
-    if (directoPrensa) {
-      if (Number.isNaN(mermaFactor) || mermaFactor < 0 || mermaFactor >= 1) {
-        mermaFactor = FACTOR_MERMA_PRENSA;
-      }
-    } else {
-      mermaFactor = 0;
-    }
-    const litrosEfectivos = directoPrensa ? kilos * (1 - mermaFactor) : kilos;
-    resultado.push({
-      contenedor_tipo: tipo,
-      contenedor_id: contenedorId,
-      kilos,
-      directo_prensa: directoPrensa ? 1 : 0,
-      merma_factor: mermaFactor,
-      litros_efectivos: litrosEfectivos,
-    });
-  }
-  if (resultado.length) {
-    const suma = resultado.reduce((acc, d) => acc + d.kilos, 0);
-    if (Math.abs(suma - kilosTotales) > 0.0001) {
-      throw new Error("La suma de los kilos asignados debe coincidir con los kilos totales");
-    }
-  }
-  return resultado;
-}
-
-async function insertarDestinosEntrada(entradaId, destinos, fecha, bodegaId, userId) {
-  if (!bodegaId || !userId) {
-    throw new Error("Usuario o bodega inválidos");
-  }
-  if (!destinos || !destinos.length) return;
-  for (const destino of destinos) {
-    const movimientoId = await registrarMovimientoEntrada(
-      fecha,
-      destino.contenedor_tipo,
-      destino.contenedor_id,
-      destino.litros_efectivos,
-      entradaId,
-      Boolean(destino.directo_prensa),
-      destino.kilos,
-      destino.merma_factor,
-      bodegaId,
-      userId
-    );
-    await db.run(
-      `INSERT INTO entradas_destinos
-        (entrada_id, user_id, contenedor_tipo, contenedor_id, kilos, movimiento_id, directo_prensa, merma_factor, bodega_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      entradaId,
-      userId,
-      destino.contenedor_tipo,
-      destino.contenedor_id,
-      destino.kilos,
-      movimientoId || null,
-      destino.directo_prensa ? 1 : 0,
-      destino.merma_factor || null,
-      bodegaId
-    );
-  }
-}
-
-async function registrarMovimientoEntrada(
-  fecha,
-  destino_tipo,
-  destino_id,
-  litrosEfectivos,
-  entradaId,
-  esPrensa = false,
-  kilosOriginales = null,
-  mermaFactor = null,
-  bodegaId,
-  userId
-) {
-  const fechaReal = fecha || new Date().toISOString();
-  if (!bodegaId || !userId) {
-    throw new Error("Usuario o bodega inválidos");
-  }
-  const notaBase = esPrensa
-    ? `Entrada prensa #${entradaId}${
-        kilosOriginales != null
-          ? ` (${kilosOriginales} kg → ${litrosEfectivos} L${mermaFactor != null ? `, merma ${(mermaFactor * 100).toFixed(0)}%` : ""})`
-          : ""
-      }`
-    : `Entrada uva #${entradaId}`;
-  const resultado = await db.run(
-    `INSERT INTO movimientos_vino
-      (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, bodega_id, user_id)
-     VALUES (?, 'entrada_uva', NULL, NULL, ?, ?, ?, ?, ?, ?)`,
-    fechaReal,
-    destino_tipo,
-    destino_id,
-    litrosEfectivos,
-    notaBase,
-    bodegaId,
-    userId
-  );
-  return resultado.lastID;
-}
-
-async function backfillEntradasDestinosMovimientos() {
-  try {
-    const pendientes = await db.all(
-      `SELECT ed.id, ed.entrada_id, ed.contenedor_tipo, ed.contenedor_id, ed.kilos, ed.directo_prensa, ed.merma_factor, e.fecha, ed.bodega_id, ed.user_id
-       FROM entradas_destinos ed
-       JOIN entradas_uva e ON e.id = ed.entrada_id
-       WHERE ed.movimiento_id IS NULL`
-    );
-    for (const registro of pendientes) {
-      try {
-        const directo = Boolean(registro.directo_prensa);
-        const merma = directo
-          ? registro.merma_factor != null && !Number.isNaN(Number(registro.merma_factor))
-            ? Number(registro.merma_factor)
-            : FACTOR_MERMA_PRENSA
-          : 0;
-        const litros = directo ? Number(registro.kilos || 0) * (1 - merma) : Number(registro.kilos || 0);
-        const movimientoId = await registrarMovimientoEntrada(
-          registro.fecha,
-          registro.contenedor_tipo,
-          registro.contenedor_id,
-          litros,
-          registro.entrada_id,
-          directo,
-          registro.kilos,
-          merma,
-          registro.bodega_id,
-          registro.user_id
-        );
-        await db.run(
-          "UPDATE entradas_destinos SET movimiento_id = ? WHERE id = ? AND bodega_id = ? AND user_id = ?",
-          movimientoId,
-          registro.id,
-          registro.bodega_id,
-          registro.user_id
-        );
-      } catch (err) {
-        console.error("Error generando movimiento para entrada destino:", err);
-      }
-    }
-  } catch (err) {
-    console.error("Error ejecutando backfill de entradas_destinos:", err);
-  }
-}
-
-async function eliminarMovimientosEntrada(entradaId, bodegaId, userId) {
-  if (!bodegaId || !userId) {
-    return;
-  }
-  const filas = await db.all(
-    "SELECT movimiento_id FROM entradas_destinos WHERE entrada_id = ? AND movimiento_id IS NOT NULL AND bodega_id = ? AND user_id = ?",
-    entradaId,
-    bodegaId,
-    userId
-  );
-  if (!filas.length) return;
-  const ids = filas.map(f => f.movimiento_id).filter(Boolean);
-  if (!ids.length) return;
-  const placeholders = ids.map(() => "?").join(",");
-  await db.run(
-    `DELETE FROM movimientos_vino WHERE id IN (${placeholders}) AND bodega_id = ? AND user_id = ?`,
-    ...ids,
-    bodegaId,
-    userId
-  );
-}
-
 function sanitizarNombreArchivo(nombre) {
   if (!nombre) return "archivo.pdf";
   return nombre.replace(/[^\w.\-]/gi, "_");
@@ -1334,50 +1139,7 @@ app.get("/api/entradas_uva", async (req, res) => {
       bodegaId,
       userId
     );
-    const destinos = await db.all(
-      `SELECT ed.* FROM entradas_destinos ed
-       JOIN entradas_uva e ON e.id = ed.entrada_id
-       WHERE e.bodega_id = ?
-         AND e.user_id = ?
-         AND ed.user_id = ?
-       ORDER BY ed.id ASC`,
-      bodegaId,
-      userId,
-      userId
-    );
-    const codDepos = await db.all("SELECT id, codigo FROM depositos WHERE bodega_id = ? AND user_id = ?", bodegaId, userId);
-    const codBarricas = await db.all("SELECT id, codigo FROM barricas WHERE bodega_id = ? AND user_id = ?", bodegaId, userId);
-    const mapaDep = new Map(codDepos.map(d => [d.id, d.codigo]));
-    const mapaBarr = new Map(codBarricas.map(b => [b.id, b.codigo]));
-    const destinosConCodigo = destinos.map(d => {
-      const directo = Boolean(d.directo_prensa);
-      const merma = directo
-        ? d.merma_factor != null && !Number.isNaN(Number(d.merma_factor))
-          ? Number(d.merma_factor)
-          : FACTOR_MERMA_PRENSA
-        : 0;
-      const litrosEstimados = directo ? Number(d.kilos || 0) * (1 - merma) : Number(d.kilos || 0);
-      return {
-        ...d,
-        directo_prensa: directo ? 1 : 0,
-        merma_factor: merma,
-        litros_estimados: litrosEstimados,
-        contenedor_codigo:
-          d.contenedor_tipo === "barrica"
-            ? mapaBarr.get(d.contenedor_id) || null
-            : mapaDep.get(d.contenedor_id) || null,
-      };
-    });
-    const agrupados = destinosConCodigo.reduce((acc, dest) => {
-      if (!acc[dest.entrada_id]) acc[dest.entrada_id] = [];
-      acc[dest.entrada_id].push(dest);
-      return acc;
-    }, {});
-    const respuesta = filas.map(fila => ({
-      ...fila,
-      destinos: agrupados[fila.id] || [],
-    }));
-    res.json(respuesta);
+    res.json(filas);
   } catch (err) {
     console.error("Error al listar entradas de uva:", err);
     res.status(500).json({ error: "Error al listar entradas de uva" });
@@ -1395,8 +1157,7 @@ app.post("/api/entradas_uva", async (req, res) => {
     anos_vid,
     proveedor,
     grado_potencial,
-    observaciones,
-    destinos = [],
+    observaciones
   } = req.body;
   const anada = extraerAnadaDesdeFecha(fecha);
   const kilosNum = Number(kilos);
@@ -1406,16 +1167,10 @@ app.post("/api/entradas_uva", async (req, res) => {
 
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
-  let destinosNormalizados = [];
-  try {
-    destinosNormalizados = await normalizarDestinosEntrada(destinos, kilosNum, bodegaId, userId);
-  } catch (err) {
-    return res.status(400).json({ error: err.message });
-  }
 
   try {
     await db.run("BEGIN");
-    const resultado = await db.run(
+    await db.run(
       `INSERT INTO entradas_uva
        (fecha, anada, variedad, kilos, viticultor, tipo_suelo, parcela, anos_vid, proveedor, grado_potencial, observaciones, bodega_id, user_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1433,8 +1188,6 @@ app.post("/api/entradas_uva", async (req, res) => {
       bodegaId,
       userId
     );
-    const entradaId = resultado.lastID;
-    await insertarDestinosEntrada(entradaId, destinosNormalizados, fecha, bodegaId, userId);
     await db.run("COMMIT");
     res.json({ ok: true });
   } catch (err) {
@@ -1455,8 +1208,7 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
     anos_vid,
     proveedor,
     grado_potencial,
-    observaciones,
-    destinos = [],
+    observaciones
   } = req.body;
   const anada = extraerAnadaDesdeFecha(fecha);
   const kilosNum = Number(kilos);
@@ -1466,12 +1218,6 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
 
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
-  let destinosNormalizados = [];
-  try {
-    destinosNormalizados = await normalizarDestinosEntrada(destinos, kilosNum, bodegaId, userId);
-  } catch (err) {
-    return res.status(400).json({ error: err.message });
-  }
 
   try {
     await db.run("BEGIN");
@@ -1506,14 +1252,6 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
       bodegaId,
       userId
     );
-    await eliminarMovimientosEntrada(req.params.id, bodegaId, userId);
-    await db.run(
-      "DELETE FROM entradas_destinos WHERE entrada_id = ? AND bodega_id = ? AND user_id = ?",
-      req.params.id,
-      bodegaId,
-      userId
-    );
-    await insertarDestinosEntrada(req.params.id, destinosNormalizados, fecha, bodegaId, userId);
     await db.run("COMMIT");
     res.json({ ok: true });
   } catch (err) {
@@ -1527,13 +1265,6 @@ app.delete("/api/entradas_uva/:id", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
-    await eliminarMovimientosEntrada(req.params.id, bodegaId, userId);
-    await db.run(
-      "DELETE FROM entradas_destinos WHERE entrada_id = ? AND bodega_id = ? AND user_id = ?",
-      req.params.id,
-      bodegaId,
-      userId
-    );
     await db.run("DELETE FROM entradas_uva WHERE id = ? AND bodega_id = ? AND user_id = ?", req.params.id, bodegaId, userId);
     res.json({ ok: true });
   } catch (err) {
@@ -2279,6 +2010,7 @@ app.post("/register", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || "127.0.0.1";
 async function ensureAdminUser() {
   const adminEmail = "joseyebes@gmail.com"; 
   const adminPassword = "1234"; 
@@ -2312,10 +2044,9 @@ async function startServer() {
 
   await ensureTables();
   await ensureAdminUser();
-  await backfillEntradasDestinosMovimientos();
 
-  app.listen(PORT, () => {
-    console.log(`🔥 Servidor iniciado en el puerto ${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`🔥 Servidor iniciado en http://${HOST}:${PORT}`);
   });
 }
 
