@@ -2010,7 +2010,6 @@ app.post("/register", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || "127.0.0.1";
 async function ensureAdminUser() {
   const adminEmail = "joseyebes@gmail.com"; 
   const adminPassword = "1234"; 
@@ -2044,9 +2043,11 @@ async function startServer() {
 
   await ensureTables();
   await ensureAdminUser();
+  await backfillEntradasDestinosMovimientos();
 
-  app.listen(PORT, HOST, () => {
-    console.log(`🔥 Servidor iniciado en http://${HOST}:${PORT}`);
+  // 👇 IMPORTANTE: forzar 0.0.0.0 para Render
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🔥 Servidor iniciado en el puerto ${PORT}`);
   });
 }
 
