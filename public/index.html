@@ -108,53 +108,6 @@ body::after {
             isolation: isolate;
         }
 
-        .topbar-hamburger {
-            display: none;
-            align-items: center;
-            justify-content: center;
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.3);
-            background: rgba(255,255,255,0.1);
-            color: #fff;
-            cursor: pointer;
-            transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-        }
-
-        .topbar-hamburger:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 24px rgba(0,0,0,0.3);
-            background: rgba(255,255,255,0.2);
-        }
-
-        .topbar-hamburger span,
-        .topbar-hamburger::before,
-        .topbar-hamburger::after {
-            display: block;
-            width: 18px;
-            height: 2px;
-            background: currentColor;
-            border-radius: 999px;
-            position: relative;
-        }
-
-        .topbar-hamburger::before,
-        .topbar-hamburger::after {
-            content: "";
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .topbar-hamburger::before {
-            top: 14px;
-        }
-
-        .topbar-hamburger::after {
-            bottom: 14px;
-        }
-
         .topbar-title .microbrand {
             font-size: 11px;
             letter-spacing: 0.14em;
@@ -262,15 +215,16 @@ body::after {
                 padding: 14px 18px;
             }
 
-            .topbar-hamburger {
-                display: inline-flex;
-                margin-left: auto;
-            }
-
             .nav-dropdown-menu {
-                width: 100%;
+                position: relative;
+                top: 8px;
                 left: 0;
                 right: 0;
+                width: 100%;
+                min-width: 0;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+                border: 1px solid rgba(255,255,255,0.16);
+                background: linear-gradient(145deg, rgba(20,10,30,0.92), rgba(8,4,16,0.9));
             }
 
             .content {
@@ -311,6 +265,11 @@ body::after {
             form .btnPrimario,
             form .btnSecundario {
                 justify-content: center;
+            }
+            
+            .nav-dropdown-menu a {
+                font-size: 16px;
+                padding: 12px 18px;
             }
         }
 
@@ -798,6 +757,17 @@ body::after {
             display: none;
         }
 
+        .flow-node .flow-unit {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.16);
+            color: #fff;
+            font-size: 9px;
+            margin-top: 4px;
+            letter-spacing: 0.4px;
+        }
+
         .flow-node .flow-node-controls {
             position: absolute;
             bottom: 3px;
@@ -1007,33 +977,6 @@ body::after {
         .tabla-control-fermentacion th:nth-child(4),
         .tabla-control-fermentacion td:nth-child(4) {
             width: 140px;
-        }
-
-        .tabla-asignaciones-deposito table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 6px;
-        }
-
-        .tabla-asignaciones-deposito th,
-        .tabla-asignaciones-deposito td {
-            border-bottom: 1px solid rgba(0,0,0,0.08);
-            padding: 6px;
-            font-size: 13px;
-            text-align: left;
-        }
-
-        .tabla-asignaciones-deposito input {
-            width: 100%;
-            padding: 6px 8px;
-            border-radius: 8px;
-            border: 1px solid rgba(0,0,0,0.15);
-            font-size: 13px;
-        }
-
-        .tabla-asignaciones-deposito small {
-            color: rgba(0,0,0,0.6);
-            font-size: 11px;
         }
 
         .tabla-control-fermentacion tbody tr:last-child td {
@@ -1373,64 +1316,6 @@ label {
             min-width: 280px;
         }
 
-        .destinos-wrapper {
-            margin-top: 20px;
-            padding: 16px;
-            border-radius: 14px;
-            border: 1px dashed rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .destinos-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 8px;
-        }
-
-        .destino-row {
-            display: flex;
-            gap: 12px;
-            margin-top: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .destino-row input[type="text"],
-        .destino-row input[type="number"] {
-            flex: 1;
-            min-width: 140px;
-        }
-
-        .destino-prensa-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: rgba(47,31,59,0.8);
-            margin: 0;
-        }
-
-        .destino-merma {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 12px;
-            color: rgba(47,31,59,0.8);
-        }
-
-        .destino-merma input {
-            width: 70px;
-        }
-
-        .destinos-resumen {
-            display: block;
-            margin-top: 10px;
-            font-size: 12px;
-            color: rgba(47,31,59,0.7);
-        }
-
         .plano-wrapper {
             display: flex;
             justify-content: center;
@@ -1479,15 +1364,15 @@ label {
 }
 
 .plano-item.deposito {
-    border-top: 4px solid var(--vino);
+    border-top: 4px solid #8f97a8;
 }
 
 .plano-item.mastelone {
-    border-top: 4px solid #2f7f66;
+    border-top: 4px solid #8b1b2b;
 }
 
 .plano-item.barrica {
-    border-top: 4px solid var(--oro);
+    border-top: 4px solid #c48a1b;
 }
 
 .plano-item.arrastrando {
@@ -1546,20 +1431,21 @@ label {
 }
 
 .plano-card-barrel.deposito {
-    background: linear-gradient(180deg, #f0e4ff, #c5b3ff);
-    color: #59318c;
-    border-color: rgba(95,44,130,0.45);
+    background: linear-gradient(180deg, #e5e8ee, #b6bdc9);
+    color: #3f4653;
+    border-color: rgba(111,121,138,0.5);
 }
 
 .plano-card-barrel.mastelone {
-    background: linear-gradient(180deg, #d5f6eb, #7fd8bd);
-    color: #135c48;
-    border-color: rgba(47,127,102,0.45);
+    background: linear-gradient(180deg, #e9b2c0, #a3223c);
+    color: #5a0f1f;
+    border-color: rgba(163,34,60,0.55);
 }
 
 .plano-card-barrel.barrica {
-    background: linear-gradient(180deg, #ffe0ab, #f6c667);
-    color: #7b4a17;
+    background: linear-gradient(180deg, #f3d48b, #c08c32);
+    color: #5d3a0f;
+    border-color: rgba(184,128,34,0.6);
 }
 
 .plano-card-barrel::before,
@@ -1664,9 +1550,6 @@ label {
     <div id="appAlerts" class="app-alerts"></div>
     <!-- Top navigation -->
     <div class="topbar">
-        <button class="topbar-hamburger" id="navHamburger" aria-label="Abrir menú">
-            <span></span>
-        </button>
         <div class="topbar-title">
             <button type="button" id="navToggle">
                 <span class="microbrand">MicroCellerStudio</span>
@@ -1880,18 +1763,6 @@ label {
                 <label>Kilos</label>
                 <input type="number" id="entradaKilos" required>
 
-                <div class="destinos-wrapper">
-                    <div class="destinos-header">
-                        <label style="margin:0;">Asignación por contenedor</label>
-                        <button type="button" class="small-btn" onclick="agregarDestinoEntrada()">Añadir destino</button>
-                    </div>
-                    <p style="font-size:12px; margin:0; color:rgba(47,31,59,0.7);">
-                        Distribuye los kilos de esta entrada entre los depósitos, mastelones o barricas asignados.
-                    </p>
-                    <div id="listaDestinosEntrada"></div>
-                    <small id="resumenDestinosEntrada" class="destinos-resumen">Sin destinos asignados.</small>
-                </div>
-
                 <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
                     <button type="submit" class="btnPrimario" id="btnGuardarEntrada">Registrar entrada</button>
                     <button type="button" class="btnSecundario" id="btnCancelarEdicionEntrada" style="display:none;" onclick="cancelarEdicionEntrada()">Cancelar edición</button>
@@ -1912,7 +1783,6 @@ label {
                         <th>Parcela</th>
                         <th>Años de la vid</th>
                         <th>Kilos</th>
-                        <th>Asignación por contenedor</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -2589,6 +2459,11 @@ const TITULOS_DINAMICOS = {
 const CAMPOS_PRIORITARIOS_MODAL = ["fecha", "fecha_operacion"];
 const CAMPOS_CARGA_NUMERICOS = ["kilos", "litros", "litros_directos", "volumen"];
 const CAMPOS_CARGA_TEXTO = ["variedad", "anada"];
+const TIPOS_CONTENEDOR_FLUJO = new Set(["deposito", "barrica"]);
+function obtenerNodoPorId(idBuscado) {
+  const idNorm = normalizarIdNodo(idBuscado);
+  return flujoNodos.find(n => normalizarIdNodo(n.id) === idNorm) || null;
+}
 function actualizarTituloNodo(nodo) {
   if (!nodo) return;
   const config = FLOW_NODE_TYPES[nodo.tipo];
@@ -2622,28 +2497,68 @@ function obtenerValorCampoVisual(nodo, campo) {
   return valor;
 }
 
+function esMetodoPrensado(metodo) {
+  return (metodo || "").toLowerCase() === "prensado";
+}
+
+function esMetodoSangrado(metodo) {
+  return (metodo || "").toLowerCase() === "sangrado";
+}
+
+function esNodoSangrado(nodo) {
+  if (!nodo) return false;
+  if (nodo.tipo === "estilo") {
+    return esMetodoSangrado(nodo.datos?.metodo);
+  }
+  return false;
+}
+
 function esNodoPrensado(nodo) {
   if (!nodo) return false;
   if (nodo.tipo === "prensado") return true;
   if (nodo.tipo === "estilo") {
     const metodo = (nodo.datos?.metodo || "").toLowerCase();
-    return metodo === "prensado";
+    return metodo === "prensado" || metodo === "sangrado";
   }
   return false;
+}
+
+function esNodoConversor(nodo) {
+  return esNodoPrensado(nodo) || esNodoSangrado(nodo);
 }
 
 function obtenerPredecesores(id) {
   return flujoNodos.filter(n => (n.targets || []).includes(id));
 }
 
+function obtenerUnidadNodo(nodo, memo = new Map()) {
+  if (!nodo) return "kilos";
+  const clave = nodo.id || nodo;
+  if (memo.has(clave)) return memo.get(clave);
+  let unidad = esNodoConversor(nodo) ? "litros" : "kilos";
+  if (unidad === "kilos") {
+    const padres = obtenerPredecesores(nodo.id);
+    if (padres.some(pre => obtenerUnidadNodo(pre, memo) === "litros")) {
+      unidad = "litros";
+    }
+  }
+  memo.set(clave, unidad);
+  return unidad;
+}
+
+function obtenerUnidadEntrante(nodo) {
+  if (!nodo) return "kilos";
+  const padres = obtenerPredecesores(nodo.id);
+  if (!padres.length) return "kilos";
+  return padres.some(pre => obtenerUnidadNodo(pre) === "litros") ? "litros" : "kilos";
+}
+
 function obtenerUnidadDisponible(origen) {
-  return esNodoPrensado(origen) || ["deposito", "barrica", "almacen", "embotellado", "coupage"].includes(origen.tipo)
-    ? "litros"
-    : "kilos";
+  return obtenerUnidadNodo(origen);
 }
 
 function obtenerUnidadVisual(nodo) {
-  return obtenerUnidadDisponible(nodo) === "litros" ? "L" : "kg";
+  return obtenerUnidadNodo(nodo) === "litros" ? "L" : "kg";
 }
 
 function asegurarAsignacionRegistro(destino, origenId, kilosPorDefecto = 0, litrosPorDefecto = 0) {
@@ -2795,9 +2710,32 @@ function describirNodoOrigen(origen) {
     return `${base}${metodo}${variedadTexto}`;
   }
   if (origen.tipo === "entrada") {
+    if (origen.datos?.id_ref) {
+      return obtenerEtiquetaEntrada(origen.datos.id_ref);
+    }
     return variedad ? `${base} (${variedad})` : base;
   }
+  if (origen.tipo === "deposito" || origen.tipo === "barrica") {
+    const info =
+      origen.tipo === "deposito"
+        ? buscarDepositoPorId(origen.datos?.id_ref)
+        : buscarBarricaPorId(origen.datos?.id_ref);
+    const nombre = info?.codigo || origen.datos?.codigo || origen.titulo || base;
+    const varTexto =
+      info?.vino_tipo ||
+      origen.datos?.vino_tipo ||
+      origen.datos?.variedad ||
+      variedad ||
+      "";
+    const varLabel = varTexto ? ` (${varTexto})` : "";
+    return `${nombre}${varLabel}`;
+  }
   return variedad ? `${base} (${variedad})` : base;
+}
+
+function describirNodoDestino(dest) {
+  if (!dest) return "Nodo";
+  return etiquetarDestinoFlow(dest);
 }
 
 function obtenerEtiquetaEntrada(id) {
@@ -2816,6 +2754,110 @@ function buscarEntradaPorId(id) {
 function buscarDepositoPorId(id) {
   if (!id || !Array.isArray(cacheDepositos)) return null;
   return cacheDepositos.find(d => String(d.id) === String(id)) || null;
+}
+
+function buscarBarricaPorId(id) {
+  if (!id || !Array.isArray(cacheBarricas)) return null;
+  return cacheBarricas.find(b => String(b.id) === String(id)) || null;
+}
+
+function obtenerContenedorPorIdRef(idRef) {
+  if (!idRef) return null;
+  const dep = buscarDepositoPorId(idRef);
+  if (dep) {
+    return { tipo: "deposito", codigo: dep.codigo, variedad: dep.vino_tipo };
+  }
+  const bar = buscarBarricaPorId(idRef);
+  if (bar) {
+    return { tipo: "barrica", codigo: bar.codigo, variedad: bar.vino_tipo };
+  }
+  return null;
+}
+
+// Cargar nodos desde localStorage y mapear por id
+function getNodosPorId() {
+  const nodos = JSON.parse(localStorage.getItem("flowNodes") || "[]");
+  return Object.fromEntries(nodos.map(n => [n.id, n]));
+}
+
+function getNombreNodoDestino(idNodoDestino, nodosPorId) {
+  const nodo = nodosPorId[idNodoDestino];
+  if (!nodo) return `Nodo ${idNodoDestino}`;
+
+  const datos = nodo.datos || {};
+
+  switch (nodo.tipo) {
+    case "deposito":
+      // A1, A2, A3…
+      return `${datos.codigo || nodo.titulo || "Depósito"}`;
+
+    case "barrica":
+      // Crianza / Barrica 500L Francés, etc.
+      return datos.tipo || nodo.titulo || "Crianza";
+
+    case "entrada":
+      // Solo por si algún día enlazas a otra entrada
+      return `Entrada #${datos.id_ref || "?"}${
+        datos.variedad ? ` (${datos.variedad})` : ""
+      }`;
+
+    default:
+      return nodo.titulo || nodo.tipo || `Nodo ${idNodoDestino}`;
+  }
+}
+
+function buildRepartoDestinos(nodoElaboracion) {
+  if (!nodoElaboracion) return [];
+  const nodosPorId = getNodosPorId();
+  const distribucion = nodoElaboracion.datos?.distribucion || {};
+  return Object.entries(distribucion).map(([idNodoDestino, valores]) => {
+    return {
+      idNodoDestino,
+      nombre: getNombreNodoDestino(idNodoDestino, nodosPorId),
+      kilos: (valores && valores.kilos) || 0,
+      litros: (valores && valores.litros) || 0,
+    };
+  });
+}
+
+function etiquetarDestinoFlow(dest) {
+  if (!dest) return "Nodo";
+  const datos = dest.datos || {};
+
+  if (dest.tipo === "deposito") {
+    const info = datos.id_ref ? buscarDepositoPorId(datos.id_ref) : null;
+    const nombre =
+      info?.codigo ||
+      datos.codigo ||
+      dest.titulo ||
+      (datos.id_ref ? `Depósito #${datos.id_ref}` : "Depósito");
+    const variedad = info?.vino_tipo || datos.vino_tipo || datos.variedad || "";
+    return variedad ? `${nombre} (${variedad})` : nombre;
+  }
+
+  if (dest.tipo === "barrica") {
+    const info = datos.contenedor_id ? buscarBarricaPorId(datos.contenedor_id) : null;
+    const nombre =
+      datos.tipo ||
+      info?.codigo ||
+      (datos.contenedor_id ? `Barrica ${datos.contenedor_id}` : dest.titulo || "Barrica");
+    const variedad = info?.vino_tipo || datos.vino_tipo || datos.variedad || "";
+    return variedad ? `${nombre} (${variedad})` : nombre;
+  }
+
+  if (dest.tipo === "entrada" && datos.id_ref) {
+    return obtenerEtiquetaEntrada(datos.id_ref);
+  }
+
+  // Si viene con id_ref de contenedor aunque el tipo no sea depósito/barrica, intentamos resolverlo
+  const contenedor = obtenerContenedorPorIdRef(datos.id_ref);
+  if (contenedor) {
+    const nombre = contenedor.codigo || dest.titulo || (contenedor.tipo === "barrica" ? "Barrica" : "Depósito");
+    const variedad = contenedor.variedad || datos.vino_tipo || datos.variedad || "";
+    return variedad ? `${nombre} (${variedad})` : nombre;
+  }
+
+  return dest.titulo || dest.tipo || "Nodo";
 }
 
 function obtenerEtiquetaNodoLimite(nodo) {
@@ -2845,10 +2887,13 @@ function sumarConsumoDesdeNodo(origen) {
     if (!registro) return total;
     let valor = 0;
     if (unidad === "litros") {
-      const kilos = normalizarNumero(registro.kilos);
       const litros = normalizarNumero(registro.litros);
-      if (kilos > 0) valor += kilos;
-      if (litros > 0) valor += litros;
+      const kilos = normalizarNumero(registro.kilos);
+      if (litros > 0) {
+        valor += litros;
+      } else if (kilos > 0) {
+        valor += kilos;
+      }
     } else {
       const kilos = normalizarNumero(registro.kilos);
       if (kilos > 0) valor += kilos;
@@ -2862,15 +2907,15 @@ function sumarConsumoDesdeNodo(origen) {
 
 function obtenerLimiteNodo(nodo) {
   if (!nodo) return null;
-  if (nodo.tipo === "entrada") {
-    const kilos = Number(nodo.datos?.kilos);
-    return Number.isFinite(kilos) ? kilos : null;
-  }
-  if (esNodoPrensado(nodo)) {
-    const litros = Number(nodo.datos?.volumen);
+  const unidad = obtenerUnidadNodo(nodo);
+  if (unidad === "litros") {
+    const litros = normalizarNumero(
+      nodo.datos?.volumen ?? nodo.datos?.litros ?? nodo.datos?.litros_directos
+    );
     return Number.isFinite(litros) ? litros : null;
   }
-  return null;
+  const kilos = normalizarNumero(nodo.datos?.kilos);
+  return Number.isFinite(kilos) ? kilos : null;
 }
 
 function validarLimitesFlujo() {
@@ -2967,7 +3012,7 @@ function crearTablaControlFermentacion(nodo) {
   return contenedor;
 }
 
-function crearTablaAsignacionesDeposito(nodo) {
+function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
   const wrapper = document.createElement("div");
   wrapper.className = "tabla-asignaciones-deposito";
   limpiarAsignacionesOrfanas(nodo);
@@ -3009,7 +3054,7 @@ function crearTablaAsignacionesDeposito(nodo) {
     const nombre = esCoupage
       ? limpiarTextoVariedad(obtenerVariedadNodo(origen)) || origen.titulo || nombreBase
       : nombreBase;
-    const disponibleTexto = esCoupage ? `Disponible: ${litrosPorDefecto.toFixed(2)} L` : `ID ${origen.id}`;
+    const disponibleTexto = esCoupage ? `Disponible: ${litrosPorDefecto.toFixed(2)} L` : describirNodoOrigen(origen);
     const valorKilos = registro.kilos && registro.kilos !== 0 ? registro.kilos : "";
     const valorLitros = registro.litros && registro.litros !== 0 ? registro.litros : "";
     tr.innerHTML = `
@@ -3017,29 +3062,31 @@ function crearTablaAsignacionesDeposito(nodo) {
       ${
         esCoupage
           ? ""
-          : `<td><input type="number" step="0.01" min="0" value="${valorKilos}" data-origen="${key}" data-tipo="kilos"></td>`
+          : `<td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorKilos}" data-origen="${key}" data-tipo="kilos"></td>`
       }
-      <td><input type="number" step="0.01" min="0" value="${valorLitros}" data-origen="${key}" data-tipo="litros"${esCoupage ? ` data-max-litros="${litrosPorDefecto}"` : ""}></td>`;
-    const inputs = tr.querySelectorAll("input");
-    inputs.forEach(input => {
-      input.addEventListener("input", () => {
-        const valor = Number(input.value);
-        const tipo = input.dataset.tipo;
-        registro[tipo] = Number.isFinite(valor) ? valor : "";
-        if (esCoupage && tipo === "litros") {
-          const max = Number(input.dataset.maxLitros || 0);
-          if (Number.isFinite(max) && max >= 0 && valor > max) {
-            registro.litros = max;
-            input.value = max.toFixed(2);
-            mostrarAviso("No puedes usar más litros de los disponibles en el depósito.", "error");
+      <td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorLitros}" data-origen="${key}" data-tipo="litros"${esCoupage ? ` data-max-litros="${litrosPorDefecto}"` : ""}></td>`;
+    if (!soloLectura) {
+      const inputs = tr.querySelectorAll("input");
+      inputs.forEach(input => {
+        input.addEventListener("input", () => {
+          const valor = Number(input.value);
+          const tipo = input.dataset.tipo;
+          registro[tipo] = Number.isFinite(valor) ? valor : "";
+          if (esCoupage && tipo === "litros") {
+            const max = Number(input.dataset.maxLitros || 0);
+            if (Number.isFinite(max) && max >= 0 && valor > max) {
+              registro.litros = max;
+              input.value = max.toFixed(2);
+              mostrarAviso("No puedes usar más litros de los disponibles en el depósito.", "error");
+            }
           }
-        }
-        actualizarVariedadDesdeAportes(nodo);
-        actualizarVolumenDesdeAsignaciones(nodo);
-        guardarEstadoNodos();
-        renderFlowNodes();
+          actualizarVariedadDesdeAportes(nodo);
+          actualizarVolumenDesdeAsignaciones(nodo);
+          guardarEstadoNodos();
+          renderFlowNodes();
+        });
       });
-    });
+    }
     tbody.appendChild(tr);
   });
   tabla.appendChild(tbody);
@@ -3060,16 +3107,13 @@ function limpiarDistribucionEstilo(nodo) {
 function crearTablaDistribucionEstilo(nodo) {
   const wrapper = document.createElement("div");
   wrapper.className = "tabla-asignaciones-deposito";
-  const targets = (nodo.targets || [])
-    .map(id => obtenerNodoPorId(id))
-    .filter(Boolean);
-  if (!targets.length) {
+  const distribucion = nodo.datos?.distribucion || {};
+  const entradasDistrib = Object.entries(distribucion);
+  if (!entradasDistrib.length) {
     wrapper.innerHTML = "<p style='font-size:13px; color:#666;'>Conecta este nodo a otro para repartir los kilos/litros.</p>";
     return wrapper;
   }
-  limpiarDistribucionEstilo(nodo);
-  nodo.datos = nodo.datos || {};
-  nodo.datos.distribucion = nodo.datos.distribucion || {};
+  const mapaNodos = getNodosPorId();
   const cargaDisponible = obtenerCargaDesdeNodo(nodo) || {};
   const dispKilos = Number(cargaDisponible.kilos || 0);
   const dispLitros = Number(
@@ -3082,6 +3126,7 @@ function crearTablaDistribucionEstilo(nodo) {
   resumen.style.color = "#777";
   resumen.textContent = `Disponible: ${dispKilos.toFixed(2)} kg · ${dispLitros.toFixed(2)} L`;
   wrapper.appendChild(resumen);
+
   const tabla = document.createElement("table");
   tabla.innerHTML = `
     <thead>
@@ -3092,28 +3137,29 @@ function crearTablaDistribucionEstilo(nodo) {
       </tr>
     </thead>`;
   const tbody = document.createElement("tbody");
-  targets.forEach(dest => {
-    const key = dest.id.toString();
-    if (!nodo.datos.distribucion[key]) {
-      nodo.datos.distribucion[key] = { kilos: 0, litros: 0 };
-    }
-    const registro = nodo.datos.distribucion[key];
+  const destinos = buildRepartoDestinos(nodo);
+
+  destinos.forEach(dest => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${describirNodoOrigen(dest)}<br><small>ID ${dest.id}</small></td>
-      <td><input type="number" step="0.01" min="0" value="${registro.kilos || ""}" data-destino="${key}" data-tipo="kilos"></td>
-      <td><input type="number" step="0.01" min="0" value="${registro.litros || ""}" data-destino="${key}" data-tipo="litros"></td>`;
+      <td>${dest.nombre}</td>
+      <td><input type="number" step="0.01" min="0" value="${dest.kilos || ""}" data-destino="${dest.idNodoDestino}" data-tipo="kilos"></td>
+      <td><input type="number" step="0.01" min="0" value="${dest.litros || ""}" data-destino="${dest.idNodoDestino}" data-tipo="litros"></td>`;
     tr.querySelectorAll("input").forEach(input => {
       input.addEventListener("input", () => {
         const valor = Number(input.value);
         const tipo = input.dataset.tipo;
-        registro[tipo] = Number.isFinite(valor) ? valor : "";
+        if (!nodo.datos.distribucion[dest.idNodoDestino]) {
+          nodo.datos.distribucion[dest.idNodoDestino] = { kilos: 0, litros: 0 };
+        }
+        nodo.datos.distribucion[dest.idNodoDestino][tipo] = Number.isFinite(valor) ? valor : "";
         guardarEstadoNodos();
         renderFlowNodes();
       });
     });
     tbody.appendChild(tr);
   });
+
   tabla.appendChild(tbody);
   wrapper.appendChild(tabla);
   return wrapper;
@@ -3139,50 +3185,16 @@ function obtenerCargaDistribuida(origen, destinoId, cargaBase) {
   return carga;
 }
 
+
 function actualizarVariedadDesdeAportes(nodo) {
   if (!nodo || !["deposito", "coupage"].includes(nodo.tipo)) return;
-  const asignaciones = nodo.datos?.asignaciones;
-  if (!asignaciones) return;
-  if (nodo.tipo === "coupage") {
-    const permitidos = new Set(
-      obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre))
-    );
-    const aportes = new Map();
-    let totalLitros = 0;
-    Object.entries(asignaciones).forEach(([origenId, info]) => {
-      if (!permitidos.has(origenId)) return;
-      const litros = normalizarNumero(info?.litros);
-      if (!(litros > 0)) return;
-      totalLitros += litros;
-      const origen = obtenerNodoPorId(origenId);
-      const nombreVar =
-        limpiarTextoVariedad(obtenerVariedadNodo(origen)) ||
-        origen?.titulo ||
-        `Nodo ${origenId}`;
-      aportes.set(nombreVar, (aportes.get(nombreVar) || 0) + litros);
-    });
-    if (totalLitros > 0 && aportes.size) {
-      nodo.datos.variedad = Array.from(aportes.entries())
-        .map(([nombre, litros]) => `${nombre} ${(litros / totalLitros * 100).toFixed(1)}%`)
-        .join(" · ");
-    } else {
-      nodo.datos.variedad = "";
-    }
-    actualizarVolumenDesdeAsignaciones(nodo);
-    return;
-  }
-  const texto = obtenerVariedadDesdeAsignaciones(nodo);
-  if (texto) {
-    nodo.datos.variedad = texto;
-  }
+  nodo.datos.variedad = obtenerVariedadDesdeAsignaciones(nodo);
   actualizarVolumenDesdeAsignaciones(nodo);
 }
 
 function obtenerVariedadDesdeAsignaciones(nodo) {
   if (!nodo || !nodo.datos?.asignaciones) return "";
-  const permitidos = new Set(
-    obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre))
-  );
+  const permitidos = new Set(obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre)));
   const componentes = [];
   let total = 0;
   Object.entries(nodo.datos.asignaciones).forEach(([origenId, info]) => {
@@ -3192,13 +3204,18 @@ function obtenerVariedadDesdeAsignaciones(nodo) {
     if (!(cantidad > 0)) return;
     if (!permitidos.has(origenId)) return;
     const origen = obtenerNodoPorId(origenId);
-    const variedad =
-      origen?.datos?.variedad ||
-      origen?.datos?.vino ||
-      (origen?.tipo === "entrada" ? (origen?.datos?.variedad || "") : "") ||
-      origen?.titulo ||
-      `Nodo ${origenId}`;
-    componentes.push({ variedad, cantidad });
+    let nombreVar = "";
+    if (origen?.tipo === "entrada" && origen.datos?.id_ref) {
+      const entrada = buscarEntradaPorId(origen.datos.id_ref);
+      nombreVar = entrada?.variedad || "";
+    }
+    if (!nombreVar) {
+      nombreVar = limpiarTextoVariedad(obtenerVariedadNodo(origen));
+    }
+    if (!nombreVar) {
+      nombreVar = origen?.titulo || `Nodo ${origenId}`;
+    }
+    componentes.push({ variedad: nombreVar, cantidad });
     total += cantidad;
   });
   if (!componentes.length || !total) return "";
@@ -3241,24 +3258,36 @@ function actualizarVolumenDesdeAsignaciones(nodo) {
 
 function obtenerEstadoDepositoDesdeNodo(idDeposito) {
   if (!idDeposito || !Array.isArray(flujoNodos)) return null;
-  const nodo = flujoNodos.find(
-    n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(idDeposito)
-  );
-  if (!nodo) return null;
-  const variedadTexto = obtenerVariedadDesdeAsignaciones(nodo) || nodo.datos.variedad || "";
-  const totales = calcularTotalesAsignaciones(nodo);
+  const volumenNodo = obtenerVolumenFinalNodoContenedor("deposito", idDeposito);
   let volumen = null;
-  if (totales) {
-    volumen = totales.total;
-  } else if (nodo.datos && nodo.datos.volumen != null) {
-    volumen = Number(nodo.datos.volumen);
+  if (Number.isFinite(volumenNodo)) {
+    volumen = volumenNodo;
+  } else {
+    const nodo = flujoNodos.find(
+      n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(idDeposito)
+    );
+    if (!nodo) return null;
+    const totales = calcularTotalesAsignaciones(nodo);
+    if (totales) {
+      volumen = totales.total;
+    } else if (nodo.datos && nodo.datos.volumen != null) {
+      volumen = Number(nodo.datos.volumen);
+    }
   }
-  return {
-    variedad: variedadTexto,
-    volumen,
-    enMapa: true,
-  };
+  const variedadTexto =
+    obtenerVariedadDesdeAsignaciones(
+      flujoNodos.find(n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(idDeposito))
+    ) || "";
+  return volumen != null
+    ? {
+        variedad: variedadTexto,
+        volumen,
+        enMapa: true,
+      }
+    : null;
 }
+
+
 const ETAPAS_FLUJO = [
   { id: "entrada", titulo: "Entrada de uva", unidad: "kg" },
   { id: "despalillado", titulo: "Despalillado", unidad: "L" },
@@ -3354,15 +3383,15 @@ const FLOW_NODE_TYPES = {
     campos: [
       { id: "id_ref", label: "Nombre de depósito", tipo: "number", placeholder: "Selecciona depósito" },
       { id: "capacidad", label: "Capacidad (L)", tipo: "info" },
-      { id: "volumen", label: "Volumen (L)", tipo: "number", placeholder: "5000" },
-      { id: "tipo", label: "Tipo", tipo: "select", opciones: OPCIONES_TIPO_CONTENEDOR, placeholder: "Selecciona tipo" },
-      { id: "material", label: "Material", tipo: "select", opciones: OPCIONES_MATERIAL_CONTENEDOR, placeholder: "Selecciona material" },
+      { id: "volumen", label: "Volumen (L)", tipo: "info" },
+      { id: "tipo", label: "Tipo", tipo: "info" },
+      { id: "material", label: "Material", tipo: "info" },
       {
         id: "fase",
         label: "Estado",
         tipo: "select",
         opciones: ["FA", "FML", "CRIANZA"],
-        placeholder: "Selecciona fase",
+        placeholder: "Selecciona estado",
       },
       { id: "control", label: "Control", tipo: "tablaControl" },
     ],
@@ -3378,7 +3407,7 @@ const FLOW_NODE_TYPES = {
   },
   barrica: {
     label: "Crianza",
-    icono: "🥃",
+    icono: '<img src="/barricas.png" alt="Barrica" style="width:26px;height:26px;object-fit:contain;vertical-align:middle;">',
     campos: [
       { id: "nombre_vino", label: "Nombre vino", tipo: "text", placeholder: "Nombre del vino en crianza" },
       {
@@ -3505,6 +3534,13 @@ Object.keys(FLOW_NODE_TYPES).forEach(key => {
     placeholder: "Tempranillo",
     soloLectura: !esEntrada,
   });
+  if (key !== "deposito") {
+    asegurarCampo("merma", {
+      label: "Merma / pérdida (%)",
+      tipo: "number",
+      placeholder: "0",
+    });
+  }
   if (key !== "entrada") {
     asegurarCampo("fecha_operacion", {
       label: "Fecha operación",
@@ -3796,6 +3832,7 @@ function crearNodoManual(tipo) {
     targets: [],
   };
   actualizarTituloNodo(nodo);
+  asegurarMermaPorDefecto(nodo);
   flujoNodos.push(nodo);
   ultimoNodoManual = nodo.id;
   guardarEstadoNodos();
@@ -3803,14 +3840,16 @@ function crearNodoManual(tipo) {
   abrirFlowModal(nodo.id);
 }
 
-function sembrarNodosDesdeDatos() {
+async function sembrarNodosDesdeDatos() {
+  // Refrescar datos antes de sembrar
+  await Promise.all([cargarResumen(), cargarDepositos(), cargarBarricas(), cargarEntradas(), cargarMovimientos()]);
   actualizarMapaFlujo();
   flujoNodos = ETAPAS_FLUJO.map((etapa, idx) => {
     const nodo = {
       id: generarIdNodo(),
       tipo:
         etapa.id === "despalillado"
-          ? "fermentacion"
+          ? "estilo"
           : etapa.id === "barrica"
           ? "barrica"
           : etapa.id === "embotellado"
@@ -3834,6 +3873,7 @@ function sembrarNodosDesdeDatos() {
       targets: [],
     };
     actualizarTituloNodo(nodo);
+    asegurarMermaPorDefecto(nodo);
     return nodo;
   });
   for (let i = 0; i < flujoNodos.length - 1; i++) {
@@ -3862,12 +3902,21 @@ function renderFlowNodes() {
     headerWrap.style.gap = "6px";
     const icon = document.createElement("span");
     icon.className = "flow-node-icon";
-    icon.textContent = config.icono || "●";
+    if (config.icono && config.icono.trim().startsWith("<")) {
+      icon.innerHTML = config.icono;
+    } else {
+      icon.textContent = config.icono || "●";
+    }
     headerWrap.appendChild(icon);
     const header = document.createElement("h4");
     header.textContent = nodo.titulo || config.label;
     headerWrap.appendChild(header);
     div.appendChild(headerWrap);
+
+    const unidadBadge = document.createElement("div");
+    unidadBadge.className = "flow-unit";
+    unidadBadge.textContent = obtenerUnidadVisual(nodo);
+    div.appendChild(unidadBadge);
 
     const variedadVisible = obtenerVariedadVisibleNodo(nodo);
     if (variedadVisible) {
@@ -4099,6 +4148,10 @@ function conectarNodos(origenId, destinoId, silencioso = false) {
   const origen = flujoNodos.find(n => n.id === origenId);
   const destino = flujoNodos.find(n => n.id === destinoId);
   if (!origen) return;
+  if (destino && esNodoPrensado(destino) && obtenerUnidadNodo(origen) === "litros") {
+    mostrarAviso("No puedes enviar litros a un nodo de prensado/sangrado. La conversión ya se realizó antes.", "error");
+    return;
+  }
   origen.targets = origen.targets || [];
   if (!origen.targets.includes(destinoId)) {
     const snapshot = JSON.parse(JSON.stringify(flujoNodos));
@@ -4137,12 +4190,10 @@ function conectarNodos(origenId, destinoId, silencioso = false) {
 
 function completarCargaVisual(carga) {
   if (!carga) return null;
-  if (carga.litros == null) {
-    const kilos = normalizarNumero(carga.kilos);
+  if (carga.litros == null && carga.litros_directos != null) {
     const litrosDirectos = normalizarNumero(carga.litros_directos);
-    const total = (kilos > 0 ? kilos : 0) + (litrosDirectos > 0 ? litrosDirectos : 0);
-    if (total > 0) {
-      carga.litros = Number(total.toFixed(4));
+    if (litrosDirectos > 0) {
+      carga.litros = Number(litrosDirectos.toFixed(4));
     }
   }
   return carga;
@@ -4205,10 +4256,12 @@ function prepararCargaParaDestino(origen, destino, cargaBase, totalDestinos) {
     return completarCargaVisual(carga);
   }
 
+  // Reparto automático: dividir entre destinos si el origen tiene varias salidas
   if (totalDestinos <= 1) {
     return { ...cargaBase };
   }
-  return escalarCarga(cargaBase, 1 / totalDestinos);
+  const cargaDividida = escalarCarga(cargaBase, 1 / totalDestinos);
+  return cargaDividida;
 }
 
 function redistribuirCargas(origen, visitados = new Set()) {
@@ -4225,6 +4278,27 @@ function redistribuirCargas(origen, visitados = new Set()) {
   if (!cargaBase) {
     visitados.delete(origen.id);
     return;
+  }
+  // Repartir automáticamente la carga entre todos los destinos (sin remanente)
+  if (targets.length > 1) {
+    const shareKilos =
+      cargaBase.kilos != null ? Number((Number(cargaBase.kilos) / targets.length).toFixed(4)) : null;
+    const baseLitros =
+      cargaBase.litros_directos != null
+        ? Number(cargaBase.litros_directos)
+        : cargaBase.litros != null
+        ? Number(cargaBase.litros)
+        : null;
+    const shareLitros = baseLitros != null ? Number((baseLitros / targets.length).toFixed(4)) : null;
+    targets.forEach(dest => {
+      if (TIPOS_CONTENEDOR_FLUJO.has(dest.tipo)) {
+        const registro = asegurarAsignacionRegistro(dest, origen.id);
+        if (shareKilos != null) registro.kilos = shareKilos;
+        if (shareLitros != null) {
+          registro.litros = shareLitros;
+        }
+      }
+    });
   }
   let cargaLibre = { ...cargaBase };
   const totalDestinos = targets.length;
@@ -4255,15 +4329,31 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
   if (!origen || !destino) return;
   origen.datos = origen.datos || {};
   destino.datos = destino.datos || {};
+  asegurarMermaPorDefecto(origen);
+  asegurarMermaPorDefecto(destino);
   const cargaBase = obtenerCargaDesdeNodo(origen);
   if (!cargaBase) return;
-  const carga = completarCargaVisual(cargaPersonalizada ? { ...cargaPersonalizada } : { ...cargaBase });
+  const unidadOrigen = obtenerUnidadNodo(origen);
+  const esCargaManual = cargaPersonalizada?.__manual === true;
+  let carga = completarCargaVisual(cargaPersonalizada ? { ...cargaPersonalizada } : { ...cargaBase });
 
   if (!carga) return;
 
+  const factorMermaOrigen = !esNodoConversor(origen) ? obtenerFactorMermaNodo(origen) : 0;
+  if (factorMermaOrigen > 0 && !esCargaManual) {
+    carga = aplicarMermaACarga(carga, factorMermaOrigen);
+  }
+
   if (esNodoPrensado(destino)) {
+    if (unidadOrigen === "litros") {
+      mostrarAviso("Ya estás trabajando en litros; no puedes volver a convertir con otro prensado o sangrado.", "error");
+      return null;
+    }
     const kilosAsignados = normalizarNumero(carga.kilos);
     const litrosDirectosAsignados = normalizarNumero(carga.litros_directos);
+    if (!(kilosAsignados > 0 || litrosDirectosAsignados > 0)) {
+      return null;
+    }
     const factor = obtenerFactorMermaNodo(destino);
     const litrosPrensados = kilosAsignados > 0 ? aplicarMerma(kilosAsignados, factor) : 0;
     const totalSalida = litrosPrensados + (litrosDirectosAsignados > 0 ? litrosDirectosAsignados : 0);
@@ -4276,7 +4366,12 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
       anada: carga.anada,
       fecha: carga.fecha,
     });
-    return;
+    return {
+      ...carga,
+      kilos: 0,
+      litros: totalSalida,
+      litros_directos: totalSalida,
+    };
   }
 
   if (esNodoPrensado(origen)) {
@@ -4311,7 +4406,7 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
     }
   }
 
-  completarCargaVisual(carga);
+  carga = completarCargaVisual(carga);
 
   aplicarCargaANodo(destino, carga);
 
@@ -4362,6 +4457,7 @@ function obtenerVariedadNodo(nodo) {
 
 function obtenerCargaDesdeNodo(nodo) {
   if (!nodo) return null;
+  const unidadNodo = obtenerUnidadNodo(nodo);
   if (nodo.tipo === "entrada" && nodo.datos?.id_ref && nodo.datos?.kilos == null) {
     intentarPoblarNodoEntrada(nodo);
   }
@@ -4390,19 +4486,35 @@ function obtenerCargaDesdeNodo(nodo) {
   const variedad = obtenerVariedadNodo(nodo);
   const kilos = normalizarNumero(datos.kilos);
   const litrosDirectos = normalizarNumero(datos.litros_directos);
-  let litros = normalizarNumero(datos.volumen);
-  if (litros == null) litros = normalizarNumero(datos.litros);
-  if (litros == null && datos.valor != null) {
-    litros = normalizarNumero(datos.valor);
-  }
-  if (litros == null && kilos != null && nodo.tipo !== "prensado") {
-    litros = kilos;
-  }
+  const litrosVolumen = normalizarNumero(
+    datos.volumen != null ? datos.volumen : datos.litros != null ? datos.litros : datos.valor
+  );
   const carga = {};
   if (variedad) carga.variedad = variedad;
-  if (kilos != null) carga.kilos = kilos;
-  if (litros != null) carga.litros = litros;
-  if (litrosDirectos != null) carga.litros_directos = litrosDirectos;
+  if (unidadNodo === "litros") {
+    const litrosFinal =
+      litrosDirectos != null
+        ? litrosDirectos
+        : litrosVolumen != null
+        ? litrosVolumen
+        : kilos != null
+        ? kilos
+        : null;
+    if (litrosFinal != null) {
+      const litrosVal = Number(litrosFinal.toFixed(4));
+      carga.litros_directos = litrosVal;
+      carga.litros = litrosVal;
+    }
+    if (carga.litros != null) {
+      carga.kilos = 0;
+    }
+  } else {
+    if (kilos != null) carga.kilos = kilos;
+    if (litrosDirectos != null) carga.litros_directos = litrosDirectos;
+    if (carga.kilos == null && litrosVolumen != null) {
+      carga.kilos = litrosVolumen;
+    }
+  }
   if (datos.parcela) carga.parcela = datos.parcela;
   const anada = datos.anada || obtenerAnadaDesdeFecha(datos.fecha);
   if (anada) carga.anada = anada;
@@ -4410,15 +4522,43 @@ function obtenerCargaDesdeNodo(nodo) {
   return Object.keys(carga).length ? carga : null;
 }
 
+function obtenerMermaDefault(nodo) {
+  if (esNodoSangrado(nodo)) return MERMA_DEFAULT_SANGRADO;
+  if (esNodoPrensado(nodo)) return MERMA_DEFAULT_PRENSADO;
+  return MERMA_DEFAULT_GENERAL;
+}
+
+function asegurarMermaPorDefecto(nodo) {
+  if (!nodo) return;
+  nodo.datos = nodo.datos || {};
+  const mermaActual = normalizarNumero(nodo.datos.merma);
+  if (mermaActual == null) {
+    const valor = obtenerMermaDefault(nodo);
+    nodo.datos.merma = Number.isFinite(valor) ? valor : 0;
+  }
+}
+
 function obtenerFactorMermaNodo(nodo) {
   const mermaDatos = nodo?.datos ? normalizarNumero(nodo.datos.merma) : null;
-  const factor = mermaDatos != null ? mermaDatos / 100 : FACTOR_MERMA_PRENSA;
-  return Math.min(Math.max(factor, 0), 0.9);
+  const base = mermaDatos != null ? mermaDatos : obtenerMermaDefault(nodo);
+  const factor = Number.isFinite(base) ? base / 100 : 0;
+  return Math.min(Math.max(factor, 0), 0.95);
 }
 
 function aplicarMerma(base, factor) {
   const resultado = base * (1 - factor);
   return Number.isFinite(resultado) ? Number(resultado.toFixed(2)) : 0;
+}
+
+function aplicarMermaACarga(carga, factor) {
+  if (!carga || !(factor > 0)) return carga;
+  const copia = { ...carga };
+  if (copia.kilos != null) copia.kilos = aplicarMerma(copia.kilos, factor);
+  if (copia.litros != null) copia.litros = aplicarMerma(copia.litros, factor);
+  if (copia.litros_directos != null) {
+    copia.litros_directos = aplicarMerma(copia.litros_directos, factor);
+  }
+  return copia;
 }
 
 function esConexionTrasiego(origen, destino) {
@@ -4431,6 +4571,7 @@ function esConexionTrasiego(origen, destino) {
 
 function aplicarCargaANodo(nodo, carga) {
   nodo.datos = nodo.datos || {};
+  const unidadDestino = obtenerUnidadNodo(nodo);
   if (carga.variedad) {
     nodo.datos.variedad = carga.variedad;
   }
@@ -4447,12 +4588,15 @@ function aplicarCargaANodo(nodo, carga) {
     const litros = Number(carga.litros.toFixed(2));
     nodo.datos.volumen = litros;
     nodo.datos.litros = litros;
-    if (carga.kilos == null && (!nodo.datos.kilos || nodo.tipo === "estilo")) {
-      nodo.datos.kilos = litros;
+    if (unidadDestino === "litros") {
+      nodo.datos.kilos = 0;
     }
   }
   if (carga.litros_directos != null) {
     nodo.datos.litros_directos = Number(carga.litros_directos.toFixed(2));
+    if (unidadDestino === "litros") {
+      nodo.datos.kilos = 0;
+    }
   }
   if (carga.fecha) {
     nodo.datos.fecha = carga.fecha;
@@ -4610,8 +4754,11 @@ function abrirFlowModal(id) {
       return;
     }
     const esCampoProtegido =
-      (nodo.tipo === "entrada" && campo.id !== "id_ref") ||
+      (nodo.tipo === "entrada" && campo.id !== "id_ref" && campo.id !== "merma") ||
       (["variedad", "fecha"].includes(campo.id) && nodo.tipo !== "entrada");
+  const esCampoUnidadBloqueada =
+      ["kilos", "litros", "litros_directos", "volumen"].includes(campo.id) &&
+      nodo.tipo !== "entrada";
     let input;
     if (campo.tipo === "textarea") {
       input = document.createElement("textarea");
@@ -4666,14 +4813,16 @@ function abrirFlowModal(id) {
       input.value = nodo.datos ? nodo.datos[campo.id] || "" : "";
     }
     if (campo.placeholder) input.placeholder = campo.placeholder;
-    if (esCampoProtegido || campo.soloLectura) {
+    if (esCampoProtegido || campo.soloLectura || esCampoUnidadBloqueada) {
       if (input.tagName === "SELECT") {
         input.disabled = true;
       } else {
         input.readOnly = true;
       }
       input.classList.add("field-readonly");
-      input.title = "Dato sincronizado desde Entrada de uva";
+      input.title = esCampoProtegido
+        ? "Dato sincronizado desde Entrada de uva"
+        : "El volumen se calcula automáticamente en el flujo";
     }
     if (campo.id === "id_ref" && (nodo.tipo === "entrada" || nodo.tipo === "deposito")) {
       input.addEventListener("change", () => {
@@ -4738,12 +4887,10 @@ function abrirFlowModal(id) {
   if (nodo.tipo === "barrica") {
     refrescarDuracionModal(nodo);
   }
-  if (nodo.tipo === "deposito" || nodo.tipo === "coupage") {
+  if (nodo.tipo === "coupage") {
     const labelAsign = document.createElement("label");
     labelAsign.textContent =
-      nodo.tipo === "coupage"
-        ? "Selecciona los litros de cada depósito para el blend"
-        : "Asignar kilos/litros por origen";
+      "Selecciona los litros de cada depósito para el blend";
     form.appendChild(labelAsign);
     form.appendChild(crearTablaAsignacionesDeposito(nodo));
   }
@@ -4768,6 +4915,11 @@ function guardarNodoDesdeModal() {
   const snapshot = JSON.parse(JSON.stringify(flujoNodos));
   const config = FLOW_NODE_TYPES[nodoEnEdicion.tipo];
   const datos = {};
+  const metodoPrevio = nodoEnEdicion.datos?.metodo || "";
+  const eraConversorAntes =
+    nodoEnEdicion.tipo === "prensado" ||
+    esMetodoPrensado(metodoPrevio) ||
+    esMetodoSangrado(metodoPrevio);
   if (config) {
     config.campos.forEach(campo => {
       if (campo.tipo === "tablaControl") return;
@@ -4791,7 +4943,28 @@ function guardarNodoDesdeModal() {
       }
     });
   }
+  const metodoCandidato = datos.metodo != null ? datos.metodo : metodoPrevio;
+  const esConversorCandidato =
+    nodoEnEdicion.tipo === "prensado" ||
+    esMetodoPrensado(metodoCandidato) ||
+    esMetodoSangrado(metodoCandidato);
+  if (esConversorCandidato && obtenerUnidadEntrante(nodoEnEdicion) === "litros") {
+    const inputMetodo = document.getElementById("flowField-metodo");
+    if (inputMetodo) inputMetodo.value = metodoPrevio || "";
+    mostrarAviso("Ya tienes líquido en litros antes de este punto; no puedes volver a convertir con prensado o sangrado.", "error");
+    return;
+  }
   nodoEnEdicion.datos = { ...(nodoEnEdicion.datos || {}), ...datos };
+  asegurarMermaPorDefecto(nodoEnEdicion);
+  if (esConversorCandidato) {
+    const mermaActual = normalizarNumero(nodoEnEdicion.datos.merma);
+    const mermaDeseada = esMetodoSangrado(metodoCandidato)
+      ? MERMA_DEFAULT_SANGRADO
+      : MERMA_DEFAULT_PRENSADO;
+    if (mermaActual == null || (mermaActual === MERMA_DEFAULT_GENERAL && !eraConversorAntes)) {
+      nodoEnEdicion.datos.merma = mermaDeseada;
+    }
+  }
   actualizarDuracionPrevista(nodoEnEdicion);
   if (nodoEnEdicion.tipo === "deposito") {
     const volumenEditado = Number(nodoEnEdicion.datos.volumen);
@@ -4932,6 +5105,7 @@ async function cargarNodosGuardados() {
         flujoNodos.forEach(n => {
           actualizarTituloNodo(n);
           actualizarVariedadDesdeAportes(n);
+          asegurarMermaPorDefecto(n);
         });
         localStorage.setItem("flowNodes", JSON.stringify(flujoNodos));
         return;
@@ -4947,6 +5121,7 @@ async function cargarNodosGuardados() {
       flujoNodos.forEach(n => {
         actualizarTituloNodo(n);
         actualizarVariedadDesdeAportes(n);
+        asegurarMermaPorDefecto(n);
       });
     }
   } catch (err) {
@@ -5149,6 +5324,60 @@ function obtenerInicialesUsuario(usuario) {
   ).toUpperCase();
 }
 
+function obtenerNodoPorId(idBuscado) {
+  const idNorm = normalizarIdNodo(idBuscado);
+  return flujoNodos.find(n => normalizarIdNodo(n.id) === idNorm) || null;
+}
+
+function obtenerVolumenFinalNodoContenedor(tipo, idRef) {
+  if (!idRef || !Array.isArray(flujoNodos)) return null;
+  const idStr = String(idRef);
+  const coincide = n =>
+    n.tipo === tipo &&
+    n.datos &&
+    (
+      (n.datos.id_ref != null && String(n.datos.id_ref) === idStr) ||
+      (n.datos.contenedor_id != null && String(n.datos.contenedor_id) === idStr) ||
+      (n.datos.codigo != null && String(n.datos.codigo) === idStr) ||
+      String(n.id) === idStr
+    );
+  const candidatos = flujoNodos.filter(coincide);
+  if (!candidatos.length) return null;
+  const esFinal = nodo => {
+    const targets = nodo.targets || [];
+    return !targets.some(tid => {
+      const target = obtenerNodoPorId(tid);
+      return target && TIPOS_CONTENEDOR_FLUJO.has(target.tipo);
+    });
+  };
+  const finales = candidatos.filter(esFinal);
+  const elegidos = finales.length ? finales : candidatos;
+  const ultimo = elegidos[elegidos.length - 1];
+  const volumen = Number(ultimo?.datos?.volumen ?? ultimo?.datos?.litros);
+  return Number.isFinite(volumen) ? volumen : null;
+}
+
+function obtenerEstadoBarricaDesdeNodo(idBarrica) {
+  if (!idBarrica || !Array.isArray(flujoNodos)) return null;
+  const volumenNodo = obtenerVolumenFinalNodoContenedor("barrica", idBarrica);
+  if (Number.isFinite(volumenNodo)) {
+    return { volumen: volumenNodo, enMapa: true };
+  }
+  const idStr = String(idBarrica);
+  const nodo = flujoNodos.find(
+    n =>
+      n.tipo === "barrica" &&
+      n.datos &&
+      (String(n.datos.id_ref || "") === idStr ||
+        String(n.datos.contenedor_id || "") === idStr ||
+        String(n.datos.codigo || "") === idStr ||
+        String(n.id || "") === idStr)
+  );
+  if (!nodo) return null;
+  const volumen = nodo.datos?.volumen != null ? Number(nodo.datos.volumen) : null;
+  return volumen != null ? { volumen, enMapa: true } : null;
+}
+
 async function cargarUsuarioActivo() {
   const badge = document.getElementById("userBadge");
   const marca = document.getElementById("marcaTexto");
@@ -5192,13 +5421,11 @@ function irAFormulario(seccion, campo) {
 document.addEventListener("click", event => {
   const navMenu = document.getElementById("navMenu");
   const navToggle = document.getElementById("navToggle");
-  const navHamburger = document.getElementById("navHamburger");
   if (
     navMenu &&
     navToggle &&
     !navMenu.contains(event.target) &&
-    !navToggle.contains(event.target) &&
-    (!navHamburger || !navHamburger.contains(event.target))
+    !navToggle.contains(event.target)
   ) {
     cerrarNavMenu();
   }
@@ -5219,34 +5446,6 @@ document.addEventListener("DOMContentLoaded", () => {
       toggleNavMenu();
     });
   }
-  const navHamburgerBtn = document.getElementById("navHamburger");
-  if (navHamburgerBtn) {
-    navHamburgerBtn.addEventListener("click", event => {
-      event.stopPropagation();
-      toggleNavMenu();
-    });
-  }
-  const logoutLink = document.getElementById("navLogout");
-  if (logoutLink) {
-    logoutLink.addEventListener("click", async ev => {
-      ev.preventDefault();
-      cerrarNavMenu();
-      try {
-        await fetch("/logout", { method: "POST" });
-      } catch (err) {
-        console.error("Error cerrando sesión:", err);
-      }
-      window.location.href = `/login.html?ts=${Date.now()}`;
-    });
-  }
-  const modalDeposito = document.getElementById("modalDeposito");
-  if (modalDeposito) {
-    modalDeposito.addEventListener("click", event => {
-      if (event.target === modalDeposito) {
-        cerrarModalDeposito();
-      }
-    });
-  }
   inicializarFlowEditor();
   cargarUsuarioActivo();
 });
@@ -5255,7 +5454,10 @@ let mapaDepositosPorId = new Map();
 let mapaBarricasPorId = new Map();
 let mapaMastelonesPorId = new Map();
 let entradaEditandoId = null;
-const FACTOR_MERMA_PRENSA = 0.325;
+const MERMA_DEFAULT_PRENSADO = 30;
+const MERMA_DEFAULT_SANGRADO = 40;
+const MERMA_DEFAULT_GENERAL = 0;
+const FACTOR_MERMA_PRENSA = MERMA_DEFAULT_PRENSADO / 100;
 const FACTOR_MERMA_TRASIEGO = 0.02;
 const ESTADOS_DEPOSITO_UI = [
   { id: "fa", label: "FA", descripcion: "Fermentación alcohólica", color: "#d85c5c" },
@@ -5571,7 +5773,11 @@ function renderPlano() {
       pos_x: d.pos_x,
       pos_y: d.pos_y,
       capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
-      volumen: d.litros_actuales ?? 0,
+      volumen: (() => {
+        const vNodo = obtenerVolumenFinalNodoContenedor("deposito", d.id);
+        if (Number.isFinite(vNodo)) return vNodo;
+        return d.litros_actuales ?? 0;
+      })(),
       detalle: d.material || d.contenido || d.elaboracion || "",
       vino_tipo: d.vino_tipo || "",
       contenido: d.material || d.contenido || "",
@@ -5601,7 +5807,11 @@ function renderPlano() {
       pos_x: b.pos_x,
       pos_y: b.pos_y,
       capacidad: b.capacidad_l ?? null,
-      volumen: b.litros_actuales ?? 0,
+      volumen: (() => {
+        const vNodo = obtenerVolumenFinalNodoContenedor("barrica", b.id);
+        if (Number.isFinite(vNodo)) return vNodo;
+        return b.litros_actuales ?? 0;
+      })(),
       detalle: [b.tipo_roble, b.tostado].filter(Boolean).join(" · "),
       vino_tipo: b.vino_tipo || "",
       vino_anio: b.vino_anio || "",
@@ -5672,10 +5882,10 @@ function renderPlano() {
     const colorVino =
       obtenerColorVino(item.colorReferencia) ||
       (item.tipo === "barrica"
-        ? "#f6c667"
+        ? "#c48a1b"
         : item.tipo === "mastelone"
-        ? "#2f7f66"
-        : "#5f2c82");
+        ? "#8b1b2b"
+        : "#8f97a8");
     const progress = document.createElement("div");
     progress.className = "plano-card-progress";
     const barra = document.createElement("div");
@@ -5880,7 +6090,7 @@ async function cargarResumen() {
         // ---------- Entradas de uva ----------
         async function cargarEntradas() {
             try {
-                mostrarSkeletonTabla("tablaEntradas", 11, 4);
+                mostrarSkeletonTabla("tablaEntradas", 10, 4);
                 const res = await fetch("/api/entradas_uva");
                 if (!res.ok) return;
                 const datos = await res.json();
@@ -5891,7 +6101,7 @@ async function cargarResumen() {
 
                 if (!datos.length) {
                     const tr = document.createElement("tr");
-                    tr.innerHTML = '<td colspan="11">No hay entradas registradas.</td>';
+                    tr.innerHTML = '<td colspan="10">No hay entradas registradas.</td>';
                     tbody.appendChild(tr);
                     return;
                 }
@@ -5899,33 +6109,6 @@ async function cargarResumen() {
                 datos.forEach(e => {
                     const anada = e.anada || obtenerAnadaDesdeFecha(e.fecha || "");
                     const fechaEntrada = formatearFechaCorta(e.fecha);
-                    const destinos = Array.isArray(e.destinos) ? e.destinos : [];
-                    const destinosTexto = destinos.length
-                        ? destinos
-                              .map(dest => {
-                                  const nombre =
-                                      dest.contenedor_codigo ||
-                                      formatearUbicacionMovimiento(dest.contenedor_tipo, dest.contenedor_id) ||
-                                      `${dest.contenedor_tipo} ${dest.contenedor_id}`;
-                                  const kilos = Number(dest.kilos || 0).toLocaleString("es-ES", {
-                                      maximumFractionDigits: 2,
-                                  });
-                                  const litrosEstimados = Number(
-                                      dest.litros_estimados != null
-                                          ? dest.litros_estimados
-                                          : dest.directo_prensa
-                                          ? Number(dest.kilos || 0) * (1 - (dest.merma_factor ?? FACTOR_MERMA_PRENSA))
-                                          : Number(dest.kilos || 0)
-                                  ).toLocaleString("es-ES", { maximumFractionDigits: 2 });
-                                  const etiquetaPrensa = dest.directo_prensa
-                                      ? ` (Prensa, merma ${
-                                            ((dest.merma_factor ?? FACTOR_MERMA_PRENSA) * 100).toFixed(0)
-                                        }%)`
-                                      : "";
-                                  return `${nombre}: ${kilos} kg → ${litrosEstimados} L${etiquetaPrensa}`;
-                              })
-                              .join("<br>")
-                        : 'Sin asignación (usa "Editar")';
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${e.id}</td>
@@ -5937,7 +6120,6 @@ async function cargarResumen() {
                         <td>${e.parcela || ""}</td>
                         <td>${e.anos_vid || ""}</td>
                         <td>${e.kilos ?? ""}</td>
-                        <td>${destinosTexto}</td>
                         <td>
                             <button class="small-btn" style="margin-right:6px;"
                                 onclick="editarEntradaUva(${e.id})">
@@ -6010,151 +6192,11 @@ function renderResumenParcelas() {
             });
         }
 
-        function limpiarDestinosEntrada() {
-            const contenedor = document.getElementById("listaDestinosEntrada");
-            if (contenedor) contenedor.innerHTML = "";
-        }
-
-        function agregarDestinoEntrada(codigo = "", kilos = "", esPrensa = false, mermaPorc = FACTOR_MERMA_PRENSA * 100) {
-            const contenedor = document.getElementById("listaDestinosEntrada");
-            if (!contenedor) return;
-            const fila = document.createElement("div");
-            fila.className = "destino-row";
-            fila.innerHTML = `
-                <input type="text" class="destino-codigo" placeholder="Código o ID" value="${codigo || ""}">
-                <input type="number" class="destino-kilos" placeholder="Kilos" min="0" step="0.1" value="${kilos || ""}">
-                <label class="destino-prensa-label">
-                    <input type="checkbox" class="destino-prensa" ${esPrensa ? "checked" : ""}>
-                    Directo a prensa
-                </label>
-                <div class="destino-merma">
-                    <span>Merma %</span>
-                    <input type="number" class="destino-merma-input" min="0" max="100" step="1" value="${mermaPorc}" ${esPrensa ? "" : "disabled"}>
-                </div>
-                <button type="button" class="small-btn" onclick="eliminarDestinoEntrada(this)">Quitar</button>
-            `;
-            contenedor.appendChild(fila);
-            fila.querySelectorAll("input").forEach(input => {
-                const evento = input.type === "checkbox" ? "change" : "input";
-                input.addEventListener(evento, actualizarResumenDestinosEntrada);
-            });
-            const chk = fila.querySelector(".destino-prensa");
-            const mermaInput = fila.querySelector(".destino-merma-input");
-            if (chk && mermaInput) {
-                chk.addEventListener("change", () => {
-                    mermaInput.disabled = !chk.checked;
-                    if (!chk.checked) {
-                        mermaInput.value = FACTOR_MERMA_PRENSA * 100;
-                    }
-                    actualizarResumenDestinosEntrada();
-                });
-                mermaInput.addEventListener("input", actualizarResumenDestinosEntrada);
-            }
-            actualizarResumenDestinosEntrada();
-        }
-
-        function eliminarDestinoEntrada(btn) {
-            const fila = btn.closest(".destino-row");
-            if (fila) {
-                fila.remove();
-                actualizarResumenDestinosEntrada();
-            }
-        }
-
-        function obtenerDestinosFormulario() {
-            const contenedor = document.getElementById("listaDestinosEntrada");
-            if (!contenedor) return [];
-            const filas = Array.from(contenedor.querySelectorAll(".destino-row"));
-            return filas
-                .map(fila => {
-                    const codigo = fila.querySelector(".destino-codigo")?.value.trim() || "";
-                    const kilos = fila.querySelector(".destino-kilos")?.value || "";
-                    const directo_prensa = fila.querySelector(".destino-prensa")?.checked || false;
-                    const mermaInput = fila.querySelector(".destino-merma-input");
-                    const mermaValor =
-                        mermaInput && mermaInput.value !== ""
-                            ? Math.max(0, Math.min(100, parseFloat(mermaInput.value)))
-                            : FACTOR_MERMA_PRENSA * 100;
-                    const merma_factor = directo_prensa ? mermaValor / 100 : null;
-                    return { codigo, kilos, directo_prensa, merma_factor };
-                })
-                .filter(item => item.codigo || item.kilos);
-        }
-
-        function actualizarResumenDestinosEntrada() {
-            const resumen = document.getElementById("resumenDestinosEntrada");
-            if (!resumen) return;
-            const destinos = obtenerDestinosFormulario();
-            if (!destinos.length) {
-                resumen.textContent = "Sin destinos asignados.";
-                resumen.style.color = "rgba(47,31,59,0.7)";
-                return;
-            }
-            const asignado = destinos.reduce((acc, dest) => acc + (parseFloat(dest.kilos) || 0), 0);
-            const litrosEstimados = destinos.reduce((acc, dest) => {
-                const kilos = parseFloat(dest.kilos) || 0;
-                if (dest.directo_prensa) {
-                    const merma = dest.merma_factor != null ? dest.merma_factor : FACTOR_MERMA_PRENSA;
-                    return acc + kilos * (1 - merma);
-                }
-                return acc + kilos;
-            }, 0);
-            const kilosTotales = parseFloat(document.getElementById("entradaKilos")?.value || "0") || 0;
-            const textoBase = `Asignado: ${asignado.toLocaleString("es-ES", { maximumFractionDigits: 2 })} kg (≈ ${litrosEstimados.toLocaleString("es-ES", { maximumFractionDigits: 2 })} L)`;
-            if (kilosTotales > 0) {
-                const diferencia = asignado - kilosTotales;
-                if (Math.abs(diferencia) > 0.01) {
-                    const faltante = Math.abs(diferencia).toLocaleString("es-ES", { maximumFractionDigits: 2 });
-                    resumen.textContent = `${textoBase} de ${kilosTotales.toLocaleString("es-ES", {
-                        maximumFractionDigits: 2,
-                    })} kg (diferencia de ${faltante} kg)`;
-                    resumen.style.color = "#c94458";
-                } else {
-                    resumen.textContent = `${textoBase} de ${kilosTotales.toLocaleString("es-ES", {
-                        maximumFractionDigits: 2,
-                    })} kg`;
-                    resumen.style.color = "rgba(47,31,59,0.7)";
-                }
-            } else {
-                resumen.textContent = textoBase;
-                resumen.style.color = "rgba(47,31,59,0.7)";
-            }
-        }
-
-        function resolverDestinoEntradaCodigo(valor) {
-            if (!valor) return null;
-            const dep = resolverContenedorId("deposito", valor);
-            if (dep) return { tipo: "deposito", id: dep };
-            const mas = resolverContenedorId("mastelone", valor);
-            if (mas) return { tipo: "mastelone", id: mas };
-            const bar = resolverContenedorId("barrica", valor);
-            if (bar) return { tipo: "barrica", id: bar };
-            return null;
-        }
-
-        function obtenerCodigoDestinoEdicion(dest) {
-            if (!dest) return "";
-            if (dest.contenedor_codigo) return dest.contenedor_codigo;
-            if (dest.contenedor_tipo === "barrica") {
-                const bar = mapaBarricasPorId.get(dest.contenedor_id);
-                return (bar && bar.codigo) || dest.contenedor_id;
-            }
-            if (dest.contenedor_tipo === "mastelone") {
-                const mas = mapaMastelonesPorId.get(dest.contenedor_id);
-                return (mas && mas.codigo) || dest.contenedor_id;
-            }
-            const dep = mapaDepositosPorId.get(dest.contenedor_id);
-            return (dep && dep.codigo) || dest.contenedor_id;
-        }
-
         function cancelarEdicionEntrada() {
             entradaEditandoId = null;
             const form = document.getElementById("formEntradaUva");
             if (form) form.reset();
             actualizarAnadaEntrada();
-            limpiarDestinosEntrada();
-            agregarDestinoEntrada();
-            actualizarResumenDestinosEntrada();
             const btnGuardar = document.getElementById("btnGuardarEntrada");
             if (btnGuardar) btnGuardar.textContent = "Registrar entrada";
             const btnCancelar = document.getElementById("btnCancelarEdicionEntrada");
@@ -6177,43 +6219,6 @@ function renderResumenParcelas() {
                 return;
             }
 
-            const destinosFormulario = obtenerDestinosFormulario();
-            const destinosPayload = [];
-            for (const destino of destinosFormulario) {
-                if (!destino.codigo || !destino.kilos) {
-                    setFormFeedback("feedbackEntradaUva", "Cada destino debe tener un código y kilos asignados.", "error");
-                    return;
-                }
-                const kilosDestino = parseFloat(destino.kilos);
-                if (!kilosDestino || kilosDestino <= 0) {
-                    setFormFeedback("feedbackEntradaUva", "Los kilos asignados deben ser mayores que 0.", "error");
-                    return;
-                }
-                const cont = resolverDestinoEntradaCodigo(destino.codigo);
-                if (!cont) {
-                    setFormFeedback("feedbackEntradaUva", `No encuentro el contenedor "${destino.codigo}".`, "error");
-                    return;
-                }
-                destinosPayload.push({
-                    contenedor_tipo: cont.tipo,
-                    contenedor_id: cont.id,
-                    kilos: kilosDestino,
-                    directo_prensa: destino.directo_prensa,
-                    merma_factor: destino.directo_prensa
-                        ? destino.merma_factor != null
-                            ? destino.merma_factor
-                            : FACTOR_MERMA_PRENSA
-                        : null,
-                });
-            }
-            if (destinosPayload.length) {
-                const suma = destinosPayload.reduce((acc, d) => acc + d.kilos, 0);
-                if (Math.abs(suma - kilos) > 0.01) {
-                    setFormFeedback("feedbackEntradaUva", "La suma de los kilos asignados debe coincidir con los kilos totales.", "error");
-                    return;
-                }
-            }
-
             try {
                 const body = {
                     fecha,
@@ -6222,8 +6227,7 @@ function renderResumenParcelas() {
                     tipo_suelo,
                     parcela,
                     anos_vid,
-                    kilos,
-                    destinos: destinosPayload,
+                    kilos
                 };
                 const url = entradaEditandoId ? `/api/entradas_uva/${entradaEditandoId}` : "/api/entradas_uva";
                 const metodo = entradaEditandoId ? "PUT" : "POST";
@@ -6265,19 +6269,6 @@ function renderResumenParcelas() {
             document.getElementById("entradaSuelo").value = entrada.tipo_suelo || "";
             document.getElementById("entradaAnosVid").value = entrada.anos_vid || "";
             document.getElementById("entradaKilos").value = entrada.kilos ?? "";
-            limpiarDestinosEntrada();
-            if (entrada.destinos && entrada.destinos.length) {
-                entrada.destinos.forEach(dest => {
-                    const mermaPorc =
-                        dest.directo_prensa && dest.merma_factor != null
-                            ? dest.merma_factor * 100
-                            : FACTOR_MERMA_PRENSA * 100;
-                    agregarDestinoEntrada(obtenerCodigoDestinoEdicion(dest), dest.kilos, !!dest.directo_prensa, mermaPorc);
-                });
-            } else {
-                agregarDestinoEntrada();
-            }
-            actualizarResumenDestinosEntrada();
             const btnGuardar = document.getElementById("btnGuardarEntrada");
             if (btnGuardar) btnGuardar.textContent = "Actualizar entrada";
             const btnCancelar = document.getElementById("btnCancelarEdicionEntrada");
@@ -6325,10 +6316,18 @@ async function cargarDepositos() {
 
     cacheDepositos = separados.depositos;
     cacheMastelones = separados.mastelones;
+    // Volúmenes desde nodos (último eslabón)
+    cacheDepositos.forEach(d => {
+      const volNodo = obtenerVolumenFinalNodoContenedor("deposito", d.id);
+      if (Number.isFinite(volNodo)) {
+        d.litros_actuales = volNodo;
+      }
+    });
     mapaDepositosPorId = new Map(cacheDepositos.map(d => [d.id, d]));
     mapaMastelonesPorId = new Map(cacheMastelones.map(d => [d.id, d]));
 
-    renderTablaContenedores(cacheDepositos, "tablaDepositos", "No hay depósitos.");
+    const listaTabla = [...cacheDepositos, ...cacheMastelones];
+    renderTablaContenedores(listaTabla, "tablaDepositos", "No hay depósitos ni mastelones.");
     renderPlano();
     renderAnalisisLab();
     actualizarIndicadores();
@@ -6437,8 +6436,8 @@ async function crearDeposito(ev) {
   setFormFeedback("feedbackDepositos", "");
 
   const codigo = document.getElementById("depCodigo").value.trim();
-  const clase = "deposito";
   const tipo = document.getElementById("depTipo").value;
+  const clase = (tipo || "").trim().toLowerCase() === "mastelone" ? "mastelone" : "deposito";
   const capacidad_l = Number(document.getElementById("depCapacidad").value || 0);
   const estado = "vacio";
   const material = document.getElementById("depMaterial").value;
@@ -7199,6 +7198,12 @@ async function construirHistorialLocal(tipo, id) {
                 if (!res.ok) return;
                 const datos = await res.json();
                 cacheBarricas = datos;
+                cacheBarricas.forEach(b => {
+                    const volNodo = obtenerVolumenFinalNodoContenedor("barrica", b.id);
+                    if (Number.isFinite(volNodo)) {
+                        b.litros_actuales = volNodo;
+                    }
+                });
                 mapaBarricasPorId = new Map(datos.map(b => [b.id, b]));
                 renderPlano();
 
@@ -7213,9 +7218,12 @@ async function construirHistorialLocal(tipo, id) {
                 }
 
                datos.forEach(b => {
-    const vol = Number(b.litros_actuales || 0).toFixed(1);
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
+                    const estadoNodo = obtenerEstadoBarricaDesdeNodo(b.id);
+                    const vol = estadoNodo?.volumen != null
+                        ? Number(estadoNodo.volumen || 0).toFixed(1)
+                        : Number(b.litros_actuales || 0).toFixed(1);
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
         <td>${b.id}</td>
         <td>${b.codigo || ""}</td>
         <td>${b.capacidad_l ?? ""}</td>
@@ -7239,7 +7247,7 @@ async function construirHistorialLocal(tipo, id) {
             </button>
         </td>
     `;
-                tbody.appendChild(tr);
+                    tbody.appendChild(tr);
 });
                 actualizarIndicadores();
                 actualizarAprovechamientoAnual();
@@ -8083,30 +8091,26 @@ async function registrarUsoEnologico(id) {
         }
 
         // ---------- Inicialización ----------
-        (function init() {
+        (async function init() {
+            await cargarNodosGuardados();
             mostrarSeccion("bodega");
-            cargarResumen();
-            cargarDepositos();
-            cargarBarricas();
-            cargarEntradas();
-            cargarMovimientos();
-            cargarLimpieza();
-            cargarEnologicos();
-            cargarEmbotellados();
-            cargarAnalisisLab();
+            await Promise.all([
+                cargarResumen(),
+                cargarDepositos(),
+                cargarBarricas(),
+                cargarEntradas(),
+                cargarMovimientos(),
+                cargarLimpieza(),
+                cargarEnologicos(),
+                cargarEmbotellados(),
+                cargarAnalisisLab(),
+            ]);
 
             const campoFechaEntrada = document.getElementById("entradaFecha");
             if (campoFechaEntrada) {
                 campoFechaEntrada.addEventListener("change", actualizarAnadaEntrada);
                 actualizarAnadaEntrada();
             }
-            const kilosEntrada = document.getElementById("entradaKilos");
-            if (kilosEntrada) {
-                kilosEntrada.addEventListener("input", actualizarResumenDestinosEntrada);
-            }
-            limpiarDestinosEntrada();
-            agregarDestinoEntrada();
-            actualizarResumenDestinosEntrada();
             const movTipoSelect = document.getElementById("movTipo");
             if (movTipoSelect) {
                 movTipoSelect.addEventListener("change", actualizarCamposMovimiento);
