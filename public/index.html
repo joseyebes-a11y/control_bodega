@@ -167,7 +167,8 @@ body::after {
             font-size: 36px;
             color: #0b0b0b;
             background: none;
-            -webkit-background-clip: initial;
+            background-clip: initial;
+-webkit-background-clip: initial;
             text-shadow:
               0 8px 18px rgba(92, 14, 45, 0.4),
               0 4px 10px rgba(92, 14, 45, 0.25),
@@ -1544,6 +1545,9 @@ label {
             font-size: 14px;
         }
     </style>
+    <!-- Librerías para exportar PDF de la tabla de control -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-5Bg/sA0tE5mr39QQcvKA3evSvKWK2Kx4UvHQ3UKQY6u1/JmgvXIL1sSTB+kJDd/KikJS9rBDjocM9V0bP7nU5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" integrity="sha512-V8bfSFHzEIE8KPQrX61/6LvTItI+ZXhWU1Yai0udDCR0Y9uRMq8eGX2WizzKkbKhYzZ0vjFaZ8WFtQ28gLeg4A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 
 <body>
@@ -1700,7 +1704,7 @@ label {
                     </button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('embotellado')">🍾 Embotellado</button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('almacen')">📦 Almacén</button>
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('salida')">🚚 Salida</button>
+                    <button class="btnPrimario" type="button" onclick="crearNodoManual('salida')">🚛 Salida</button>
                 </div>
                 <div class="flow-toolbar-group">
                     <button class="btnSecundario" type="button" onclick="exportarNodosComoImagen()">Exportar imagen</button>
@@ -2678,16 +2682,7 @@ function sembrarDatosIniciales(origen, destino) {
 
 function obtenerVariedadVisibleNodo(nodo) {
   if (!nodo) return "";
-  let texto = "";
-  if (nodo.tipo === "coupage") {
-    texto = nodo.datos?.variedad || "";
-  } else if (nodo.tipo === "deposito") {
-    texto = obtenerVariedadDesdeAsignaciones(nodo) || nodo.datos?.variedad || "";
-  } else if (nodo.tipo === "entrada") {
-    texto = nodo.datos?.variedad || (nodo.datos?.id_ref ? obtenerEtiquetaEntrada(nodo.datos.id_ref) : "");
-  } else {
-    texto = nodo.datos?.variedad || "";
-  }
+  const texto = obtenerVariedadNodo(nodo);
   return texto ? texto.replace(/\s*·\s*/g, "\n") : "";
 }
 
@@ -2735,7 +2730,80 @@ function describirNodoOrigen(origen) {
 
 function describirNodoDestino(dest) {
   if (!dest) return "Nodo";
+  const contenedor = obtenerContenedorPorIdRef(dest.datos?.id_ref);
+  if (contenedor) {
+    const nombre =
+      contenedor.codigo ||
+      dest.datos?.codigo ||
+      dest.titulo ||
+      (contenedor.tipo === "barrica" ? "Barrica" : "Depósito");
+    const variedad =
+      contenedor.variedad ||
+      dest.datos?.vino_tipo ||
+      dest.datos?.variedad ||
+      "";
+    return variedad ? `${nombre} (${variedad})` : nombre;
+  }
+  if (dest.tipo === "deposito") {
+    const info = dest.datos?.id_ref ? buscarDepositoPorId(dest.datos.id_ref) : null;
+    const nodosMap = getNodosPorId();
+    const mapaDep = crearMapaDeposPorRef(nodosMap);
+    const refKey = dest.datos?.id_ref != null ? String(dest.datos.id_ref) : null;
+    const nombreMapa = refKey && mapaDep[refKey] ? mapaDep[refKey].codigo : null;
+    const nombre =
+      info?.codigo ||
+      nombreMapa ||
+      dest.datos?.codigo ||
+      dest.titulo ||
+      (dest.datos?.id_ref ? `Depósito #${dest.datos.id_ref}` : "Depósito");
+    const variedad = info?.vino_tipo || dest.datos?.vino_tipo || dest.datos?.variedad || "";
+    return variedad ? `${nombre} (${variedad})` : nombre;
+  }
   return etiquetarDestinoFlow(dest);
+}
+
+function obtenerContenedorPrevio(origen, visitados = new Set()) {
+  if (!origen || visitados.has(origen.id)) return null;
+  visitados.add(origen.id);
+  if (origen.tipo === "deposito" || origen.tipo === "barrica") {
+    return origen;
+  }
+  const padres = obtenerPredecesores(origen.id);
+  for (const pre of padres) {
+    const encontrado = obtenerContenedorPrevio(pre, visitados);
+    if (encontrado) return encontrado;
+  }
+  return null;
+}
+
+function nombreOrigenBlend(origen) {
+  if (!origen) return "Origen";
+  const datos = origen.datos || {};
+  const contenedorPrevio = obtenerContenedorPrevio(origen);
+  if (contenedorPrevio && contenedorPrevio !== origen) {
+    return nombreOrigenBlend(contenedorPrevio);
+  }
+  if (origen.tipo === "deposito") {
+    const info = datos.id_ref ? buscarDepositoPorId(datos.id_ref) : null;
+    return (
+      info?.codigo ||
+      datos.codigo ||
+      origen.titulo ||
+      (datos.id_ref ? `Depósito ${datos.id_ref}` : "Depósito")
+    );
+  }
+  if (origen.tipo === "barrica") {
+    const info = datos.contenedor_id ? buscarBarricaPorId(datos.contenedor_id) : null;
+    return (
+      info?.codigo ||
+      datos.tipo ||
+      (datos.contenedor_id ? `Barrica ${datos.contenedor_id}` : origen.titulo || "Barrica")
+    );
+  }
+  if (origen.tipo === "entrada") {
+    return datos.id_ref ? obtenerEtiquetaEntrada(datos.id_ref) : origen.titulo || "Entrada";
+  }
+  return origen.titulo || FLOW_NODE_TYPES[origen.tipo]?.label || "Nodo";
 }
 
 function obtenerEtiquetaEntrada(id) {
@@ -2753,12 +2821,65 @@ function buscarEntradaPorId(id) {
 
 function buscarDepositoPorId(id) {
   if (!id || !Array.isArray(cacheDepositos)) return null;
-  return cacheDepositos.find(d => String(d.id) === String(id)) || null;
+  const dep = cacheDepositos.find(d => String(d.id) === String(id));
+  if (dep) return dep;
+  if (Array.isArray(cacheMastelones)) {
+    const mas = cacheMastelones.find(m => String(m.id) === String(id));
+    if (mas) return mas;
+  }
+  return null;
+}
+
+function buscarDepositoPorCodigo(codigo) {
+  if (!codigo) return null;
+  const codNorm = codigo.toString().trim().toLowerCase();
+  const dep =
+    (cacheDepositos || []).find(d => (d.codigo || "").toLowerCase() === codNorm) ||
+    (cacheMastelones || []).find(d => (d.codigo || "").toLowerCase() === codNorm);
+  return dep || null;
+}
+
+function resolverInfoDepositoDesdeNodo(nodo) {
+  if (!nodo || nodo.tipo !== "deposito") return null;
+  const datos = nodo.datos || {};
+  let info = null;
+  if (datos.id_ref) {
+    info = buscarDepositoPorId(datos.id_ref);
+  }
+  if (!info && datos.codigo) {
+    info = buscarDepositoPorCodigo(datos.codigo);
+  }
+  if (!info && nodo.titulo) {
+    info = buscarDepositoPorCodigo(nodo.titulo);
+  }
+  return info;
 }
 
 function buscarBarricaPorId(id) {
   if (!id || !Array.isArray(cacheBarricas)) return null;
   return cacheBarricas.find(b => String(b.id) === String(id)) || null;
+}
+
+function buscarBarricaPorCodigo(codigo) {
+  if (!codigo || !Array.isArray(cacheBarricas)) return null;
+  const codNorm = codigo.toString().trim().toLowerCase();
+  return cacheBarricas.find(b => (b.codigo || "").toLowerCase() === codNorm) || null;
+}
+
+function resolverInfoBarricaDesdeNodo(nodo) {
+  if (!nodo || nodo.tipo !== "barrica") return null;
+  const datos = nodo.datos || {};
+  let info = null;
+  if (datos.contenedor_id) {
+    info = buscarBarricaPorId(datos.contenedor_id);
+  }
+  if (!info && datos.codigo) {
+    info = buscarBarricaPorCodigo(datos.codigo);
+  }
+  if (!info && nodo.titulo) {
+    info = buscarBarricaPorCodigo(nodo.titulo);
+  }
+  return info;
 }
 
 function obtenerContenedorPorIdRef(idRef) {
@@ -2774,21 +2895,62 @@ function obtenerContenedorPorIdRef(idRef) {
   return null;
 }
 
-// Cargar nodos desde localStorage y mapear por id
+function rellenarDatosDepositoDesdeCache(nodo) {
+  if (!nodo || nodo.tipo !== "deposito" || !nodo.datos?.id_ref) return;
+  const info = buscarDepositoPorId(nodo.datos.id_ref);
+  if (!info) return;
+  nodo.datos.codigo = nodo.datos.codigo || info.codigo || nodo.datos.codigo;
+  nodo.datos.capacidad =
+    nodo.datos.capacidad ||
+    info.capacidad_l ||
+    (info.capacidad_hl != null ? info.capacidad_hl * 100 : nodo.datos.capacidad);
+  nodo.datos.vino_tipo = nodo.datos.vino_tipo || info.vino_tipo;
+  nodo.datos.variedad = nodo.datos.variedad || info.vino_tipo;
+}
+
+// Cargar nodos (preferimos el estado en memoria) y mapear por id
 function getNodosPorId() {
-  const nodos = JSON.parse(localStorage.getItem("flowNodes") || "[]");
+  const enMemoria = Array.isArray(flujoNodos) ? flujoNodos : [];
+  const nodos =
+    enMemoria.length > 0
+      ? enMemoria
+      : JSON.parse(localStorage.getItem("flowNodes") || "[]");
   return Object.fromEntries(nodos.map(n => [n.id, n]));
 }
 
-function getNombreNodoDestino(idNodoDestino, nodosPorId) {
+function crearMapaDeposPorRef(nodosPorId) {
+  const mapa = {};
+  Object.values(nodosPorId || {}).forEach(nodo => {
+    if (nodo.tipo === "deposito" && nodo.datos?.id_ref != null) {
+      const clave = String(nodo.datos.id_ref);
+      rellenarDatosDepositoDesdeCache(nodo);
+      if (!mapa[clave]) {
+        mapa[clave] = {
+          codigo: nodo.datos.codigo || nodo.titulo || `Depósito #${clave}`,
+          nodoId: nodo.id,
+        };
+      }
+    }
+  });
+  return mapa;
+}
+
+function getNombreNodoDestino(idNodoDestino, nodosPorId, mapaDepRef) {
   const nodo = nodosPorId[idNodoDestino];
   if (!nodo) return `Nodo ${idNodoDestino}`;
 
   const datos = nodo.datos || {};
+  const mapa = mapaDepRef || crearMapaDeposPorRef(nodosPorId);
 
   switch (nodo.tipo) {
     case "deposito":
       // A1, A2, A3…
+      if (datos.id_ref != null) {
+        const depMap = mapa[String(datos.id_ref)];
+        if (depMap?.codigo) return depMap.codigo;
+        const info = buscarDepositoPorId(datos.id_ref);
+        if (info?.codigo) return info.codigo;
+      }
       return `${datos.codigo || nodo.titulo || "Depósito"}`;
 
     case "barrica":
@@ -2809,11 +2971,12 @@ function getNombreNodoDestino(idNodoDestino, nodosPorId) {
 function buildRepartoDestinos(nodoElaboracion) {
   if (!nodoElaboracion) return [];
   const nodosPorId = getNodosPorId();
+  const mapaDepRef = crearMapaDeposPorRef(nodosPorId);
   const distribucion = nodoElaboracion.datos?.distribucion || {};
   return Object.entries(distribucion).map(([idNodoDestino, valores]) => {
     return {
       idNodoDestino,
-      nombre: getNombreNodoDestino(idNodoDestino, nodosPorId),
+      nombre: getNombreNodoDestino(idNodoDestino, nodosPorId, mapaDepRef),
       kilos: (valores && valores.kilos) || 0,
       litros: (valores && valores.litros) || 0,
     };
@@ -2943,6 +3106,19 @@ function crearTablaControlFermentacion(nodo) {
   }
   const contenedor = document.createElement("div");
   contenedor.className = "tabla-control-fermentacion";
+
+  const toolbar = document.createElement("div");
+  toolbar.style.display = "flex";
+  toolbar.style.justifyContent = "flex-end";
+  toolbar.style.marginBottom = "6px";
+  const btnPdf = document.createElement("button");
+  btnPdf.type = "button";
+  btnPdf.className = "small-btn";
+  btnPdf.textContent = "PDF";
+  btnPdf.addEventListener("click", () => exportarTablaControlPDF(nodo));
+  toolbar.appendChild(btnPdf);
+  contenedor.appendChild(toolbar);
+
   const tabla = document.createElement("table");
   const thead = document.createElement("thead");
   thead.innerHTML = `
@@ -3028,6 +3204,22 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
   nodo.datos = nodo.datos || {};
   nodo.datos.asignaciones = nodo.datos.asignaciones || {};
   const esCoupage = nodo.tipo === "coupage";
+  if (esCoupage) {
+    const infoDest = obtenerTotalesDestino(nodo);
+    if (infoDest) {
+      const info = document.createElement("p");
+      info.style.fontSize = "12px";
+      info.style.color = "#777";
+      info.textContent = `Destino: capacidad ${infoDest.capTotal.toFixed(2)} L · Libre ${infoDest.libre.toFixed(2)} L`;
+      wrapper.appendChild(info);
+    } else {
+      const info = document.createElement("p");
+      info.style.fontSize = "12px";
+      info.style.color = "#c06";
+      info.textContent = "Conecta este blend a un destino (depósito o barrica) para ver la capacidad libre, o revisa que el destino tenga capacidad/volumen definidos.";
+      wrapper.appendChild(info);
+    }
+  }
   const tabla = document.createElement("table");
   tabla.innerHTML = `
     <thead>
@@ -3043,6 +3235,34 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
     const cargaOrigen = obtenerCargaDesdeNodo(origen) || {};
     const kilosPorDefecto = Number(cargaOrigen.kilos || 0);
     const litrosPorDefecto = Number(cargaOrigen.litros_directos ?? (cargaOrigen.litros || 0));
+    const litrosNodoDisponibles = (() => {
+      if (!esCoupage) return litrosPorDefecto;
+      if (origen.tipo === "deposito") {
+        const idRef = origen.datos?.id_ref || origen.datos?.contenedor_id || origen.id;
+        const idNum = idRef != null ? Number(idRef) : null;
+        const vol = obtenerVolumenFinalNodoContenedor("deposito", idNum);
+        if (Number.isFinite(vol)) return vol;
+        const fallbackVol =
+          origen.datos?.volumen ??
+          origen.datos?.litros ??
+          origen.datos?.litros_directos ??
+          litrosPorDefecto;
+        if (Number.isFinite(Number(fallbackVol))) return Number(fallbackVol);
+      }
+      if (origen.tipo === "barrica") {
+        const idRef = origen.datos?.contenedor_id || origen.datos?.id_ref || origen.id;
+        const idNum = idRef != null ? Number(idRef) : null;
+        const vol = obtenerVolumenFinalNodoContenedor("barrica", idNum);
+        if (Number.isFinite(vol)) return vol;
+        const fallbackVol =
+          origen.datos?.volumen ??
+          origen.datos?.litros ??
+          origen.datos?.litros_directos ??
+          litrosPorDefecto;
+        if (Number.isFinite(Number(fallbackVol))) return Number(fallbackVol);
+      }
+      return litrosPorDefecto;
+    })();
     const registro = asegurarAsignacionRegistro(
       nodo,
       origen.id,
@@ -3052,9 +3272,9 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
     const tr = document.createElement("tr");
     const nombreBase = describirNodoOrigen(origen);
     const nombre = esCoupage
-      ? limpiarTextoVariedad(obtenerVariedadNodo(origen)) || origen.titulo || nombreBase
+      ? nombreOrigenBlend(origen)
       : nombreBase;
-    const disponibleTexto = esCoupage ? `Disponible: ${litrosPorDefecto.toFixed(2)} L` : describirNodoOrigen(origen);
+    const disponibleTexto = esCoupage ? `Disponible: ${Number(litrosNodoDisponibles || 0).toFixed(2)} L` : describirNodoOrigen(origen);
     const valorKilos = registro.kilos && registro.kilos !== 0 ? registro.kilos : "";
     const valorLitros = registro.litros && registro.litros !== 0 ? registro.litros : "";
     tr.innerHTML = `
@@ -3064,7 +3284,7 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
           ? ""
           : `<td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorKilos}" data-origen="${key}" data-tipo="kilos"></td>`
       }
-      <td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorLitros}" data-origen="${key}" data-tipo="litros"${esCoupage ? ` data-max-litros="${litrosPorDefecto}"` : ""}></td>`;
+      <td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorLitros}" data-origen="${key}" data-tipo="litros"${esCoupage && Number.isFinite(litrosNodoDisponibles) ? ` data-max-litros="${Number(litrosNodoDisponibles).toFixed(4)}"` : ""}></td>`;
     if (!soloLectura) {
       const inputs = tr.querySelectorAll("input");
       inputs.forEach(input => {
@@ -3073,11 +3293,26 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
           const tipo = input.dataset.tipo;
           registro[tipo] = Number.isFinite(valor) ? valor : "";
           if (esCoupage && tipo === "litros") {
-            const max = Number(input.dataset.maxLitros || 0);
-            if (Number.isFinite(max) && max >= 0 && valor > max) {
+            const maxAttr = input.dataset.maxLitros;
+            const max = maxAttr != null ? Number(maxAttr) : null;
+            if (Number.isFinite(max) && max > 0 && valor > max) {
               registro.litros = max;
               input.value = max.toFixed(2);
               mostrarAviso("No puedes usar más litros de los disponibles en el depósito.", "error");
+            }
+            const capDestino = obtenerCapacidadDisponibleDesdeTargets(nodo);
+            if (capDestino != null) {
+              const totalAsignado = sumarAsignacionesLitros(nodo);
+              if (totalAsignado > capDestino + 0.0001) {
+                const restante = capDestino - (totalAsignado - (registro.litros || 0));
+                const nuevoValor = Math.max(0, restante);
+                registro.litros = nuevoValor;
+                input.value = nuevoValor.toFixed(2);
+                mostrarAviso(
+                  `No caben más de ${capDestino.toFixed(2)} L en el destino del blend.`,
+                  "error"
+                );
+              }
             }
           }
           actualizarVariedadDesdeAportes(nodo);
@@ -3121,10 +3356,15 @@ function crearTablaDistribucionEstilo(nodo) {
       ? cargaDisponible.litros_directos
       : cargaDisponible.litros || 0
   );
+  const totDestinos = nodo.tipo === "coupage" ? obtenerTotalesDestino(nodo) : null;
   const resumen = document.createElement("p");
   resumen.style.fontSize = "12px";
   resumen.style.color = "#777";
-  resumen.textContent = `Disponible: ${dispKilos.toFixed(2)} kg · ${dispLitros.toFixed(2)} L`;
+  const infoCap =
+    totDestinos
+      ? ` | Destino: ${Number.isFinite(totDestinos.capTotal) ? totDestinos.capTotal.toFixed(2) + " L cap" : "capacidad n/d"} · Libre ${Number.isFinite(totDestinos.libre) ? totDestinos.libre.toFixed(2) + " L" : "—"}`
+      : "";
+  resumen.textContent = `Disponible: ${dispKilos.toFixed(2)} kg · ${dispLitros.toFixed(2)} L${infoCap}`;
   wrapper.appendChild(resumen);
 
   const tabla = document.createElement("table");
@@ -3222,6 +3462,116 @@ function obtenerVariedadDesdeAsignaciones(nodo) {
   return componentes
     .map(comp => `${comp.variedad} ${(comp.cantidad / total * 100).toFixed(1)}%`)
     .join(" · ");
+}
+
+function capYVolDesdeInfo(info, fallbackCap, fallbackVol, extraCap = null) {
+  if (!info && fallbackCap == null && fallbackVol == null && extraCap == null) return { cap: null, vol: null };
+  const capRaw =
+    (info && (info.capacidad_l ?? (info.capacidad_hl != null ? info.capacidad_hl * 100 : null))) ??
+    fallbackCap ??
+    extraCap;
+  const volRaw =
+    (info && (info.litros_actuales ?? info.volumen)) ??
+    fallbackVol ??
+    0;
+  return { cap: Number(capRaw), vol: Number(volRaw) };
+}
+
+function capacidadDisponibleContenedorDesdeInfo(info, fallbackCap, fallbackVol) {
+  const { cap, vol } = capYVolDesdeInfo(info, fallbackCap, fallbackVol);
+  if (cap == null || Number.isNaN(cap)) return null;
+  const capacidad = Number(cap);
+  const volumen = Number(vol) || 0;
+  if (!Number.isFinite(capacidad)) return null;
+  return Math.max(0, capacidad - volumen);
+}
+
+function obtenerCapacidadDisponibleContenedor(nodoDestino) {
+  if (!nodoDestino) return null;
+  const datos = nodoDestino.datos || {};
+  if (nodoDestino.tipo === "deposito") {
+    const info = resolverInfoDepositoDesdeNodo(nodoDestino);
+    return capacidadDisponibleContenedorDesdeInfo(
+      info,
+      datos.capacidad ?? datos.capacidad_l,
+      datos.volumen ?? datos.litros ?? datos.litros_directos
+    );
+  }
+  if (nodoDestino.tipo === "barrica") {
+    const info = resolverInfoBarricaDesdeNodo(nodoDestino);
+    return capacidadDisponibleContenedorDesdeInfo(
+      info,
+      datos.capacidad ?? datos.capacidad_l,
+      datos.volumen ?? datos.litros ?? datos.litros_directos
+    );
+  }
+  return null;
+}
+
+function obtenerTotalesDestino(nodo) {
+  if (!nodo || !Array.isArray(nodo.targets) || !nodo.targets.length) return null;
+  let capTotal = 0;
+  let volTotal = 0;
+  let tieneDestino = false;
+  nodo.targets.forEach(tid => {
+    const dest = obtenerNodoPorId(tid);
+    if (!dest) return;
+    const datos = dest.datos || {};
+    tieneDestino = true;
+    if (dest.tipo === "deposito") {
+      if (datos.id_ref && (!datos.capacidad && !datos.capacidad_l)) {
+        intentarPoblarNodoDeposito(dest);
+      }
+      const info = resolverInfoDepositoDesdeNodo(dest);
+      const { cap, vol } = capYVolDesdeInfo(
+        info,
+        datos.capacidad ?? datos.capacidad_l,
+        datos.volumen ?? datos.litros ?? datos.litros_directos
+      );
+      if (Number.isFinite(cap)) {
+        capTotal += cap;
+      }
+      if (Number.isFinite(vol)) {
+        volTotal += vol;
+      }
+    } else if (dest.tipo === "barrica") {
+      const info = resolverInfoBarricaDesdeNodo(dest);
+      const { cap, vol } = capYVolDesdeInfo(
+        info,
+        datos.capacidad ?? datos.capacidad_l,
+        datos.volumen ?? datos.litros ?? datos.litros_directos
+      );
+      if (Number.isFinite(cap)) {
+        capTotal += cap;
+      }
+      if (Number.isFinite(vol)) {
+        volTotal += vol;
+      }
+    }
+  });
+  if (!tieneDestino) return null;
+  const libreCalc = Number.isFinite(capTotal) ? Math.max(0, capTotal - volTotal) : null;
+  return { capTotal, volTotal, libre: libreCalc };
+}
+
+function obtenerCapacidadDisponibleDesdeTargets(nodo) {
+  if (!nodo || !Array.isArray(nodo.targets)) return null;
+  let total = 0;
+  nodo.targets.forEach(tid => {
+    const dest = obtenerNodoPorId(tid);
+    if (!dest) return;
+    const cap = obtenerCapacidadDisponibleContenedor(dest);
+    if (cap != null) total += cap;
+  });
+  return total > 0 ? total : null;
+}
+
+function sumarAsignacionesLitros(nodo) {
+  if (!nodo?.datos?.asignaciones) return 0;
+  return Object.values(nodo.datos.asignaciones).reduce((acc, reg) => {
+    const val = Number(reg?.litros);
+    return acc + (Number.isFinite(val) ? val : 0);
+  }, 0);
 }
 
 function calcularTotalesAsignaciones(nodo) {
@@ -3342,7 +3692,7 @@ function poblarSelectOpciones(selectId, opciones, placeholder = "Selecciona") {
 const FLOW_NODE_TYPES = {
   entrada: {
     label: "Entrada de uva",
-    icono: "🚚",
+    icono: "🍇",
     campos: [
       { id: "id_ref", label: "ID existente", tipo: "number", placeholder: "ID en Entradas" },
       { id: "kilos", label: "Kilos", tipo: "number", placeholder: "1000" },
@@ -3464,6 +3814,7 @@ const FLOW_NODE_TYPES = {
         ],
         placeholder: "Selecciona cierre",
       },
+      { id: "botellas_resultantes", label: "Botellas resultantes", tipo: "info" },
     ],
   },
   almacen: {
@@ -3476,7 +3827,7 @@ const FLOW_NODE_TYPES = {
   },
   salida: {
     label: "Salida de bodega",
-    icono: "🚚",
+    icono: "🚛",
     campos: [
       { id: "destino", label: "Destino", tipo: "text", placeholder: "Cliente / País" },
       { id: "transporte", label: "Cantidad de salida (botellas)", tipo: "text", placeholder: "Palet / Caja / Botella" },
@@ -3534,7 +3885,7 @@ Object.keys(FLOW_NODE_TYPES).forEach(key => {
     placeholder: "Tempranillo",
     soloLectura: !esEntrada,
   });
-  if (key !== "deposito") {
+  if (key !== "deposito" && key !== "entrada") {
     asegurarCampo("merma", {
       label: "Merma / pérdida (%)",
       tipo: "number",
@@ -3889,6 +4240,10 @@ function renderFlowNodes() {
   if (!canvas) return;
   canvas.innerHTML = "";
   flujoNodos.forEach(nodo => {
+    if (nodo.tipo === "deposito") {
+      rellenarDatosDepositoDesdeCache(nodo);
+      actualizarTituloNodo(nodo);
+    }
     const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo" };
     const div = document.createElement("div");
     div.className = "flow-node";
@@ -4199,6 +4554,139 @@ function completarCargaVisual(carga) {
   return carga;
 }
 
+function obtenerLitrosDesdePredecesores(nodo) {
+  if (!nodo) return 0;
+  const padres = obtenerPredecesores(nodo.id);
+  return padres.reduce((acc, pre) => {
+    const carga = obtenerCargaDesdeNodo(pre);
+    const litros = normalizarNumero(
+      carga?.litros_directos != null ? carga.litros_directos : carga?.litros
+    );
+    return acc + (Number.isFinite(litros) ? litros : 0);
+  }, 0);
+}
+
+function actualizarBotellasResultantes(nodo) {
+  if (!nodo || nodo.tipo !== "embotellado") return;
+  const selectBotella = document.getElementById("flowField-botella");
+  const display = document.getElementById("flowField-botellas_resultantes-display");
+  const hidden = document.getElementById("flowField-botellas_resultantes");
+  if (!selectBotella || !display || !hidden) return;
+  const litrosDisponibles = obtenerLitrosDesdePredecesores(nodo);
+  const volBotella = VOLUMEN_BOTELLA_L[selectBotella.value] || 0;
+  const botellas = volBotella > 0 ? Math.floor(litrosDisponibles / volBotella) : 0;
+  display.textContent = botellas ? `${botellas} uds (${litrosDisponibles.toFixed(2)} L disponibles)` : "—";
+  hidden.value = botellas;
+}
+
+async function asegurarJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return window.jspdf.jsPDF;
+  const cargar = src =>
+    new Promise(resolve => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = resolve;
+      document.head.appendChild(script);
+    });
+  await cargar("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  await cargar("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js");
+  return window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : null;
+}
+
+async function exportarTablaControlPDF(nodo) {
+  try {
+    const jsPDF = await asegurarJsPDF();
+    if (!jsPDF) {
+      alert("No se pudo generar el PDF (jsPDF no se cargó). Usa Imprimir como PDF.");
+      return;
+    }
+    const doc = new jsPDF();
+    const anada =
+      nodo.datos?.anada ||
+      obtenerAnadaDesdeFecha(nodo.datos?.fecha) ||
+      obtenerAnadaDesdeFecha(nodo.datos?.fecha_operacion) ||
+      "";
+    const titulo = `Control analítico de ${nodo.titulo || "Depósito"}${anada ? " · añada " + anada : ""}`;
+    doc.setFontSize(14);
+    doc.text(titulo, 14, 18);
+    doc.setFontSize(11);
+
+    const depInfo = nodo.datos?.id_ref ? buscarDepositoPorId(nodo.datos.id_ref) : null;
+    const variedad = depInfo?.vino_tipo || nodo.datos?.variedad || nodo.datos?.vino || "";
+    const tipoDep = depInfo?.tipo || nodo.datos?.tipo || "Depósito";
+    const capacidadRaw =
+      depInfo?.capacidad_l ??
+      (depInfo?.capacidad_hl != null ? depInfo.capacidad_hl * 100 : nodo.datos?.capacidad);
+    const capacidad = Number.isFinite(capacidadRaw) ? `${Number(capacidadRaw).toFixed(2)} L` : "—";
+    const volumenRaw =
+      nodo.datos?.volumen ??
+      nodo.datos?.litros ??
+      nodo.datos?.litros_directos ??
+      depInfo?.litros_actuales;
+    const volumen = Number.isFinite(Number(volumenRaw))
+      ? `${Number(volumenRaw).toFixed(2)} L`
+      : "—";
+
+    const infoLines = [
+      `Variedad de uva: ${variedad || "—"}`,
+      `Tipo de depósito: ${tipoDep || "—"}`,
+      `Capacidad depósito: ${capacidad}`,
+      `Volumen uva/vino: ${volumen}`,
+    ];
+    doc.setFontSize(10);
+    infoLines.forEach((linea, idx) => {
+      doc.text(linea, 14, 24 + idx * 6);
+    });
+
+    const startYTable = 24 + infoLines.length * 6 + 6;
+
+    const formatearFechaCorta = fechaStr => {
+      if (!fechaStr) return "";
+      const d = new Date(fechaStr);
+      if (isNaN(d.getTime())) return fechaStr;
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yyyy = d.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    const filas = (nodo.datos?.control || []).map(reg => [
+      formatearFechaCorta(reg.fecha),
+      reg.densidad || "",
+      reg.temperatura || "",
+      reg.productos || "",
+    ]);
+    const body = filas.length ? filas : [["", "", "", ""]];
+    const headers = [["Fecha", "Densidad", "°C", "Productos"]];
+    const autoTable = (window.jspdf && window.jspdf.autoTable) || (doc && doc.autoTable);
+    if (autoTable) {
+      (window.jspdf && window.jspdf.autoTable ? window.jspdf.autoTable : doc.autoTable).call(doc, {
+        head: headers,
+        body,
+        startY: startYTable,
+        styles: { fontSize: 11, cellPadding: 4 },
+        headStyles: { fillColor: [60, 0, 90], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 240, 248] },
+      });
+    } else {
+      let y = startYTable;
+      doc.text(headers[0].join(" | "), 14, y);
+      y += 8;
+      body.forEach(row => {
+        doc.text(row.join(" | "), 14, y);
+        y += 8;
+      });
+    }
+    const nombreArchivo = `control-${(nodo.titulo || "deposito").toString().replace(/\s+/g, "-")}.pdf`;
+    doc.save(nombreArchivo);
+  } catch (err) {
+    console.error("Error generando PDF de control:", err);
+    alert("No se pudo generar el PDF.");
+  }
+}
+
 function escalarCarga(cargaBase, factor) {
   if (!cargaBase || !Number.isFinite(factor)) return null;
   const carga = { ...cargaBase };
@@ -4440,17 +4928,26 @@ function normalizarNumero(valor) {
   return Number.isFinite(numero) ? numero : null;
 }
 
-function obtenerVariedadNodo(nodo) {
-  const datos = nodo?.datos || {};
+function obtenerVariedadNodo(nodo, visitados = new Set()) {
+  if (!nodo) return "";
+  const key = nodo.id || nodo;
+  if (visitados.has(key)) return "";
+  visitados.add(key);
+  const datos = nodo.datos || {};
   if (datos.variedad) return datos.variedad;
   if (datos.vino) return datos.vino;
-  if (nodo?.tipo === "entrada" && nodo.datos?.id_ref) {
-    const entrada = buscarEntradaPorId(nodo.datos.id_ref);
+  if (nodo.tipo === "entrada" && datos.id_ref) {
+    const entrada = buscarEntradaPorId(datos.id_ref);
     if (entrada?.variedad) return entrada.variedad;
   }
-  if (nodo?.tipo === "deposito" && nodo.datos?.id_ref) {
-    const deposito = buscarDepositoPorId(nodo.datos.id_ref);
-    if (deposito?.vino_tipo) return deposito.vino_tipo;
+  if (nodo.tipo === "deposito") {
+    const varAsign = obtenerVariedadDesdeAsignaciones(nodo);
+    if (varAsign) return varAsign;
+  }
+  const padres = obtenerPredecesores(nodo.id);
+  for (const pre of padres) {
+    const varPadre = obtenerVariedadNodo(pre, visitados);
+    if (varPadre) return varPadre;
   }
   return "";
 }
@@ -4727,7 +5224,24 @@ function abrirFlowModal(id) {
   const form = document.getElementById("flowModalForm");
   if (!modal || !titulo || !form) return;
   const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo", campos: [] };
-  titulo.textContent = `Editar ${config.label}`;
+  let nombreExtra = "";
+  if (nodo.tipo === "deposito") {
+    const infoDep = nodo.datos?.id_ref ? buscarDepositoPorId(nodo.datos.id_ref) : null;
+    const nom = nodo.datos?.codigo || infoDep?.codigo;
+    if (nom) nombreExtra = ` ${nom}`;
+  } else if (nodo.tipo === "barrica") {
+    const infoBar = nodo.datos?.contenedor_id ? buscarBarricaPorId(nodo.datos.contenedor_id) : null;
+    const nom = nodo.datos?.tipo || infoBar?.codigo || (nodo.datos?.contenedor_id ? `#${nodo.datos.contenedor_id}` : "");
+    if (nom) nombreExtra = ` ${nom}`;
+  }
+  const tituloTexto = `Editar ${config.label}${nombreExtra}`;
+  if (config.icono && config.icono.trim().startsWith("<")) {
+    titulo.innerHTML = `${config.icono} ${tituloTexto}`;
+  } else if (config.icono) {
+    titulo.textContent = `${config.icono} ${tituloTexto}`;
+  } else {
+    titulo.textContent = tituloTexto;
+  }
   form.innerHTML = "";
   const camposOrdenados = ordenarCamposParaModal(config.campos);
   camposOrdenados.forEach(campo => {
@@ -4787,7 +5301,10 @@ function abrirFlowModal(id) {
       input = document.createElement("select");
       const ids = nodo.tipo === "entrada"
         ? (cacheEntradas || []).map(e => ({ id: e.id, label: `Entrada #${e.id} (${e.variedad || ""})` }))
-        : (cacheDepositos || []).map(d => ({ id: d.id, label: d.codigo || `Depósito #${d.id}` }));
+        : ([...(cacheDepositos || []), ...(cacheMastelones || [])].map(d => ({
+            id: d.id,
+            label: d.codigo || `Depósito #${d.id}`,
+          })));
       const empty = document.createElement("option");
       empty.value = "";
       empty.textContent = "Selecciona ID";
@@ -4882,10 +5399,16 @@ function abrirFlowModal(id) {
         refrescarDuracionModal(nodo);
       });
     }
+    if (nodo.tipo === "embotellado" && campo.id === "botella") {
+      input.addEventListener("change", () => actualizarBotellasResultantes(nodo));
+    }
     form.appendChild(input);
   });
   if (nodo.tipo === "barrica") {
     refrescarDuracionModal(nodo);
+  }
+  if (nodo.tipo === "embotellado") {
+    actualizarBotellasResultantes(nodo);
   }
   if (nodo.tipo === "coupage") {
     const labelAsign = document.createElement("label");
@@ -5050,7 +5573,7 @@ function intentarPoblarNodoDeposito(nodo) {
   nodo.datos.capacidad = deposito.capacidad_l || (deposito.capacidad_hl ? deposito.capacidad_hl * 100 : nodo.datos.capacidad);
   nodo.datos.volumen = deposito.litros_actuales ?? nodo.datos.volumen;
   nodo.datos.vino = deposito.vino_tipo || nodo.datos.vino;
-  nodo.datos.variedad = deposito.vino_tipo || nodo.datos.variedad;
+  // No sobreescribir variedad: se hereda desde la entrada/asignaciones
   nodo.datos.estado = deposito.estado || nodo.datos.estado;
   nodo.datos.fecha = deposito.fecha_uso ? deposito.fecha_uso.slice(0, 10) : nodo.datos.fecha;
   nodo.datos.material = deposito.material || deposito.contenido || nodo.datos.material;
@@ -5106,6 +5629,9 @@ async function cargarNodosGuardados() {
           actualizarTituloNodo(n);
           actualizarVariedadDesdeAportes(n);
           asegurarMermaPorDefecto(n);
+          if (n.tipo === "deposito" && n.datos?.id_ref && !n.datos?.codigo) {
+            intentarPoblarNodoDeposito(n);
+          }
         });
         localStorage.setItem("flowNodes", JSON.stringify(flujoNodos));
         return;
@@ -5122,6 +5648,9 @@ async function cargarNodosGuardados() {
         actualizarTituloNodo(n);
         actualizarVariedadDesdeAportes(n);
         asegurarMermaPorDefecto(n);
+        if (n.tipo === "deposito" && n.datos?.id_ref && !n.datos?.codigo) {
+          intentarPoblarNodoDeposito(n);
+        }
       });
     }
   } catch (err) {
@@ -5469,6 +5998,20 @@ const ESTADOS_DEPOSITO_UI = [
   { id: "analitica", label: "Analítica", descripcion: "Analítica pendiente", color: "#ff7aa8" },
 ];
 const TIPOS_NODO_CONTENEDOR = new Set(["deposito", "barrica", "almacen", "coupage"]);
+const VOLUMEN_BOTELLA_L = {
+  "Split 0,187 L": 0.187,
+  "Demi 0,375 L": 0.375,
+  "Borgoña 0,75 L": 0.75,
+  "Bordelesa 0,75 L": 0.75,
+  "Magnum 1,5 L": 1.5,
+  "Doble Magnum 3 L": 3,
+  "Jeroboam 3 L": 3,
+  "Rehoboam 4,5 L": 4.5,
+  "Methuselah 6 L": 6,
+  "Salmanazar 9 L": 9,
+  "Balthazar 12 L": 12,
+  "Nebuchadnezzar 15 L": 15,
+};
 
 function obtenerInfoEstadoDeposito(id) {
   if (!id) return ESTADOS_DEPOSITO_UI.find(e => e.id === "vacio");
