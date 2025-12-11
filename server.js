@@ -87,6 +87,13 @@ async function assertColumns(tableName, requiredColumns) {
   }
 }
 
+async function ensureColumn(tableName, columnName, definition) {
+  const cols = await db.all(`PRAGMA table_info(${tableName})`);
+  if (cols.some(c => c.name === columnName)) return;
+  await db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  console.log(`ℹ️ Añadida columna ${columnName} a ${tableName}`);
+}
+
 async function ensureTables() {
   await assertColumns("bodegas", ["user_id", "nombre"]);
   await assertColumns("depositos", [
@@ -113,7 +120,9 @@ async function ensureTables() {
     "pos_y",
     "activo",
   ]);
-  await assertColumns("entradas_uva", ["user_id", "bodega_id", "fecha", "variedad", "kilos"]);
+  await ensureColumn("entradas_uva", "densidad", "REAL");
+  await ensureColumn("entradas_uva", "temperatura", "REAL");
+  await assertColumns("entradas_uva", ["user_id", "bodega_id", "fecha", "variedad", "kilos", "densidad", "temperatura"]);
   await assertColumns("entradas_destinos", [
     "user_id",
     "bodega_id",
@@ -136,7 +145,7 @@ async function ensureTables() {
   await assertColumns("analisis_laboratorio", [
     "user_id",
     "bodega_id",
-    "deposito_id",
+    "contenedor_id",
     "contenedor_tipo",
     "archivo_fichero",
   ]);
@@ -171,6 +180,9 @@ const ESTADOS_DEPOSITO = [
   { id: "analitica", nombre: "Analítica pendiente" },
 ];
 const DEFAULT_BODEGA_NAME = "Bodega general";
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "vinosconganas";
+const ADMIN_BODEGA_NOMBRE = process.env.ADMIN_BODEGA_NOMBRE || "Bodega admin";
 
 function normalizarClaseDeposito(valor) {
   if (!valor) return "deposito";
@@ -345,21 +357,31 @@ async function registrarConsumoProducto(
     nota || null,
     bodegaId
   ];
-  await db.run(
-    `INSERT INTO ${tablaConsumos}
-      ${columnas}
-     VALUES (${placeholders})`,
-    ...insertParams
-  );
-  await db.run(
-    `UPDATE ${tablaProductos}
-       SET cantidad_disponible = cantidad_disponible - ?
-     WHERE id = ? AND bodega_id = ? AND user_id = ?`,
-    cantidad,
-    productoId,
-    bodegaId,
-    userId
-  );
+  await db.run("BEGIN");
+  try {
+    await db.run(
+      `INSERT INTO ${tablaConsumos}
+        ${columnas}
+       VALUES (${placeholders})`,
+      ...insertParams
+    );
+    const update = await db.run(
+      `UPDATE ${tablaProductos}
+         SET cantidad_disponible = cantidad_disponible - ?
+       WHERE id = ? AND bodega_id = ? AND user_id = ?`,
+      cantidad,
+      productoId,
+      bodegaId,
+      userId
+    );
+    if (update.changes === 0) {
+      throw new Error("No se pudo descontar el stock");
+    }
+    await db.run("COMMIT");
+  } catch (err) {
+    await db.run("ROLLBACK");
+    throw err;
+  }
 }
 
 async function registrarMovimientoEmbotellado(origen_tipo, origen_id, litros, nota, bodegaId, userId) {
@@ -1157,10 +1179,21 @@ app.post("/api/entradas_uva", async (req, res) => {
     anos_vid,
     proveedor,
     grado_potencial,
+    densidad,
+    temperatura,
     observaciones
   } = req.body;
   const anada = extraerAnadaDesdeFecha(fecha);
+  const parseNum = val => {
+    if (val === null || val === undefined || val === "") return null;
+    const num = Number(val);
+    return Number.isFinite(num) ? num : null;
+  };
   const kilosNum = Number(kilos);
+  const densidadNum = parseNum(densidad);
+  const temperaturaNum = parseNum(temperatura);
+  const densidadVal = Number.isFinite(densidadNum) ? densidadNum : null;
+  const temperaturaVal = Number.isFinite(temperaturaNum) ? temperaturaNum : null;
   if (!fecha || !variedad || !kilosNum || Number.isNaN(kilosNum) || kilosNum <= 0) {
     return res.status(400).json({ error: "Fecha, variedad y kilos válidos son obligatorios" });
   }
@@ -1172,8 +1205,8 @@ app.post("/api/entradas_uva", async (req, res) => {
     await db.run("BEGIN");
     await db.run(
       `INSERT INTO entradas_uva
-       (fecha, anada, variedad, kilos, viticultor, tipo_suelo, parcela, anos_vid, proveedor, grado_potencial, observaciones, bodega_id, user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (fecha, anada, variedad, kilos, viticultor, tipo_suelo, parcela, anos_vid, proveedor, grado_potencial, densidad, temperatura, observaciones, bodega_id, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       fecha,
       anada,
       variedad,
@@ -1184,6 +1217,8 @@ app.post("/api/entradas_uva", async (req, res) => {
       anos_vid || null,
       proveedor || null,
       grado_potencial || null,
+      densidadVal,
+      temperaturaVal,
       observaciones || null,
       bodegaId,
       userId
@@ -1208,10 +1243,21 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
     anos_vid,
     proveedor,
     grado_potencial,
+    densidad,
+    temperatura,
     observaciones
   } = req.body;
   const anada = extraerAnadaDesdeFecha(fecha);
+  const parseNum = val => {
+    if (val === null || val === undefined || val === "") return null;
+    const num = Number(val);
+    return Number.isFinite(num) ? num : null;
+  };
   const kilosNum = Number(kilos);
+  const densidadNum = parseNum(densidad);
+  const temperaturaNum = parseNum(temperatura);
+  const densidadVal = Number.isFinite(densidadNum) ? densidadNum : null;
+  const temperaturaVal = Number.isFinite(temperaturaNum) ? temperaturaNum : null;
   if (!fecha || !variedad || !kilosNum || Number.isNaN(kilosNum) || kilosNum <= 0) {
     return res.status(400).json({ error: "Fecha, variedad y kilos válidos son obligatorios" });
   }
@@ -1233,6 +1279,8 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
              anos_vid = ?,
              proveedor = ?,
              grado_potencial = ?,
+             densidad = ?,
+             temperatura = ?,
              observaciones = ?
        WHERE id = ?
          AND bodega_id = ?
@@ -1247,6 +1295,8 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
       anos_vid || null,
       proveedor || null,
       grado_potencial || null,
+      densidadVal,
+      temperaturaVal,
       observaciones || null,
       req.params.id,
       bodegaId,
@@ -1342,16 +1392,17 @@ app.get("/api/analisis-lab", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
-    const { deposito_id, tipo } = req.query;
+    const { deposito_id, contenedor_id, tipo } = req.query;
     const condiciones = [];
     const params = [];
     condiciones.push("bodega_id = ?");
     params.push(bodegaId);
     condiciones.push("user_id = ?");
     params.push(userId);
-    if (deposito_id) {
-      condiciones.push("deposito_id = ?");
-      params.push(deposito_id);
+    const filtroContenedorId = contenedor_id ?? deposito_id;
+    if (filtroContenedorId) {
+      condiciones.push("contenedor_id = ?");
+      params.push(filtroContenedorId);
     }
     const tipoFiltro = normalizarTipoContenedor(tipo, null);
     if (tipoFiltro) {
@@ -1378,7 +1429,6 @@ app.get("/api/analisis-lab", async (req, res) => {
 app.post("/api/analisis-lab", async (req, res) => {
   try {
     const {
-      deposito_id,
       contenedor_id,
       contenedor_tipo: contenedorTipoEntrada,
       fecha,
@@ -1387,10 +1437,8 @@ app.post("/api/analisis-lab", async (req, res) => {
       archivo_nombre,
       archivo_base64,
     } = req.body;
-    const contenedorIdNum = Number(
-      contenedor_id != null ? contenedor_id : deposito_id
-    );
-    if (!contenedorIdNum) {
+    const contenedorIdNum = Number(contenedor_id);
+    if (!contenedorIdNum || Number.isNaN(contenedorIdNum)) {
       return res.status(400).json({ error: "Contenedor inválido" });
     }
     const bodegaId = req.session.bodegaId;
@@ -1417,7 +1465,7 @@ app.post("/api/analisis-lab", async (req, res) => {
     await fs.promises.writeFile(rutaArchivo, infoArchivo.buffer);
     await db.run(
       `INSERT INTO analisis_laboratorio
-         (deposito_id, contenedor_tipo, fecha, laboratorio, descripcion, archivo_nombre, archivo_fichero, bodega_id, user_id)
+         (contenedor_id, contenedor_tipo, fecha, laboratorio, descripcion, archivo_nombre, archivo_fichero, bodega_id, user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       contenedorIdNum,
       contenedor_tipo,
@@ -1848,6 +1896,109 @@ const publicPath = path.join(__dirname, "public");
 
 const PUBLIC_HTML_WHITELIST = new Set(["/login", "/login.html"]);
 
+const LOGIN_HTML = `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Entrar · Bodega</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 20%, #3d214f, #0e0817 55%, #06040c);
+      color: #f8f2ff;
+      padding: 16px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 20px;
+      padding: 22px 20px 20px;
+      box-shadow: 0 18px 46px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    p { font-size: 13px; color: #d7cbe8; margin: 0 0 14px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; margin-bottom: 4px; color: #e3d6f6; }
+    .field input {
+      width: 100%; padding: 10px 12px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.16); background: rgba(9,5,17,0.8);
+      color: #f9f4ff; font-size: 14px; outline: none;
+    }
+    .field input:focus {
+      border-color: #f9b8e3; background: rgba(15,9,26,0.92);
+      box-shadow: 0 0 0 1px rgba(250,181,225,0.4);
+    }
+    button {
+      width: 100%; border: none; border-radius: 12px; padding: 12px 14px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      background: linear-gradient(135deg, #ff9fdc, #f8d7ff); color: #31112f;
+      box-shadow: 0 14px 28px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.26);
+      margin-top: 8px;
+    }
+    .msg { margin-top: 8px; font-size: 12px; min-height: 16px; }
+    .msg.error { color: #ffb3c7; }
+    .msg.info { color: #d7cbe8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Entrar</h1>
+    <p>Usuario único: admin. Introduce la contraseña.</p>
+    <form id="login-form" autocomplete="off">
+      <div class="field">
+        <label for="usuario">Usuario</label>
+        <input autocomplete="username" type="text" id="usuario" name="usuario" value="admin" readonly />
+      </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input autocomplete="current-password" type="password" id="password" name="password" required />
+      </div>
+      <button type="submit">Entrar</button>
+      <div id="login-mensaje" class="msg"></div>
+      <div class="msg info" id="credenciales">Usuario: admin · Contraseña: vinosconganas</div>
+    </form>
+  </div>
+  <script>
+    const form = document.getElementById("login-form");
+    const msg = document.getElementById("login-mensaje");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      msg.textContent = "";
+      msg.className = "msg";
+      const password = document.getElementById("password").value.trim();
+      try {
+        const res = await fetch("/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario: "admin", password }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          window.location.href = "/";
+        } else {
+          msg.textContent = data.error || "No se pudo iniciar sesion.";
+          msg.classList.add("error");
+        }
+      } catch (err) {
+        console.error(err);
+        msg.textContent = "Error de conexion con el servidor.";
+        msg.classList.add("error");
+      }
+    });
+  </script>
+</body>
+</html>`;
+
 function enforceWebAuth(req, res, next) {
   if (req.method !== "GET") {
     return next();
@@ -1873,11 +2024,13 @@ function enforceWebAuth(req, res, next) {
 app.use(enforceWebAuth);
 
 app.get("/login", (req, res) => {
-  res.sendFile(path.join(publicPath, "login.html"));
+  res.set("Cache-Control", "no-store");
+  res.type("html").send(LOGIN_HTML);
 });
 
 app.get("/login.html", (req, res) => {
-  res.sendFile(path.join(publicPath, "login.html"));
+  res.set("Cache-Control", "no-store");
+  res.type("html").send(LOGIN_HTML);
 });
 
 app.get("/", requireLogin, (req, res) => {
@@ -1888,19 +2041,20 @@ app.get("/index.html", requireLogin, (req, res) => {
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
-app.get("/usuarios", requireLogin, (req, res) => {
-  res.sendFile(path.join(publicPath, "usuarios.html"));
-});
-
 app.use(express.static(publicPath));
 
 app.post("/login", async (req, res) => {
   const { usuario, password } = req.body;
+  const usuarioLimpio = (usuario || "").trim();
+
+  if (!usuarioLimpio || usuarioLimpio !== ADMIN_USER) {
+    return res.status(400).json({ error: "Usuario no autorizado" });
+  }
 
   try {
     const user = await db.get(
       "SELECT * FROM usuarios WHERE usuario = ?",
-      [usuario]
+      [usuarioLimpio]
     );
 
     if (!user) {
@@ -1958,84 +2112,39 @@ app.get("/api/me", async (req, res) => {
   }
 });
 
-app.post("/register", async (req, res) => {
-  const { usuario, password, bodega_nombre } = req.body;
-
-  if (!usuario || !password) {
-    return res
-      .status(400)
-      .json({ error: "Usuario y contraseña son obligatorios" });
-  }
-
-  const nombreBodega = (bodega_nombre || "").trim();
-  if (!nombreBodega) {
-    return res.status(400).json({ error: "El nombre de la bodega es obligatorio." });
-  }
-
-  try {
-    const existing = await db.get(
-      "SELECT id FROM usuarios WHERE usuario = ?",
-      [usuario]
-    );
-
-    if (existing) {
-      return res
-        .status(400)
-        .json({ error: "Ese usuario ya está registrado." });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-    await db.run("BEGIN");
-    const resultadoUsuario = await db.run(
-      "INSERT INTO usuarios (usuario, password_hash) VALUES (?, ?)",
-      [usuario, hash]
-    );
-    const userId = resultadoUsuario.lastID;
-    const resultadoBodega = await db.run(
-      "INSERT INTO bodegas (user_id, nombre) VALUES (?, ?)",
-      [userId, nombreBodega]
-    );
-    const nuevaBodegaId = resultadoBodega.lastID;
-    await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", nuevaBodegaId, userId);
-    await db.run("COMMIT");
-
-    res.json({ ok: true });
-  } catch (err) {
-    await db.run("ROLLBACK");
-    console.error("Error en /register:", err);
-    res
-      .status(500)
-      .json({ error: "Error interno al registrar usuario." });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 async function ensureAdminUser() {
-  const adminEmail = "joseyebes@gmail.com"; 
-  const adminPassword = "1234"; 
-  const adminBodegaNombre = "Bodega VegaLuna INDÓMITO";
-
   const existing = await db.get(
-    "SELECT id, bodega_id FROM usuarios WHERE usuario = ?",
-    [adminEmail]
+    "SELECT id, bodega_id, password_hash FROM usuarios WHERE usuario = ?",
+    [ADMIN_USER]
   );
 
-  if (existing) {
-    await ensureBodegaParaUsuario(existing.id, adminBodegaNombre);
-    return; 
-  }
+  const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
-  const hash = await bcrypt.hash(adminPassword, 10);
+  if (existing) {
+    const bodegaId = await ensureBodegaParaUsuario(existing.id, ADMIN_BODEGA_NOMBRE);
+    await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", bodegaId, existing.id);
+    let match = false;
+    try {
+      match = await bcrypt.compare(ADMIN_PASSWORD, existing.password_hash);
+    } catch (err) {
+      match = false;
+    }
+    if (!match) {
+      await db.run("UPDATE usuarios SET password_hash = ? WHERE id = ?", hash, existing.id);
+    }
+    return;
+  }
 
   const resultadoUsuario = await db.run(
     "INSERT INTO usuarios (usuario, password_hash) VALUES (?, ?)",
-    [adminEmail, hash]
+    [ADMIN_USER, hash]
   );
   const adminId = resultadoUsuario.lastID;
-  const bodegaId = await ensureBodegaParaUsuario(adminId, adminBodegaNombre);
+  const bodegaId = await ensureBodegaParaUsuario(adminId, ADMIN_BODEGA_NOMBRE);
   await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", bodegaId, adminId);
 
-  console.log("✅ Usuario admin creado:", adminEmail);
+  console.log("Usuario admin asegurado:", ADMIN_USER);
 }
 
 async function startServer() {
@@ -2053,3 +2162,6 @@ async function startServer() {
 startServer().catch((err) => {
   console.error("Error al iniciar el servidor:", err);
 });
+
+
+

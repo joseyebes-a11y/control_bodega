@@ -662,24 +662,25 @@ body::after {
         .flow-toolbar {
             display: flex;
             flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 16px;
+            gap: 12px;
+            margin-bottom: 6px;
+            padding-bottom: 0;
         }
 
         .flow-toolbar-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
         }
 
         /* Botones del mapa de nodos (más grandes y cómodos) */
         .flow-toolbar .btnPrimario,
         .flow-toolbar .btnSecundario {
-            font-size: 15px;
-            padding: 14px 22px;
-            border-radius: 16px;
-            min-height: 46px;
+            font-size: 13px;
+            padding: 9px 14px;
+            border-radius: 12px;
+            min-height: 38px;
         }
 
         .flow-toolbar .btnPrimario span,
@@ -692,14 +693,36 @@ body::after {
             border: 1px dashed rgba(255,255,255,0.25);
             border-radius: 24px;
             background: rgba(8,4,15,0.5);
-            min-height: 520px;
+            min-height: 80vh;
             overflow: auto;
+            margin-top: 4px;
         }
 
         .flow-stage {
             position: relative;
-            width: 1600px;
-            height: 900px;
+            width: 100%;
+            min-width: 1400px;
+            height: 80vh;
+            min-height: 640px;
+        }
+
+        .demo-flow-stage {
+            position: relative;
+            min-height: 320px;
+            border: 1px dashed rgba(255,255,255,0.25);
+            border-radius: 18px;
+            background: radial-gradient(circle at 12% 18%, rgba(255,255,255,0.05), transparent 55%),
+                        radial-gradient(circle at 80% 8%, rgba(255,255,255,0.04), transparent 60%),
+                        rgba(12,6,18,0.6);
+            overflow: hidden;
+            margin-top: 14px;
+            box-shadow: inset 0 0 25px rgba(0,0,0,0.25);
+        }
+
+        .demo-flow-node {
+            min-width: 160px;
+            padding: 10px 12px 14px;
+            border-radius: 16px;
         }
 
         .flow-canvas {
@@ -725,12 +748,14 @@ body::after {
             border-radius: 7px;
             box-shadow: 0 8px 14px rgba(0,0,0,0.35);
             border: 1px solid rgba(255,255,255,0.08);
-            padding: 2px 5px 14px;
+            padding: 4px 6px 24px;
             cursor: grab;
             color: #f5e9ff;
             text-transform: uppercase;
-            font-weight: 600;
+            font-weight: 400;
             letter-spacing: 0.3px;
+            overflow: hidden;
+            isolation: isolate;
         }
 
         .flow-node.dragging {
@@ -742,16 +767,107 @@ body::after {
             margin: 0;
             font-size: 14px;
             color: #f7f2ff;
+            text-align: right;
+            font-weight: 700;
         }
 
         .flow-node-subtitle {
             font-size: 9px;
             color: rgba(255,255,255,0.7);
             margin-top: 1px;
+            text-align: right;
+        }
+
+        .flow-node-metrics {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+            font-size: 10px;
+            text-transform: none;
+            justify-content: flex-end;
+        }
+
+        .flow-chip {
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            color: #fff;
+            letter-spacing: 0.2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .flow-node .fill-level {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 0%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+            mix-blend-mode: screen;
+            transition: height 0.35s ease, background 0.3s ease;
+            z-index: -1;
+        }
+
+        .flow-node .fill-level.red {
+            background: linear-gradient(180deg, rgba(255,88,120,0.15), rgba(255,88,120,0.35));
+        }
+
+        .flow-node .fill-level.white {
+            background: linear-gradient(180deg, rgba(255,236,200,0.2), rgba(255,236,200,0.45));
+        }
+
+        .flow-node.temp-alert {
+            box-shadow: 0 0 14px rgba(255,90,90,0.8), 0 0 0 1px rgba(255,90,90,0.45);
+            border-color: rgba(255,90,90,0.6);
+        }
+
+        .flow-state-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 6px;
+            font-size: 14px;
+            line-height: 1.2;
+            letter-spacing: 0.4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #ffd89c;
+        }
+
+        .flow-progress-ring {
+            position: absolute;
+            inset: -6px;
+            border-radius: 14px;
+            pointer-events: none;
+            z-index: -2;
         }
 
         .flow-node-icon {
             font-size: 15px;
+        }
+
+        .grape-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.35);
+            margin-left: 2px;
+        }
+
+        .grape-badge.red {
+            background: radial-gradient(circle at 30% 30%, #ffb3c9, #d43c68 55%, #7a0f38 100%);
+            color: #fff;
+        }
+
+        .grape-badge.white {
+            background: radial-gradient(circle at 30% 30%, #fff7d1, #f9d66b 55%, #c99a2a 100%);
+            color: #3a2a00;
         }
 
         .flow-node small {
@@ -760,9 +876,9 @@ body::after {
 
         .flow-node .flow-unit {
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.16);
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
             color: #fff;
             font-size: 9px;
             margin-top: 4px;
@@ -771,8 +887,8 @@ body::after {
 
         .flow-node .flow-node-controls {
             position: absolute;
-            bottom: 3px;
-            right: 4px;
+            bottom: 6px;
+            right: 6px;
             display: flex;
             gap: 4px;
         }
@@ -853,11 +969,28 @@ body::after {
             box-shadow: 0 0 6px rgba(243,120,156,0.8);
         }
 
+        .flow-node-body {
+            width: 100%;
+            align-items: flex-end;
+            text-align: right;
+            padding-right: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
         .flow-connector-line {
             stroke: rgba(255,255,255,0.65);
             stroke-width: 1.6;
             fill: none;
             marker-end: url(#arrowHead);
+        }
+        .flow-connector-label {
+            fill: rgba(255,255,255,0.85);
+            font-size: 11px;
+            font-family: "Inter", system-ui, sans-serif;
+            pointer-events: none;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.55);
         }
 
         .flow-node-info {
@@ -1707,6 +1840,9 @@ label {
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('salida')">🚛 Salida</button>
                 </div>
                 <div class="flow-toolbar-group">
+                    <button class="btnSecundario" type="button" onclick="resetMapaFlujoLocal()">Limpiar mapa</button>
+                </div>
+                <div class="flow-toolbar-group">
                     <button class="btnSecundario" type="button" onclick="exportarNodosComoImagen()">Exportar imagen</button>
                 </div>
             </div>
@@ -1726,6 +1862,13 @@ label {
             <div class="flow-helper">
                 <p>Doble clic en un nodo para editarlo. Pulsa “Conectar” en un nodo y luego haz clic sobre el destino para crear el hilo. Puedes arrastrar los nodos a cualquier punto del lienzo.</p>
             </div>
+
+            <div class="chart-card" style="margin-top:18px;">
+                <h3 style="margin-top:0;">Demo rápida: arrastra tanques y barricas</h3>
+                <p style="margin:6px 0 12px;">Usa el array <code>tanques</code> y esta zona sandbox para probar drag & drop ligero sin tocar el mapa principal.</p>
+                <div id="demoFlowStage" class="demo-flow-stage"></div>
+            </div>
+
             <div id="flowNodeInfo" class="flow-node-info">Selecciona un nodo para ver los detalles.</div>
         </section>
         <div id="flowModal" class="flow-modal">
@@ -1767,6 +1910,12 @@ label {
                 <label>Kilos</label>
                 <input type="number" id="entradaKilos" required>
 
+                <label>Densidad</label>
+                <input type="number" id="entradaDensidad" step="0.001" placeholder="1.050">
+
+                <label>Temperatura (°C)</label>
+                <input type="number" id="entradaTemperatura" step="0.1" placeholder="18.5">
+
                 <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
                     <button type="submit" class="btnPrimario" id="btnGuardarEntrada">Registrar entrada</button>
                     <button type="button" class="btnSecundario" id="btnCancelarEdicionEntrada" style="display:none;" onclick="cancelarEdicionEntrada()">Cancelar edición</button>
@@ -1787,6 +1936,8 @@ label {
                         <th>Parcela</th>
                         <th>Años de la vid</th>
                         <th>Kilos</th>
+                        <th>Densidad</th>
+                        <th>Temp (°C)</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -2457,13 +2608,63 @@ const TITULOS_DINAMICOS = {
   deposito: nodo => {
     const nombre = nodo?.datos?.codigo || "Depósito";
     const fase = nodo?.datos?.fase;
-    return fase ? `${nombre} · ${fase}` : nombre;
+    // Mostramos la fase en el badge coloreado, no en el título, para evitar duplicados.
+    return nombre;
   },
 };
 const CAMPOS_PRIORITARIOS_MODAL = ["fecha", "fecha_operacion"];
 const CAMPOS_CARGA_NUMERICOS = ["kilos", "litros", "litros_directos", "volumen"];
 const CAMPOS_CARGA_TEXTO = ["variedad", "anada"];
+const CAMPOS_CARGA_METRICAS = ["densidad", "temperatura"];
 const TIPOS_CONTENEDOR_FLUJO = new Set(["deposito", "barrica"]);
+const VARIEDADES_BLANCAS = [
+  "blanco",
+  "malvar",
+  "airen",
+  "airén",
+  "verdejo",
+  "albariño",
+  "albarino",
+  "macabeo",
+  "viura",
+  "godello",
+  "palomino",
+  "parellada",
+  "xarel·lo",
+  "xarello",
+  "moscatel",
+  "moscat",
+  "gewurztraminer",
+  "gewürztraminer",
+  "riesling",
+  "viognier",
+  "chardonnay",
+  "sauvignon",
+  "treixadura",
+  "garnacha blanca",
+  "albillo",
+  "colombard",
+  "gruner",
+  "gruener",
+  "grüner",
+  "viosinho",
+  "pedro ximenez",
+  "pedro ximénez",
+  "trebbiano",
+  "pinot blanc",
+  "pinot bianco",
+  "marsanne",
+  "roussanne",
+  "chenin",
+  "palomino",
+  "godello",
+  "loureira",
+  "doña blanca",
+  "dona blanca",
+  "malvasia",
+  "malvasía",
+];
+let VARIEDADES_BLANCAS_SET = null;
 function obtenerNodoPorId(idBuscado) {
   const idNorm = normalizarIdNodo(idBuscado);
   return flujoNodos.find(n => normalizarIdNodo(n.id) === idNorm) || null;
@@ -2493,10 +2694,40 @@ function ordenarCamposParaModal(campos) {
 
 function obtenerValorCampoVisual(nodo, campo) {
   if (!nodo || !campo) return "";
+
+  if (campo.id === "capacidad" && nodo.tipo === "deposito") {
+    const capacidadBase =
+      nodo.datos?.capacidad ??
+      nodo.datos?.capacidad_l ??
+      (nodo.datos?.capacidad_hl != null ? nodo.datos.capacidad_hl * 100 : null);
+    const volumenBase =
+      nodo.datos?.volumen ??
+      nodo.datos?.litros ??
+      nodo.datos?.litros_directos ??
+      nodo.datos?.litros_blend ??
+      null;
+    const capNum = capacidadBase != null ? Number(capacidadBase) : NaN;
+    const volNum = volumenBase != null ? Number(volumenBase) : NaN;
+    const capTxt = Number.isFinite(capNum) ? formatearLitrosPlano(capNum) : "";
+    const volTxt = Number.isFinite(volNum) ? formatearLitrosPlano(volNum) : "";
+    const partes = [];
+    if (capTxt) partes.push(capTxt);
+    if (volTxt) partes.push(`Volumen: ${volTxt}`);
+    const combinado = partes.join(" | ");
+    if (combinado) return combinado;
+  }
+
   const valor = nodo.datos ? nodo.datos[campo.id] : "";
-  if (!valor) return "";
+  if (valor === undefined || valor === null || valor === "") return "";
   if (campo.id === "fecha" || campo.id === "fecha_operacion") {
     return formatearFechaCorta(valor);
+  }
+  if (campo.id === "densidad") {
+    return formatearDensidad(valor);
+  }
+  if (campo.id === "temperatura") {
+    const num = normalizarNumero(valor);
+    return num != null ? `${num.toFixed(1)} °C` : "";
   }
   return valor;
 }
@@ -2538,7 +2769,12 @@ function obtenerPredecesores(id) {
 function obtenerUnidadNodo(nodo, memo = new Map()) {
   if (!nodo) return "kilos";
   const clave = nodo.id || nodo;
+  // Evitar recursión infinita si hay ciclos
+  if (memo.get("visitando")?.has(clave)) return "kilos";
   if (memo.has(clave)) return memo.get(clave);
+  const visitando = memo.get("visitando") || new Set();
+  visitando.add(clave);
+  memo.set("visitando", visitando);
   let unidad = esNodoConversor(nodo) ? "litros" : "kilos";
   if (unidad === "kilos") {
     const padres = obtenerPredecesores(nodo.id);
@@ -2547,6 +2783,7 @@ function obtenerUnidadNodo(nodo, memo = new Map()) {
     }
   }
   memo.set(clave, unidad);
+  visitando.delete(clave);
   return unidad;
 }
 
@@ -2587,6 +2824,15 @@ function normalizarIdNodo(nodo) {
   return nodo.id != null ? String(nodo.id) : "";
 }
 
+function esAncestro(posibleAncestroId, nodoId, visitados = new Set()) {
+  if (!posibleAncestroId || !nodoId) return false;
+  if (posibleAncestroId === nodoId) return true;
+  if (visitados.has(nodoId)) return false;
+  visitados.add(nodoId);
+  const padres = obtenerPredecesores(nodoId);
+  return padres.some(pre => esAncestro(posibleAncestroId, pre.id, visitados));
+}
+
 function limpiarAsignacionesOrfanas(nodo) {
   if (!nodo || !["deposito", "coupage"].includes(nodo.tipo) || !nodo.datos?.asignaciones) return;
   const clavesPermitidas = new Set(
@@ -2607,11 +2853,153 @@ function limpiarCargaNodo(nodo) {
       nodo.datos[campo] = 0;
     }
   });
+  CAMPOS_CARGA_METRICAS.forEach(campo => {
+    if (campo in nodo.datos) {
+      nodo.datos[campo] = "";
+    }
+  });
   CAMPOS_CARGA_TEXTO.forEach(campo => {
     if (campo in nodo.datos) {
       nodo.datos[campo] = "";
     }
   });
+}
+
+function obtenerTextoVariedadColor(nodo) {
+  const textos = [];
+  if (!nodo) return textos;
+  if (Array.isArray(nodo.datos?.composicionVariedades) && nodo.datos.composicionVariedades.length) {
+    textos.push(...nodo.datos.composicionVariedades.map(c => c.nombre));
+  }
+  if (nodo.datos?.variedad) textos.push(nodo.datos.variedad);
+  if (nodo.datos?.vino_tipo) textos.push(nodo.datos.vino_tipo);
+  if (nodo.datos?.vino) textos.push(nodo.datos.vino);
+  return textos;
+}
+
+function obtenerColorVino(nodo) {
+  const textos = obtenerTextoVariedadColor(nodo).map(normalizarTextoUva).filter(Boolean);
+
+  // Prioridad 1: tipoColor explícito
+  const tipoColor = (nodo.datos?.tipoColor || "").toLowerCase();
+  if (tipoColor === "blanca" || tipoColor === "blanco" || tipoColor === "white") return "white";
+  if (tipoColor === "tinta" || tipoColor === "tinto" || tipoColor === "red") return "red";
+
+  // Prioridad 2: si el nodo es de entrada y hay cache, usar la variedad de la entrada
+  if (nodo.tipo === "entrada" && nodo.datos?.id_ref && Array.isArray(cacheEntradas)) {
+    const entrada = cacheEntradas.find(e => String(e.id) === String(nodo.datos.id_ref));
+    if (entrada && entrada.variedad) {
+      const txtEntrada = normalizarTextoUva(entrada.variedad);
+      textos.unshift(txtEntrada);
+    }
+  }
+
+  if (textos.some(txt => esVariedadBlanca(txt))) return "white";
+  if (textos.some(txt => txt.includes("ros") || txt.includes("rosad"))) return "rosado";
+  return "red";
+}
+
+function obtenerColorEmojiVino(colorVino) {
+  if (colorVino === "white") return "#f7c859";
+  if (colorVino === "rosado") return "#f58bb5";
+  return "#d43c68";
+}
+
+function obtenerEstadoVisual(nodo) {
+  if (!nodo || !nodo.datos) return null;
+  const estadoRaw = (nodo.datos.fase || nodo.datos.estado || "").toString().trim();
+  if (!estadoRaw) return null;
+  const estadoNorm = estadoRaw.toLowerCase();
+  const info = obtenerInfoEstadoDeposito ? obtenerInfoEstadoDeposito(estadoNorm) : null;
+  const colorVino = obtenerColorVino(nodo);
+  const colorTexto = colorVino === "white" ? "#f7c859" : "#d43c68";
+  if (info) {
+    return { id: info.id, label: info.label, color: colorTexto };
+  }
+  return { id: estadoNorm, label: estadoRaw.toUpperCase(), color: colorTexto };
+}
+
+function normalizarTextoUva(str) {
+  if (!str) return "";
+  return str
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function esVariedadBlanca(textoNormalizado) {
+  if (!textoNormalizado) return false;
+  if (textoNormalizado.includes("blanc") || textoNormalizado.includes("white") || textoNormalizado.includes("bianco")) {
+    return true;
+  }
+  if (!VARIEDADES_BLANCAS_SET) {
+    VARIEDADES_BLANCAS_SET = new Set(
+      VARIEDADES_BLANCAS.map(nombre => normalizarTextoUva(nombre))
+    );
+  }
+  const tokens = textoNormalizado.split(/[^a-z]+/).filter(Boolean);
+  if (tokens.some(tok => VARIEDADES_BLANCAS_SET.has(tok))) return true;
+  return Array.from(VARIEDADES_BLANCAS_SET).some(nombre => textoNormalizado.includes(nombre));
+}
+
+function calcularOcupacionNodo(nodo) {
+  if (!nodo) return null;
+  const datos = nodo.datos || {};
+  const capacidad =
+    normalizarNumero(datos.capacidad) ??
+    normalizarNumero(datos.capacidad_l) ??
+    (datos.capacidad_hl != null ? normalizarNumero(datos.capacidad_hl * 100) : null);
+  const volumen =
+    normalizarNumero(datos.volumen) ??
+    normalizarNumero(datos.litros_directos) ??
+    normalizarNumero(datos.litros) ??
+    normalizarNumero(datos.kilos);
+  if (!capacidad || !volumen) return null;
+  return Math.max(0, Math.min(1, volumen / capacidad));
+}
+
+function rellenarDatosEntradaDesdeCache(nodo) {
+  if (!nodo || nodo.tipo !== "entrada") return;
+  const idRef = nodo.datos?.id_ref;
+  if (!idRef || !Array.isArray(cacheEntradas)) return;
+  const entrada = cacheEntradas.find(e => String(e.id) === String(idRef));
+  if (!entrada) return;
+  nodo.datos = nodo.datos || {};
+  if (entrada.variedad) {
+    nodo.datos.variedad = entrada.variedad;
+    nodo.datos.vino_tipo = entrada.variedad;
+    const varNorm = normalizarTextoUva(entrada.variedad);
+    nodo.datos.tipoColor = esVariedadBlanca(varNorm) ? "blanca" : "tinta";
+  }
+  if (entrada.anada) nodo.datos.anada = entrada.anada;
+}
+
+function obtenerTemperaturaNodo(nodo) {
+  if (!nodo) return null;
+  if (normalizarNumero(nodo.datos?.temperatura) != null) {
+    return normalizarNumero(nodo.datos.temperatura);
+  }
+  if (Array.isArray(nodo.datos?.control) && nodo.datos.control.length) {
+    const ultimo = nodo.datos.control[nodo.datos.control.length - 1];
+    if (normalizarNumero(ultimo?.temperatura) != null) {
+      return normalizarNumero(ultimo.temperatura);
+    }
+  }
+  return null;
+}
+
+function calcularProgresoBarrica(nodo) {
+  if (!nodo || nodo.tipo !== "barrica") return null;
+  const inicioStr = nodo.datos?.fecha_operacion || nodo.datos?.fecha;
+  const mesesObjetivo = normalizarNumero(nodo.datos?.tiempo) || 12; // default 12 meses
+  if (!inicioStr || !mesesObjetivo) return null;
+  const inicio = new Date(inicioStr);
+  if (isNaN(inicio.getTime())) return null;
+  const ahora = new Date();
+  const msTotal = mesesObjetivo * 30 * 24 * 60 * 60 * 1000;
+  const transcurrido = Math.max(0, ahora.getTime() - inicio.getTime());
+  return Math.max(0, Math.min(1, transcurrido / msTotal));
 }
 
 function limpiarNodosSinEntradas() {
@@ -2639,6 +3027,10 @@ function construirCargaDesdeDatos(datos = {}) {
   if (litros != null) carga.litros = litros;
   const litrosDirectos = normalizarNumero(datos.litros_directos);
   if (litrosDirectos != null) carga.litros_directos = litrosDirectos;
+  const densidad = normalizarNumero(datos.densidad);
+  if (densidad != null) carga.densidad = densidad;
+  const temperatura = normalizarNumero(datos.temperatura);
+  if (temperatura != null) carga.temperatura = temperatura;
   return Object.keys(carga).length ? carga : null;
 }
 
@@ -2676,14 +3068,28 @@ function sembrarDatosIniciales(origen, destino) {
   if (destino.tipo === "deposito") return;
   const carga = obtenerCargaParaSembrar(origen);
   if (!carga) return;
-  aplicarCargaANodo(destino, carga);
+  aplicarCargaProcesoSinDuplicar(destino, origen.id, carga);
   guardarEstadoNodos();
 }
 
 function obtenerVariedadVisibleNodo(nodo) {
   if (!nodo) return "";
-  const texto = obtenerVariedadNodo(nodo);
-  return texto ? texto.replace(/\s*·\s*/g, "\n") : "";
+  const compArray = nodo.datos?.composicionVariedades;
+  if (Array.isArray(compArray) && compArray.length) {
+    return compArray.map(c => `${formatearPctVariedad(c.porcentaje)} ${c.nombre}`).join("\n");
+  }
+  const comp = calcularComposicionVariedades(nodo);
+  const calculada = guardarComposicionEnNodo(nodo, comp.mix, comp.total);
+  if (calculada.length) {
+    return calculada.map(c => `${formatearPctVariedad(c.porcentaje)} ${c.nombre}`).join("\n");
+  }
+  const textoBase = nodo.datos?.variedad || nodo.datos?.variedadBase || nodo.datos?.vino || "";
+  if (!textoBase) return "";
+  return textoBase
+    .split(/[/·]/)
+    .map(t => t.trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 function limpiarTextoVariedad(variedad) {
@@ -2693,6 +3099,249 @@ function limpiarTextoVariedad(variedad) {
     .map(part => part.replace(/\s*\d+(\.\d+)?%/g, "").trim())
     .filter(Boolean)
     .join(" · ");
+}
+
+// Helper para sumar variedades ponderadas (admite listas con porcentajes)
+function agregarVariedadAPeso(mix, texto, peso) {
+  if (!mix || !texto) return;
+  const pesoBase = Number.isFinite(Number(peso)) && Number(peso) > 0 ? Number(peso) : 1;
+  const partes = texto
+    .split(/[\/·,]/)
+    .map(p => p.trim())
+    .filter(Boolean);
+  if (!partes.length) return;
+  const items = partes.map(p => {
+    const m = p.match(/^(.*?)(?:\s+(\d+(?:[.,]\d+)?)%?)?$/);
+    return {
+      nombre: m && m[1] ? m[1].trim() : p,
+      pct: m && m[2] ? Number(String(m[2]).replace(",", ".")) : null,
+    };
+  });
+  const conPct = items.filter(i => Number.isFinite(i.pct) && i.pct > 0);
+  if (conPct.length) {
+    conPct.forEach(i => {
+      const nombre = limpiarTextoVariedad(i.nombre);
+      if (!nombre) return;
+      const aporte = pesoBase * (i.pct / 100);
+      mix.set(nombre, (mix.get(nombre) || 0) + aporte);
+    });
+    return;
+  }
+  const reparto = pesoBase / items.length;
+  items.forEach(i => {
+    const nombre = limpiarTextoVariedad(i.nombre);
+    if (!nombre) return;
+    mix.set(nombre, (mix.get(nombre) || 0) + reparto);
+  });
+}
+
+function mixToArray(mix, total) {
+  if (!mix || !mix.size) return [];
+  const entradas = Array.from(mix.entries());
+  const sumatoria = total && total > 0 ? total : entradas.reduce((a, [, v]) => a + v, 0);
+  const base = sumatoria > 0 ? sumatoria : entradas.length;
+  const ordenadas = entradas.sort((a, b) => {
+    if (sumatoria <= 0) return a[0].localeCompare(b[0]);
+    return b[1] - a[1];
+  });
+  return ordenadas.map(([nombre, cantidad]) => {
+    const peso = sumatoria > 0 ? cantidad : 1;
+    const pct = base > 0 ? (peso / base) * 100 : 0;
+    return { nombre, porcentaje: pct };
+  });
+}
+
+function formatearPctVariedad(valor) {
+  if (!Number.isFinite(valor)) return "0%";
+  if (valor >= 1 || valor <= -1) {
+    return `${Math.round(valor)}%`;
+  }
+  return `${valor.toFixed(1)}%`;
+}
+
+function formatearResumenVariedades(lista) {
+  if (!Array.isArray(lista) || !lista.length) return "";
+  return lista
+    .map(item => {
+      const nombre = item.nombre || item.variedad || "";
+      const pct = formatearPctVariedad(
+        Number.isFinite(item.porcentaje) ? item.porcentaje : Number(item.pct)
+      );
+      return nombre ? `${pct} ${nombre}` : "";
+    })
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function guardarComposicionEnNodo(nodo, mix, total) {
+  if (!nodo) return [];
+  nodo.datos = nodo.datos || {};
+  const composicion = mixToArray(mix, total);
+  // Mezcla dinámica calculada en el flujo
+  nodo.datos.composicionVariedades = composicion;
+  if (composicion.length) {
+    nodo.datos.variedad = composicion
+      .map(c => `${c.nombre} ${formatearPctVariedad(c.porcentaje)}`)
+      .join(" / ");
+  } else if (!nodo.datos.variedad && nodo.datos.variedadBase) {
+    // Fallback solo si no hay mezcla y tampoco texto
+    nodo.datos.variedad = nodo.datos.variedadBase;
+  }
+  return composicion;
+}
+
+function calcularComposicionVariedades(nodo, visitados = new Set()) {
+  const mix = new Map();
+  if (!nodo) return { total: 0, mix };
+  const key = nodo.id || nodo;
+  if (visitados.has(key)) return { total: 0, mix };
+  visitados.add(key);
+
+  const pesoNumerico = valor => {
+    const num = Number(valor);
+    return Number.isFinite(num) && num > 0 ? num : 0;
+  };
+  const sumar = (variedad, cantidad) => {
+    const cant = pesoNumerico(cantidad);
+    if (!cant) return;
+    agregarVariedadAPeso(mix, variedad, cant);
+  };
+  const totalizar = () => Array.from(mix.values()).reduce((acc, v) => acc + v, 0);
+
+  if (nodo.tipo === "entrada") {
+    const entrada = nodo.datos?.id_ref ? buscarEntradaPorId(nodo.datos.id_ref) : null;
+    const variedad = entrada?.variedad || nodo.datos?.variedad || nodo.datos?.vino || "";
+    const peso =
+      pesoNumerico(entrada?.kilos ?? nodo.datos?.kilos ?? nodo.datos?.litros ?? nodo.datos?.volumen) ||
+      1;
+    agregarVariedadAPeso(mix, variedad, peso);
+    return { total: totalizar(), mix };
+  }
+
+  // Si el nodo tiene aportes acumulados (nodos de proceso), usamos esa mezcla directa.
+  if (nodo.datos?.aportes) {
+    Object.values(nodo.datos.aportes).forEach(a => {
+      const peso =
+        (pesoNumerico(a.litros_directos) ||
+          pesoNumerico(a.litros) ||
+          pesoNumerico(a.kilos)) ||
+        0;
+      if (a.variedad) {
+        // Si no hay cantidad válida, contamos 1 para reflejar mezcla visual.
+        const pesoEfectivo = peso > 0 ? peso : 1;
+        agregarVariedadAPeso(mix, a.variedad, pesoEfectivo);
+      }
+    });
+    const total = totalizar();
+    if (total > 0 && mix.size) {
+      return { total, mix };
+    }
+  }
+
+  const tieneAsignaciones = nodo.datos?.asignaciones && Object.keys(nodo.datos.asignaciones).length;
+  if (tieneAsignaciones) {
+    const permitidos = new Set(obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre)));
+    Object.entries(nodo.datos.asignaciones).forEach(([origenId, info]) => {
+      const kilos = pesoNumerico(normalizarNumero(info?.kilos));
+      const litros = pesoNumerico(normalizarNumero(info?.litros));
+      const cantidad = kilos + litros;
+      if (!permitidos.has(origenId)) return;
+      const origen = obtenerNodoPorId(origenId);
+      const comp = calcularComposicionVariedades(origen, visitados);
+      if (!comp.mix.size) return;
+      const factor = comp.total > 0 ? (cantidad > 0 ? cantidad / comp.total : 1) : 1;
+      comp.mix.forEach((valor, nombre) => {
+        agregarVariedadAPeso(mix, nombre, valor * factor);
+      });
+    });
+    if (mix.size) {
+      return { total: totalizar(), mix };
+    }
+    // Fallback: si hay asignaciones pero sin cantidades, mezclar a partes iguales por origen
+    Object.keys(nodo.datos.asignaciones).forEach(origenId => {
+      if (!permitidos.has(origenId)) return;
+      const origen = obtenerNodoPorId(origenId);
+      const comp = calcularComposicionVariedades(origen, visitados);
+      if (!comp.mix.size) return;
+      comp.mix.forEach((valor, nombre) => {
+        // peso unitario para mostrar variedad aunque no haya litros/kilos definidos
+        agregarVariedadAPeso(mix, nombre, 1);
+      });
+    });
+    if (mix.size) {
+      return { total: totalizar(), mix };
+    }
+    // Si no hay cantidades válidas, seguimos buscando en padres o dato propio.
+  }
+
+  const padres = obtenerPredecesores(nodo.id);
+  if (padres.length) {
+    padres.forEach(pre => {
+      const pesoBase =
+        pesoNumerico(pre?.datos?.litros ?? pre?.datos?.volumen ?? pre?.datos?.kilos) || 1;
+      const comp = calcularComposicionVariedades(pre, visitados);
+      if (!comp.mix.size) return;
+      const factor = comp.total > 0 ? pesoBase / comp.total : pesoBase;
+      comp.mix.forEach((valor, nombre) => {
+        agregarVariedadAPeso(mix, nombre, valor * factor);
+      });
+    });
+    if (mix.size) {
+      return { total: totalizar(), mix };
+    }
+  }
+
+  const propia = nodo.datos?.variedad || nodo.datos?.variedadBase || nodo.datos?.vino || "";
+  const pesoPropio =
+    pesoNumerico(nodo.datos?.kilos ?? nodo.datos?.litros ?? nodo.datos?.volumen) || 1;
+  sumar(propia, pesoPropio);
+  return { total: totalizar(), mix };
+}
+
+function formatearComposicionVariedades(mix, total) {
+  const composicion = mixToArray(mix, total);
+  if (!composicion.length) return "";
+  return composicion.map(c => `${c.nombre} ${formatearPctVariedad(c.porcentaje)}`).join(" / ");
+}
+
+function obtenerTextoVolumenNodo(nodo) {
+  if (!nodo) return "";
+  const unidad = obtenerUnidadVisual(nodo);
+  const unidadLabel = unidad === "L" ? "L" : "kg";
+  const valLitros =
+    normalizarNumero(nodo.datos?.litros_directos) ??
+    normalizarNumero(nodo.datos?.litros) ??
+    normalizarNumero(nodo.datos?.volumen);
+  const valKilos = normalizarNumero(nodo.datos?.kilos);
+  const valor =
+    unidad === "L"
+      ? valLitros != null
+        ? valLitros
+        : valKilos
+      : valKilos != null
+      ? valKilos
+      : valLitros;
+
+  const capBase =
+    normalizarNumero(nodo.datos?.capacidad) ??
+    normalizarNumero(nodo.datos?.capacidad_l) ??
+    (nodo.datos?.capacidad_hl != null
+      ? normalizarNumero(nodo.datos.capacidad_hl * 100)
+      : null);
+
+  const redondear = v => (Number.isFinite(v) ? Number(v.toFixed(0)) : null);
+  const cap = redondear(capBase);
+  const cont = redondear(valor);
+
+  if ((nodo.tipo === "deposito" || nodo.tipo === "barrica") && (cap != null || cont != null)) {
+    if (cap != null && cont != null) return `Volumen ${cap}/${cont} ${unidadLabel}`;
+    if (cap != null) return `Volumen ${cap} ${unidadLabel}`;
+  }
+  if (cont != null) {
+    const etiqueta = unidad === "L" ? "Volumen" : "Kilos";
+    return `${etiqueta} ${cont} ${unidadLabel}`;
+  }
+  return "";
 }
 
 function describirNodoOrigen(origen) {
@@ -2905,7 +3554,48 @@ function rellenarDatosDepositoDesdeCache(nodo) {
     info.capacidad_l ||
     (info.capacidad_hl != null ? info.capacidad_hl * 100 : nodo.datos.capacidad);
   nodo.datos.vino_tipo = nodo.datos.vino_tipo || info.vino_tipo;
-  nodo.datos.variedad = nodo.datos.variedad || info.vino_tipo;
+  const tieneMezcla = Array.isArray(nodo.datos.composicionVariedades) && nodo.datos.composicionVariedades.length > 0;
+  nodo.datos.variedadBase = nodo.datos.variedadBase || info.vino_tipo || nodo.datos.variedad || "";
+  if (!tieneMezcla && !nodo.datos.variedad) {
+    nodo.datos.variedad = nodo.datos.variedadBase;
+  }
+}
+
+function rellenarDatosCrianzaDesdeCache(nodo) {
+  if (!nodo || nodo.tipo !== "barrica") return;
+  const tipoCont = claveContenedor(nodo.datos?.contenedor_tipo) || "barrica";
+  const id = nodo.datos?.contenedor_id || nodo.datos?.id_ref;
+  if (!id) return;
+  const info =
+    tipoCont === "barrica"
+      ? buscarBarricaPorId(id) || buscarBarricaPorCodigo(nodo.datos?.codigo || nodo.titulo)
+      : buscarDepositoPorId(id) || buscarDepositoPorCodigo(nodo.datos?.codigo || nodo.titulo);
+  if (!info) return;
+  const capInfo =
+    info.capacidad_l ??
+    (info.capacidad_hl != null ? info.capacidad_hl * 100 : null) ??
+    nodo.datos.capacidad;
+  if (capInfo != null) {
+    nodo.datos.capacidad = capInfo;
+    nodo.datos.capacidad_l = capInfo;
+  }
+  const volumenInfo = info.litros_actuales ?? info.volumen ?? null;
+  if (volumenInfo != null) {
+    nodo.datos.volumen = volumenInfo;
+    nodo.datos.litros = volumenInfo;
+    nodo.datos.litros_directos = volumenInfo;
+  }
+  nodo.datos.vino_tipo = nodo.datos.vino_tipo || info.vino_tipo;
+  const tieneMezcla = Array.isArray(nodo.datos.composicionVariedades) && nodo.datos.composicionVariedades.length > 0;
+  nodo.datos.variedadBase = nodo.datos.variedadBase || info.vino_tipo || nodo.datos.variedad || "";
+  if (!tieneMezcla && !nodo.datos.variedad) {
+    nodo.datos.variedad = nodo.datos.variedadBase;
+  }
+  // Texto descriptivo del contenedor elegido para mostrar en modal/nodo.
+  if (!nodo.datos.tipo) {
+    const descripcion = describirContenedor(info, nodo.datos.contenedor_tipo || (tipoCont === "barrica" ? "Barrica" : "Depósito"));
+    nodo.datos.tipo = descripcion || nodo.datos.contenedor_tipo || "";
+  }
 }
 
 // Cargar nodos (preferimos el estado en memoria) y mapear por id
@@ -3040,7 +3730,6 @@ function obtenerNodoPorId(id) {
 
 function sumarConsumoDesdeNodo(origen) {
   if (!origen) return 0;
-  const unidad = obtenerUnidadDisponible(origen);
   const origenKey = origen.id?.toString?.() ?? String(origen.id);
   return (origen.targets || []).reduce((total, targetId) => {
     const destino = obtenerNodoPorId(targetId);
@@ -3049,18 +3738,10 @@ function sumarConsumoDesdeNodo(origen) {
       destino.datos?.asignaciones?.[origenKey] || destino.datos?.asignaciones?.[origen.id];
     if (!registro) return total;
     let valor = 0;
-    if (unidad === "litros") {
-      const litros = normalizarNumero(registro.litros);
-      const kilos = normalizarNumero(registro.kilos);
-      if (litros > 0) {
-        valor += litros;
-      } else if (kilos > 0) {
-        valor += kilos;
-      }
-    } else {
-      const kilos = normalizarNumero(registro.kilos);
-      if (kilos > 0) valor += kilos;
-    }
+    const litros = normalizarNumero(registro.litros);
+    const kilos = normalizarNumero(registro.kilos);
+    if (litros > 0) valor += litros;
+    if (kilos > 0) valor += kilos;
     if (valor > 0) {
       return total + valor;
     }
@@ -3075,9 +3756,13 @@ function obtenerLimiteNodo(nodo) {
     const litros = normalizarNumero(
       nodo.datos?.volumen ?? nodo.datos?.litros ?? nodo.datos?.litros_directos
     );
-    return Number.isFinite(litros) ? litros : null;
+    if (Number.isFinite(litros)) return litros;
+    const kilosComoLitros = normalizarNumero(nodo.datos?.kilos);
+    return Number.isFinite(kilosComoLitros) ? kilosComoLitros : null;
   }
-  const kilos = normalizarNumero(nodo.datos?.kilos);
+  const kilos = normalizarNumero(
+    nodo.datos?.kilos ?? nodo.datos?.volumen ?? nodo.datos?.litros ?? nodo.datos?.litros_directos
+  );
   return Number.isFinite(kilos) ? kilos : null;
 }
 
@@ -3085,7 +3770,19 @@ function validarLimitesFlujo() {
   for (const nodo of flujoNodos) {
     const limite = obtenerLimiteNodo(nodo);
     if (limite == null) continue;
-    const consumo = sumarConsumoDesdeNodo(nodo);
+    const consumoAsignaciones = sumarConsumoDesdeNodo(nodo);
+    // Añadir consumo implícito de nodos de proceso (prensado/estilo/coupage) que no tienen asignaciones
+    const esProceso = !TIPOS_CONTENEDOR_FLUJO.has(nodo.tipo) && nodo.tipo !== "entrada";
+    let consumoProceso = 0;
+    if (esProceso) {
+      const carga = obtenerCargaDesdeNodo(nodo);
+      const valor =
+        obtenerUnidadNodo(nodo) === "litros"
+          ? normalizarNumero(carga?.litros_directos ?? carga?.litros)
+          : normalizarNumero(carga?.kilos);
+      if (valor > 0) consumoProceso += valor;
+    }
+    const consumo = consumoAsignaciones + consumoProceso;
     if (consumo > limite + 0.0001) {
       return {
         ok: false,
@@ -3428,40 +4125,39 @@ function obtenerCargaDistribuida(origen, destinoId, cargaBase) {
 
 function actualizarVariedadDesdeAportes(nodo) {
   if (!nodo || !["deposito", "coupage"].includes(nodo.tipo)) return;
-  nodo.datos.variedad = obtenerVariedadDesdeAsignaciones(nodo);
+  // Si el nodo tiene mezcla precalculada desde aportes, úsala primero
+  if (nodo.datos?.aportes) {
+    const mix = new Map();
+    let total = 0;
+    Object.values(nodo.datos.aportes).forEach(a => {
+      const peso =
+        (normalizarNumero(a.litros_directos) ??
+          normalizarNumero(a.litros) ??
+          normalizarNumero(a.kilos)) || 0;
+      if (!peso || !a.variedad) return;
+      agregarVariedadAPeso(mix, a.variedad, peso);
+      total += peso;
+    });
+    if (mix.size && total > 0) {
+      guardarComposicionEnNodo(nodo, mix, total);
+    } else {
+      nodo.datos.composicionVariedades = [];
+      nodo.datos.variedad = obtenerVariedadDesdeAsignaciones(nodo);
+    }
+  } else {
+    nodo.datos.composicionVariedades = [];
+    nodo.datos.variedad = obtenerVariedadDesdeAsignaciones(nodo);
+  }
   actualizarVolumenDesdeAsignaciones(nodo);
 }
 
 function obtenerVariedadDesdeAsignaciones(nodo) {
-  if (!nodo || !nodo.datos?.asignaciones) return "";
-  const permitidos = new Set(obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre)));
-  const componentes = [];
-  let total = 0;
-  Object.entries(nodo.datos.asignaciones).forEach(([origenId, info]) => {
-    const kilos = normalizarNumero(info?.kilos);
-    const litros = normalizarNumero(info?.litros);
-    const cantidad = (kilos > 0 ? kilos : 0) + (litros > 0 ? litros : 0);
-    if (!(cantidad > 0)) return;
-    if (!permitidos.has(origenId)) return;
-    const origen = obtenerNodoPorId(origenId);
-    let nombreVar = "";
-    if (origen?.tipo === "entrada" && origen.datos?.id_ref) {
-      const entrada = buscarEntradaPorId(origen.datos.id_ref);
-      nombreVar = entrada?.variedad || "";
-    }
-    if (!nombreVar) {
-      nombreVar = limpiarTextoVariedad(obtenerVariedadNodo(origen));
-    }
-    if (!nombreVar) {
-      nombreVar = origen?.titulo || `Nodo ${origenId}`;
-    }
-    componentes.push({ variedad: nombreVar, cantidad });
-    total += cantidad;
-  });
-  if (!componentes.length || !total) return "";
-  return componentes
-    .map(comp => `${comp.variedad} ${(comp.cantidad / total * 100).toFixed(1)}%`)
-    .join(" · ");
+  if (!nodo) return "";
+  const variedadExistente = nodo.datos?.variedad || nodo.datos?.variedadBase || nodo.datos?.vino || "";
+  if (!nodo.datos?.asignaciones) return variedadExistente;
+  const comp = calcularComposicionVariedades(nodo);
+  const mezcla = formatearComposicionVariedades(comp.mix, comp.total);
+  return mezcla || variedadExistente;
 }
 
 function capYVolDesdeInfo(info, fallbackCap, fallbackVol, extraCap = null) {
@@ -3585,10 +4281,10 @@ function calcularTotalesAsignaciones(nodo) {
     if (!permitidos.has(origenId)) return;
     const kilos = normalizarNumero(info?.kilos);
     const litros = normalizarNumero(info?.litros);
-    if (kilos > 0) totalKilos += kilos;
     if (litros > 0) totalLitros += litros;
+    if (kilos > 0) totalKilos += kilos;
   });
-  const total = totalKilos + totalLitros;
+  const total = totalLitros + totalKilos;
   if (total <= 0) return null;
   return { totalKilos, totalLitros, total }; 
 }
@@ -3610,24 +4306,35 @@ function obtenerEstadoDepositoDesdeNodo(idDeposito) {
   if (!idDeposito || !Array.isArray(flujoNodos)) return null;
   const volumenNodo = obtenerVolumenFinalNodoContenedor("deposito", idDeposito);
   let volumen = null;
+  let variedadTexto = "";
+  const nodoDeposito = flujoNodos.find(
+    n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(idDeposito)
+  );
+  if (nodoDeposito) {
+    try {
+      const comp = calcularComposicionVariedades(nodoDeposito);
+      if (comp.mix.size) {
+        guardarComposicionEnNodo(nodoDeposito, comp.mix, comp.total);
+        variedadTexto = formatearComposicionVariedades(comp.mix, comp.total);
+      }
+      if (!variedadTexto) {
+        variedadTexto = nodoDeposito.datos?.variedad || nodoDeposito.datos?.variedadBase || "";
+      }
+    } catch (e) {
+      console.warn("No se pudo calcular mezcla del depósito en mapa:", e);
+    }
+  }
   if (Number.isFinite(volumenNodo)) {
     volumen = volumenNodo;
   } else {
-    const nodo = flujoNodos.find(
-      n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(idDeposito)
-    );
-    if (!nodo) return null;
-    const totales = calcularTotalesAsignaciones(nodo);
+    if (!nodoDeposito) return null;
+    const totales = calcularTotalesAsignaciones(nodoDeposito);
     if (totales) {
       volumen = totales.total;
-    } else if (nodo.datos && nodo.datos.volumen != null) {
-      volumen = Number(nodo.datos.volumen);
+    } else if (nodoDeposito.datos && nodoDeposito.datos.volumen != null) {
+      volumen = Number(nodoDeposito.datos.volumen);
     }
   }
-  const variedadTexto =
-    obtenerVariedadDesdeAsignaciones(
-      flujoNodos.find(n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(idDeposito))
-    ) || "";
   return volumen != null
     ? {
         variedad: variedadTexto,
@@ -3697,6 +4404,8 @@ const FLOW_NODE_TYPES = {
       { id: "id_ref", label: "ID existente", tipo: "number", placeholder: "ID en Entradas" },
       { id: "kilos", label: "Kilos", tipo: "number", placeholder: "1000" },
       { id: "variedad", label: "Variedad", tipo: "text", placeholder: "Tempranillo" },
+      { id: "densidad", label: "Densidad", tipo: "info" },
+      { id: "temperatura", label: "Temperatura", tipo: "info" },
     ],
   },
   fermentacion: {
@@ -3732,8 +4441,7 @@ const FLOW_NODE_TYPES = {
     icono: "🛢️",
     campos: [
       { id: "id_ref", label: "Nombre de depósito", tipo: "number", placeholder: "Selecciona depósito" },
-      { id: "capacidad", label: "Capacidad (L)", tipo: "info" },
-      { id: "volumen", label: "Volumen (L)", tipo: "info" },
+      { id: "capacidad", label: "Capacidad y volumen (L)", tipo: "info" },
       { id: "tipo", label: "Tipo", tipo: "info" },
       { id: "material", label: "Material", tipo: "info" },
       {
@@ -4138,19 +4846,40 @@ function actualizarMapaFlujo() {
 }
 
 function exportarNodosComoImagen() {
-  const canvas = document.getElementById("flowCanvas");
-  if (!canvas) return;
-  const svg = document.getElementById("flowConnections");
-  const ventana = window.open("", "printNodes");
-  ventana.document.write("<html><head><title>Mapa de nodos</title><style>body{font-family:Arial,sans-serif;padding:20px;}</style></head><body>");
-  ventana.document.write("<h2>Mapa de nodos</h2>");
-  ventana.document.write(svg.outerHTML);
-  ventana.document.write(canvas.innerHTML);
-  ventana.document.write("</body></html>");
-  ventana.document.close();
-  ventana.focus();
-  ventana.print();
-  ventana.close();
+  const editor = document.querySelector(".flow-editor");
+  if (!editor) return;
+
+  const descargarCanvas = canvas => {
+    const data = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = data;
+    link.download = "mapa-nodos.png";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const hacerCaptura = () => {
+    if (window.html2canvas) {
+      window.html2canvas(editor, {
+        backgroundColor: "#0b0515",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      }).then(descargarCanvas);
+      return true;
+    }
+    return false;
+  };
+
+  if (hacerCaptura()) return;
+
+  // Cargar html2canvas al vuelo si no está disponible
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+  script.onload = () => hacerCaptura();
+  script.onerror = () => mostrarAviso("No se pudo exportar la imagen. Intenta con otra captura.", "error");
+  document.body.appendChild(script);
 }
 
 async function inicializarFlowEditor() {
@@ -4171,24 +4900,36 @@ function generarIdNodo() {
 }
 
 function crearNodoManual(tipo) {
-  const config = FLOW_NODE_TYPES[tipo];
-  if (!config) return;
-  const nodo = {
-    id: generarIdNodo(),
-    tipo,
-    titulo: config.label,
-    x: 60 + flujoNodos.length * 40,
-    y: 60 + flujoNodos.length * 20,
-    datos: {},
-    targets: [],
-  };
-  actualizarTituloNodo(nodo);
-  asegurarMermaPorDefecto(nodo);
-  flujoNodos.push(nodo);
-  ultimoNodoManual = nodo.id;
-  guardarEstadoNodos();
-  renderFlowNodes();
-  abrirFlowModal(nodo.id);
+  try {
+    console.log("Crear nodo manual", tipo, "flujoNodos len:", Array.isArray(flujoNodos) ? flujoNodos.length : flujoNodos);
+    const config = FLOW_NODE_TYPES[tipo];
+    if (!config) {
+      console.error("Tipo de nodo desconocido", tipo);
+      mostrarAviso("No se reconoce este tipo de nodo.", "error");
+      return;
+    }
+    const nodo = {
+      id: generarIdNodo(),
+      tipo,
+      titulo: config.label,
+      x: 60 + flujoNodos.length * 40,
+      y: 60 + flujoNodos.length * 20,
+      datos: {},
+      targets: [],
+    };
+    actualizarTituloNodo(nodo);
+    asegurarMermaPorDefecto(nodo);
+    flujoNodos.push(nodo);
+    ultimoNodoManual = nodo.id;
+    guardarEstadoNodos();
+    console.log("Nodo creado", nodo.id, "total nodos", flujoNodos.length);
+    renderFlowNodes();
+    abrirFlowModal(nodo.id);
+  } catch (err) {
+    console.error("Error creando nodo", err);
+    const msg = err && err.message ? err.message : "Error desconocido";
+    mostrarAviso(`No se pudo crear el nodo: ${msg}`, "error");
+  }
 }
 
 async function sembrarNodosDesdeDatos() {
@@ -4235,18 +4976,52 @@ async function sembrarNodosDesdeDatos() {
   renderFlowNodes();
 }
 
+// Override renderFlowNodes with a clean version (prev block had duplicated closures)
 function renderFlowNodes() {
   const canvas = document.getElementById("flowCanvas");
   if (!canvas) return;
   canvas.innerHTML = "";
+
   flujoNodos.forEach(nodo => {
-    if (nodo.tipo === "deposito") {
+    if (nodo.tipo === "entrada") {
+      rellenarDatosEntradaDesdeCache(nodo);
+    } else if (nodo.tipo === "deposito") {
       rellenarDatosDepositoDesdeCache(nodo);
       actualizarTituloNodo(nodo);
     }
+    // Recalcular mezcla visible por si el nodo recibe varias variedades
+    const compRender = calcularComposicionVariedades(nodo);
+    if (compRender.mix.size) {
+      guardarComposicionEnNodo(nodo, compRender.mix, compRender.total);
+    }
+
     const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo" };
     const div = document.createElement("div");
     div.className = "flow-node";
+
+    const fill = document.createElement("div");
+    fill.className = "fill-level";
+    const colorVino = obtenerColorVino(nodo);
+    fill.classList.add(colorVino === "white" ? "white" : "red");
+    if (nodo.tipo === "barrica") {
+      rellenarDatosCrianzaDesdeCache(nodo);
+    }
+    const ocupacion = calcularOcupacionNodo(nodo);
+    if (ocupacion != null) {
+      fill.style.height = `${(ocupacion * 100).toFixed(1)}%`;
+    }
+    div.appendChild(fill);
+
+    const progresoBarrica = calcularProgresoBarrica(nodo);
+    if (progresoBarrica != null) {
+      const ring = document.createElement("div");
+      const pct = Math.max(0, Math.min(1, progresoBarrica));
+      const ang = pct * 360;
+      ring.className = "flow-progress-ring";
+      ring.style.background = `conic-gradient(#ffd79c ${ang}deg, rgba(255,255,255,0.08) 0deg)`;
+      div.appendChild(ring);
+    }
+
     div.style.left = `${nodo.x}px`;
     div.style.top = `${nodo.y}px`;
     div.dataset.id = nodo.id;
@@ -4260,18 +5035,55 @@ function renderFlowNodes() {
     if (config.icono && config.icono.trim().startsWith("<")) {
       icon.innerHTML = config.icono;
     } else {
-      icon.textContent = config.icono || "●";
+      let iconChar = config.icono || "●";
+      if (config.icono === "🍇") iconChar = "🍇";
+      icon.textContent = iconChar;
     }
     headerWrap.appendChild(icon);
+    if (config.icono === "🍇") {
+      const badge = document.createElement("span");
+      const tono = colorVino === "white" ? "white" : "red";
+      badge.className = `grape-badge ${tono}`;
+      badge.title = tono === "white" ? "Uva blanca" : "Uva tinta";
+      headerWrap.appendChild(badge);
+    }
     const header = document.createElement("h4");
+    const estadoInline = obtenerEstadoVisual(nodo);
     header.textContent = nodo.titulo || config.label;
+    if (estadoInline) {
+      const estadoSpan = document.createElement("span");
+      estadoSpan.className = "flow-state-inline";
+      const separador = header.textContent ? " - " : "";
+      estadoSpan.textContent = `${separador}${estadoInline.label}`;
+      if (estadoInline.color) {
+        estadoSpan.style.color = estadoInline.color;
+      }
+      header.appendChild(estadoSpan);
+    }
     headerWrap.appendChild(header);
     div.appendChild(headerWrap);
 
-    const unidadBadge = document.createElement("div");
-    unidadBadge.className = "flow-unit";
-    unidadBadge.textContent = obtenerUnidadVisual(nodo);
-    div.appendChild(unidadBadge);
+    const body = document.createElement("div");
+    body.className = "flow-node-body";
+    const densidadNodo = nodo.tipo === "entrada" ? normalizarNumero(nodo.datos?.densidad) : null;
+    const temperaturaNodo = nodo.tipo === "entrada" ? normalizarNumero(nodo.datos?.temperatura) : null;
+    if (nodo.tipo === "entrada" && (densidadNodo != null || temperaturaNodo != null)) {
+      const metrics = document.createElement("div");
+      metrics.className = "flow-node-metrics";
+      if (densidadNodo != null) {
+        const chip = document.createElement("span");
+        chip.className = "flow-chip";
+        chip.textContent = `${formatearDensidad(densidadNodo)} dens`;
+        metrics.appendChild(chip);
+      }
+      if (temperaturaNodo != null) {
+        const chip = document.createElement("span");
+        chip.className = "flow-chip";
+        chip.textContent = `${temperaturaNodo.toFixed(1)}°C`;
+        metrics.appendChild(chip);
+      }
+      body.appendChild(metrics);
+    }
 
     const variedadVisible = obtenerVariedadVisibleNodo(nodo);
     if (variedadVisible) {
@@ -4279,8 +5091,24 @@ function renderFlowNodes() {
       subtitleVar.className = "flow-node-subtitle";
       subtitleVar.textContent = variedadVisible;
       subtitleVar.style.whiteSpace = "pre-line";
-      div.appendChild(subtitleVar);
+      body.appendChild(subtitleVar);
     }
+
+    const textoVolumen = obtenerTextoVolumenNodo(nodo);
+    if (textoVolumen) {
+      const volEl = document.createElement("div");
+      volEl.className = "flow-node-subtitle";
+      volEl.textContent = textoVolumen;
+      body.appendChild(volEl);
+    } else {
+      const unidadBadge = document.createElement("div");
+      unidadBadge.className = "flow-unit";
+      unidadBadge.textContent = obtenerUnidadVisual(nodo);
+      body.appendChild(unidadBadge);
+    }
+
+    div.appendChild(body);
+
     if (nodo.tipo === "estilo" && nodo.datos?.metodo) {
       const metodoSubtitle = document.createElement("div");
       metodoSubtitle.className = "flow-node-subtitle";
@@ -4289,6 +5117,7 @@ function renderFlowNodes() {
       metodoSubtitle.style.opacity = "0.8";
       div.appendChild(metodoSubtitle);
     }
+
     const controls = document.createElement("div");
     controls.className = "flow-node-controls";
     const btnEditar = document.createElement("button");
@@ -4302,9 +5131,7 @@ function renderFlowNodes() {
     const btnConectar = document.createElement("button");
     btnConectar.className = `green ${nodoConectandoOrigen === nodo.id ? "conectando" : ""}`;
     btnConectar.title = "Conectar";
-    if (nodoConectandoOrigen === nodo.id) {
-      btnConectar.classList.add("conectando");
-    }
+    if (nodoConectandoOrigen === nodo.id) btnConectar.classList.add("conectando");
     btnConectar.addEventListener("pointerdown", e => e.stopPropagation());
     btnConectar.addEventListener("click", e => {
       e.stopPropagation();
@@ -4321,9 +5148,7 @@ function renderFlowNodes() {
         nodo._clickDesconectar = Date.now();
         mostrarAviso("Pulsa de nuevo rápidamente para eliminar el nodo.", "info");
         setTimeout(() => {
-          if (nodo._clickDesconectar && Date.now() - nodo._clickDesconectar > 800) {
-            delete nodo._clickDesconectar;
-          }
+          if (nodo._clickDesconectar && Date.now() - nodo._clickDesconectar > 800) delete nodo._clickDesconectar;
         }, 900);
       } else if (Date.now() - nodo._clickDesconectar < 800) {
         delete nodo._clickDesconectar;
@@ -4336,6 +5161,13 @@ function renderFlowNodes() {
     controls.appendChild(btnConectar);
     controls.appendChild(btnDesconectar);
     div.appendChild(controls);
+
+    const tempNodo = obtenerTemperaturaNodo(nodo);
+    const estado = (nodo.datos?.estado || "").toLowerCase();
+    const enFermentacion = estado.includes("ferment");
+    if (enFermentacion && tempNodo != null && tempNodo >= 28) {
+      div.classList.add("temp-alert");
+    }
 
     div.addEventListener("pointerdown", e => iniciarArrastreNodo(e, nodo.id));
     div.addEventListener("click", () => {
@@ -4352,8 +5184,10 @@ function renderFlowNodes() {
       e.stopPropagation();
       abrirFlowModal(nodo.id);
     });
+
     canvas.appendChild(div);
   });
+
   renderFlowConnections();
 }
 
@@ -4389,24 +5223,47 @@ function renderFlowConnections() {
   });
 
   flujoNodos.forEach(nodo => {
-    const origenEl = nodosDom.get(nodo.id);
-    if (!origenEl) return;
-    const x1 = nodo.x + origenEl.offsetWidth / 2;
-    const y1 = nodo.y + origenEl.offsetHeight / 2;
-    (nodo.targets || []).forEach(targetId => {
-      const destinoEl = nodosDom.get(targetId);
-      if (!destinoEl) return;
-      const destinoNodo = flujoNodos.find(n => n.id === targetId);
-      if (!destinoNodo) return;
-      const x2 = destinoNodo.x + destinoEl.offsetWidth / 2;
-      const y2 = destinoNodo.y + destinoEl.offsetHeight / 2;
-      const curva = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      const delta = Math.max(Math.abs(x2 - x1) / 2, 60);
-      const d = `M${x1} ${y1} C ${x1 + delta} ${y1}, ${x2 - delta} ${y2}, ${x2} ${y2}`;
-      curva.setAttribute("d", d);
-      curva.setAttribute("class", "flow-connector-line");
-      (layer || svg).appendChild(curva);
-    });
+    try {
+      const origenEl = nodosDom.get(nodo.id);
+      if (!origenEl) return;
+      const x1 = nodo.x + origenEl.offsetWidth / 2;
+      const y1 = nodo.y + origenEl.offsetHeight / 2;
+      (nodo.targets || []).forEach(targetId => {
+        const destinoEl = nodosDom.get(targetId);
+        if (!destinoEl) return;
+        const destinoNodo = flujoNodos.find(n => n.id === targetId);
+        if (!destinoNodo) return;
+        const x2 = destinoNodo.x + destinoEl.offsetWidth / 2;
+        const y2 = destinoNodo.y + destinoEl.offsetHeight / 2;
+        const curva = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        const delta = Math.max(Math.abs(x2 - x1) / 2, 60);
+        const d = `M${x1} ${y1} C ${x1 + delta} ${y1}, ${x2 - delta} ${y2}, ${x2} ${y2}`;
+        curva.setAttribute("d", d);
+        curva.setAttribute("class", "flow-connector-line");
+        (layer || svg).appendChild(curva);
+
+        // Etiqueta de composición de variedades en la mitad del conector
+        try {
+          const comp = calcularComposicionVariedades(nodo);
+          const textoComp = formatearComposicionVariedades(comp.mix, comp.total);
+          if (textoComp) {
+            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2 - 6;
+            label.setAttribute("x", midX);
+            label.setAttribute("y", midY);
+            label.setAttribute("text-anchor", "middle");
+            label.setAttribute("class", "flow-connector-label");
+            label.textContent = textoComp;
+            (layer || svg).appendChild(label);
+          }
+        } catch (err) {
+          console.warn("No se pudo calcular la composición del conector:", err);
+        }
+      });
+    } catch (err) {
+      console.error("Error renderizando conexiones", err);
+    }
   });
 }
 
@@ -4503,6 +5360,10 @@ function conectarNodos(origenId, destinoId, silencioso = false) {
   const origen = flujoNodos.find(n => n.id === origenId);
   const destino = flujoNodos.find(n => n.id === destinoId);
   if (!origen) return;
+  if (esAncestro(origenId, destinoId)) {
+    mostrarAviso("No puedes crear ciclos en el flujo.", "error");
+    return;
+  }
   if (destino && esNodoPrensado(destino) && obtenerUnidadNodo(origen) === "litros") {
     mostrarAviso("No puedes enviar litros a un nodo de prensado/sangrado. La conversión ya se realizó antes.", "error");
     return;
@@ -4767,8 +5628,15 @@ function redistribuirCargas(origen, visitados = new Set()) {
     visitados.delete(origen.id);
     return;
   }
-  // Repartir automáticamente la carga entre todos los destinos (sin remanente)
-  if (targets.length > 1) {
+  // Reparto automático solo si no hay asignaciones manuales en destinos contenedor
+  const hayAsignacionesManuales = targets.some(dest => {
+    const reg = dest?.datos?.asignaciones?.[origen.id];
+    if (!reg) return false;
+    const k = normalizarNumero(reg.kilos);
+    const l = normalizarNumero(reg.litros);
+    return (k != null && k !== 0) || (l != null && l !== 0);
+  });
+  if (targets.length > 1 && !hayAsignacionesManuales) {
     const shareKilos =
       cargaBase.kilos != null ? Number((Number(cargaBase.kilos) / targets.length).toFixed(4)) : null;
     const baseLitros =
@@ -4853,6 +5721,8 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
       parcela: carga.parcela,
       anada: carga.anada,
       fecha: carga.fecha,
+      densidad: carga.densidad,
+      temperatura: carga.temperatura,
     });
     return {
       ...carga,
@@ -4883,25 +5753,34 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
 
   // Trasiego: contenedor a contenedor (depósitos, barricas, almacén).
   if (esConexionTrasiego(origen, destino)) {
-    const baseTrasiego =
-      normalizarNumero(carga.litros) ??
-      (normalizarNumero(carga.kilos) ?? normalizarNumero(carga.litros_directos));
-    if (baseTrasiego > 0) {
-      const litrosTrasiego = aplicarMerma(baseTrasiego, FACTOR_MERMA_TRASIEGO);
+    const baseLitros =
+      normalizarNumero(carga.litros) ?? normalizarNumero(carga.litros_directos);
+    const baseKilos = normalizarNumero(carga.kilos);
+    const factorTrasiego = Math.max(
+      obtenerFactorMermaNodo(origen),
+      obtenerFactorMermaNodo(destino)
+    );
+    if (baseLitros > 0) {
+      const litrosTrasiego = factorTrasiego > 0 ? aplicarMerma(baseLitros, factorTrasiego) : baseLitros;
       carga.litros = litrosTrasiego;
       carga.litros_directos = litrosTrasiego;
-      carga.kilos = carga.kilos && carga.kilos > 0 ? litrosTrasiego : carga.kilos;
+      carga.kilos = 0;
+    } else if (baseKilos > 0) {
+      const kilosTrasiego = factorTrasiego > 0 ? aplicarMerma(baseKilos, factorTrasiego) : baseKilos;
+      carga.kilos = kilosTrasiego;
+      carga.litros = null;
+      carga.litros_directos = null;
     }
   }
 
   carga = completarCargaVisual(carga);
 
-  aplicarCargaANodo(destino, carga);
+  aplicarCargaProcesoSinDuplicar(destino, origen.id, carga);
 
   if (destino.tipo === "deposito" && destino.datos.id_ref) {
     actualizarDepositoContenido(destino.datos.id_ref, carga.variedad, carga.litros, carga.anada);
   }
-  if (destino.tipo === "deposito") {
+  if (destino.tipo === "deposito" || destino.tipo === "coupage") {
     const registro = asegurarAsignacionRegistro(destino, origen.id);
     const litrosFinales =
       normalizarNumero(carga.litros_directos) ??
@@ -4917,6 +5796,7 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
       registro.kilos = 0;
     }
     actualizarVariedadDesdeAportes(destino);
+    actualizarVolumenDesdeAsignaciones(destino);
     guardarEstadoNodos();
   }
 }
@@ -4928,32 +5808,27 @@ function normalizarNumero(valor) {
   return Number.isFinite(numero) ? numero : null;
 }
 
-function obtenerVariedadNodo(nodo, visitados = new Set()) {
-  if (!nodo) return "";
-  const key = nodo.id || nodo;
-  if (visitados.has(key)) return "";
-  visitados.add(key);
-  const datos = nodo.datos || {};
-  if (datos.variedad) return datos.variedad;
-  if (datos.vino) return datos.vino;
-  if (nodo.tipo === "entrada" && datos.id_ref) {
-    const entrada = buscarEntradaPorId(datos.id_ref);
-    if (entrada?.variedad) return entrada.variedad;
-  }
-  if (nodo.tipo === "deposito") {
-    const varAsign = obtenerVariedadDesdeAsignaciones(nodo);
-    if (varAsign) return varAsign;
-  }
-  const padres = obtenerPredecesores(nodo.id);
-  for (const pre of padres) {
-    const varPadre = obtenerVariedadNodo(pre, visitados);
-    if (varPadre) return varPadre;
-  }
-  return "";
+function formatearDensidad(valor) {
+  const num = normalizarNumero(valor);
+  if (num == null) return "";
+  const entero = Math.round(num);
+  return entero.toString().padStart(4, "0");
 }
 
-function obtenerCargaDesdeNodo(nodo) {
+function obtenerVariedadNodo(nodo, visitados = new Set()) {
+  const comp = calcularComposicionVariedades(nodo, visitados);
+  if (comp.mix.size) {
+    const composicion = guardarComposicionEnNodo(nodo, comp.mix, comp.total);
+    return composicion.map(c => `${c.nombre} ${formatearPctVariedad(c.porcentaje)}`).join(" / ");
+  }
+  return nodo?.datos?.variedad || nodo?.datos?.variedadBase || "";
+}
+
+function obtenerCargaDesdeNodo(nodo, visitados = new Set()) {
   if (!nodo) return null;
+  const clave = nodo.id || nodo;
+  if (visitados.has(clave)) return null;
+  visitados.add(clave);
   const unidadNodo = obtenerUnidadNodo(nodo);
   if (nodo.tipo === "entrada" && nodo.datos?.id_ref && nodo.datos?.kilos == null) {
     intentarPoblarNodoEntrada(nodo);
@@ -4969,6 +5844,8 @@ function obtenerCargaDesdeNodo(nodo) {
       if (!datos.variedad && entrada.variedad) datos.variedad = entrada.variedad;
       if (!datos.anada && entrada.anada) datos.anada = entrada.anada;
       if (!datos.fecha && entrada.fecha) datos.fecha = entrada.fecha.slice(0, 10);
+      if (datos.densidad == null && entrada.densidad != null) datos.densidad = entrada.densidad;
+      if (datos.temperatura == null && entrada.temperatura != null) datos.temperatura = entrada.temperatura;
     }
   }
   if (nodo.tipo === "deposito" && nodo.datos?.id_ref) {
@@ -5016,12 +5893,44 @@ function obtenerCargaDesdeNodo(nodo) {
   const anada = datos.anada || obtenerAnadaDesdeFecha(datos.fecha);
   if (anada) carga.anada = anada;
   if (datos.fecha) carga.fecha = datos.fecha;
+  const densidad = normalizarNumero(datos.densidad);
+  if (densidad != null) {
+    carga.densidad = densidad;
+  }
+  const temperatura = normalizarNumero(datos.temperatura);
+  if (temperatura != null) {
+    carga.temperatura = temperatura;
+  }
+
+  const sinKilos = !(carga.kilos > 0);
+  const sinLitros = !(carga.litros > 0) && !(carga.litros_directos > 0);
+  if (sinKilos && sinLitros && nodo.id != null) {
+    let sumK = 0;
+    let sumL = 0;
+    obtenerPredecesores(nodo.id).forEach(pre => {
+      const cargaPre = obtenerCargaDesdeNodo(pre, visitados);
+      if (!cargaPre) return;
+      const k = normalizarNumero(cargaPre.kilos);
+      const l = normalizarNumero(cargaPre.litros_directos ?? cargaPre.litros);
+      if (k > 0) sumK += k;
+      if (l > 0) sumL += l;
+    });
+    if (sumK > 0) {
+      carga.kilos = Number(sumK.toFixed(2));
+    }
+    if (sumL > 0) {
+      const lnum = Number(sumL.toFixed(2));
+      carga.litros_directos = lnum;
+      carga.litros = lnum;
+    }
+  }
+
+  visitados.delete(clave);
   return Object.keys(carga).length ? carga : null;
 }
 
 function obtenerMermaDefault(nodo) {
-  if (esNodoSangrado(nodo)) return MERMA_DEFAULT_SANGRADO;
-  if (esNodoPrensado(nodo)) return MERMA_DEFAULT_PRENSADO;
+  // Por defecto no aplicamos merma; solo se usa la que indique el usuario.
   return MERMA_DEFAULT_GENERAL;
 }
 
@@ -5030,8 +5939,7 @@ function asegurarMermaPorDefecto(nodo) {
   nodo.datos = nodo.datos || {};
   const mermaActual = normalizarNumero(nodo.datos.merma);
   if (mermaActual == null) {
-    const valor = obtenerMermaDefault(nodo);
-    nodo.datos.merma = Number.isFinite(valor) ? valor : 0;
+    nodo.datos.merma = 0;
   }
 }
 
@@ -5069,6 +5977,11 @@ function esConexionTrasiego(origen, destino) {
 function aplicarCargaANodo(nodo, carga) {
   nodo.datos = nodo.datos || {};
   const unidadDestino = obtenerUnidadNodo(nodo);
+  const esContenedor = TIPOS_NODO_CONTENEDOR.has(nodo.tipo);
+  const acumular = false; // evitar acumulados duplicados // en nodos de proceso sumamos aportes múltiples
+  const prevK = normalizarNumero(nodo.datos.kilos) || 0;
+  const prevL = normalizarNumero(nodo.datos.litros) || 0;
+  const prevLD = normalizarNumero(nodo.datos.litros_directos) || 0;
   if (carga.variedad) {
     nodo.datos.variedad = carga.variedad;
   }
@@ -5079,27 +5992,132 @@ function aplicarCargaANodo(nodo, carga) {
     nodo.datos.anada = carga.anada;
   }
   if (carga.kilos != null) {
-    nodo.datos.kilos = Number(carga.kilos.toFixed(2));
+    const nuevos = Number(carga.kilos.toFixed(2));
+    nodo.datos.kilos = acumular ? Number((prevK + nuevos).toFixed(2)) : nuevos;
   }
   if (carga.litros != null) {
     const litros = Number(carga.litros.toFixed(2));
-    nodo.datos.volumen = litros;
-    nodo.datos.litros = litros;
-    if (unidadDestino === "litros") {
-      nodo.datos.kilos = 0;
-    }
+    const lFinal = acumular ? Number((prevL + litros).toFixed(2)) : litros;
+    nodo.datos.volumen = lFinal;
+    nodo.datos.litros = lFinal;
   }
   if (carga.litros_directos != null) {
-    nodo.datos.litros_directos = Number(carga.litros_directos.toFixed(2));
-    if (unidadDestino === "litros") {
-      nodo.datos.kilos = 0;
-    }
+    const ld = Number(carga.litros_directos.toFixed(2));
+    nodo.datos.litros_directos = acumular ? Number((prevLD + ld).toFixed(2)) : ld;
+  }
+  // Si el destino opera en litros y es contenedor, no guardamos kilos derivados para evitar duplicidad.
+  if (unidadDestino === "litros" && esContenedor) {
+    nodo.datos.kilos = 0;
   }
   if (carga.fecha) {
     nodo.datos.fecha = carga.fecha;
     if (!nodo.datos.fecha_operacion) {
       nodo.datos.fecha_operacion = carga.fecha;
     }
+  }
+  const densidadCarga = normalizarNumero(carga.densidad);
+  if (densidadCarga != null) {
+    nodo.datos.densidad = Number(densidadCarga.toFixed(4));
+  }
+  const tempCarga = normalizarNumero(carga.temperatura);
+  if (tempCarga != null) {
+    nodo.datos.temperatura = Number(tempCarga.toFixed(2));
+  }
+}
+function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
+  if (!destino) return;
+  destino.datos = destino.datos || {};
+  destino.datos.aportes = destino.datos.aportes || {};
+  const aporte = {
+    kilos: carga.kilos != null ? Number(carga.kilos.toFixed(2)) : 0,
+    litros: carga.litros != null ? Number(carga.litros.toFixed(2)) : 0,
+    litros_directos:
+      carga.litros_directos != null ? Number(carga.litros_directos.toFixed(2)) : 0,
+    variedad: carga.variedad,
+    anada: carga.anada,
+    parcela: carga.parcela,
+    fecha: carga.fecha,
+    densidad: normalizarNumero(carga.densidad),
+    temperatura: normalizarNumero(carga.temperatura),
+  };
+  destino.datos.aportes[normalizarIdNodo(origenId)] = aporte;
+  let sumK = 0;
+  let sumL = 0;
+  const mixVariedades = new Map();
+  let densidadSuma = 0;
+  let densidadPeso = 0;
+  let densidadPrimera = null;
+  let tempSuma = 0;
+  let tempPeso = 0;
+  let tempPrimera = null;
+  Object.values(destino.datos.aportes).forEach(a => {
+    if (a.kilos > 0) sumK += a.kilos;
+    if (a.litros_directos > 0) sumL += a.litros_directos;
+    else if (a.litros > 0) sumL += a.litros;
+    const peso = (a.litros_directos > 0 ? a.litros_directos : a.litros > 0 ? a.litros : a.kilos) || 0;
+    if (a.variedad && peso > 0) {
+      const clave = a.variedad.toString().trim();
+      mixVariedades.set(clave, (mixVariedades.get(clave) || 0) + peso);
+    }
+    const dens = normalizarNumero(a.densidad);
+    if (dens != null) {
+      const pesoD = peso || 1;
+      densidadSuma += dens * pesoD;
+      densidadPeso += pesoD;
+      if (densidadPrimera == null) densidadPrimera = dens;
+    }
+    const temp = normalizarNumero(a.temperatura);
+    if (temp != null) {
+      const pesoT = peso || 1;
+      tempSuma += temp * pesoT;
+      tempPeso += pesoT;
+      if (tempPrimera == null) tempPrimera = temp;
+    }
+  });
+  const totalMix = Array.from(mixVariedades.values()).reduce((acc, v) => acc + v, 0);
+  if (mixVariedades.size) {
+    guardarComposicionEnNodo(destino, mixVariedades, totalMix);
+  } else if (aporte.variedad) {
+    destino.datos.composicionVariedades = [];
+    destino.datos.variedad = aporte.variedad;
+  }
+  if (aporte.anada) destino.datos.anada = aporte.anada;
+  if (aporte.parcela) destino.datos.parcela = aporte.parcela;
+  if (aporte.fecha) destino.datos.fecha = aporte.fecha;
+  const densidadMedia =
+    densidadPeso > 0 ? densidadSuma / densidadPeso : densidadPrimera;
+  const temperaturaMedia = tempPeso > 0 ? tempSuma / tempPeso : tempPrimera;
+  destino.datos.densidad =
+    densidadMedia != null ? Number(densidadMedia.toFixed(4)) : "";
+  destino.datos.temperatura =
+    temperaturaMedia != null ? Number(temperaturaMedia.toFixed(2)) : "";
+
+  // Para contenedores dejamos que el volumen lo gestionen asignaciones; solo propagamos mezcla.
+  if (TIPOS_NODO_CONTENEDOR.has(destino.tipo)) {
+    // Aseguramos que el mix se refleje aunque las asignaciones estén vacías
+    if (mixVariedades.size) {
+      guardarComposicionEnNodo(destino, mixVariedades, totalMix);
+    }
+    // En barricas no tenemos tabla de asignaciones, así que guardamos volumen para el relleno visual.
+    if (destino.tipo === "barrica") {
+      destino.datos.kilos = Number(sumK.toFixed(2));
+      destino.datos.litros = Number(sumL.toFixed(2));
+      destino.datos.litros_directos = destino.datos.litros;
+      destino.datos.volumen = destino.datos.litros;
+    }
+    return;
+  }
+
+  // En nodos de proceso sí consolidamos los volúmenes/kilos para mostrar totales.
+  destino.datos.kilos = Number(sumK.toFixed(2));
+  if (sumL > 0) {
+    destino.datos.litros = Number(sumL.toFixed(2));
+    destino.datos.litros_directos = destino.datos.litros;
+    destino.datos.volumen = destino.datos.litros;
+  } else {
+    destino.datos.litros = 0;
+    destino.datos.litros_directos = 0;
+    destino.datos.volumen = destino.datos.kilos;
   }
 }
 
@@ -5132,9 +6150,30 @@ function desconectarNodo(id) {
   });
   flujoNodos.forEach(n => limpiarAsignacionesOrfanas(n));
   limpiarNodosSinEntradas();
+  limpiarVariedadDepositosSinEntradas();
   guardarEstadoNodos();
   renderFlowNodes();
   mostrarAviso("Conexiones eliminadas para este nodo.", "info");
+}
+
+function limpiarVariedadDepositosSinEntradas() {
+  flujoNodos
+    .filter(n => n.tipo === "deposito")
+    .forEach(dep => {
+      const padres = obtenerPredecesores(dep.id);
+      const sinEntradas = !padres || padres.length === 0;
+      if (sinEntradas) {
+        dep.datos = dep.datos || {};
+        dep.datos.variedad = "";
+        dep.datos.variedadBase = "";
+        dep.datos.vino_tipo = "";
+        dep.datos.composicionVariedades = [];
+        dep.datos.aportes = {};
+        if (dep.datos.id_ref) {
+          actualizarDepositoContenido(dep.datos.id_ref, "", dep.datos.volumen, dep.datos.anada);
+        }
+      }
+    });
 }
 
 function eliminarNodoPorId(id) {
@@ -5161,6 +6200,9 @@ function eliminarNodoPorId(id) {
   limpiarNodosSinEntradas();
   guardarEstadoNodos();
   renderFlowNodes();
+  nodoEnEdicion = null;
+  mostrarInfoNodo(null);
+  cerrarFlowModal();
   mostrarAviso("Nodo eliminado.", "error");
 }
 
@@ -5169,6 +6211,25 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
   const dep = cacheDepositos.find(d => d.id === Number(idRef));
   if (!dep) return;
   const materialActual = dep.material || dep.contenido || "";
+  // Intentar usar la mezcla real del nodo de flujo si existe
+  let variedadNodo = "";
+  const nodoDepo = flujoNodos.find(
+    n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(idRef)
+  );
+  if (nodoDepo) {
+    try {
+      const comp = calcularComposicionVariedades(nodoDepo);
+      if (comp.mix.size) {
+        guardarComposicionEnNodo(nodoDepo, comp.mix, comp.total);
+        variedadNodo = formatearComposicionVariedades(comp.mix, comp.total);
+      } else {
+        variedadNodo = nodoDepo.datos?.variedad || nodoDepo.datos?.variedadBase || "";
+      }
+    } catch (e) {
+      console.warn("No se pudo calcular mezcla del depósito para guardar:", e);
+    }
+  }
+  const variedadFinal = variedadNodo || variedad || dep.vino_tipo;
   try {
     const res = await fetch(`/api/depositos/${idRef}`, {
       method: "PUT",
@@ -5181,7 +6242,7 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
         material: materialActual,
         contenido: materialActual,
         elaboracion: dep.elaboracion,
-        vino_tipo: variedad || dep.vino_tipo,
+        vino_tipo: variedadFinal,
         vino_anio: anada || dep.vino_anio,
         fecha_uso: dep.fecha_uso,
         clase: dep.clase || "deposito",
@@ -5300,11 +6361,29 @@ function abrirFlowModal(id) {
     } else if (campo.id === "id_ref" && (nodo.tipo === "entrada" || nodo.tipo === "deposito")) {
       input = document.createElement("select");
       const ids = nodo.tipo === "entrada"
-        ? (cacheEntradas || []).map(e => ({ id: e.id, label: `Entrada #${e.id} (${e.variedad || ""})` }))
-        : ([...(cacheDepositos || []), ...(cacheMastelones || [])].map(d => ({
-            id: d.id,
-            label: d.codigo || `Depósito #${d.id}`,
-          })));
+        ? (cacheEntradas || []).map(e => {
+            const dens = formatearDensidad(e.densidad);
+            const temp = normalizarNumero(e.temperatura);
+            const kilosVal = normalizarNumero(e.kilos);
+            const mixEntrada = formatearResumenVariedades(e.composicionVariedades || e.composicion_variedades);
+            const variedadesTexto = mixEntrada || e.variedad || "";
+            const partes = [];
+            if (variedadesTexto) partes.push(variedadesTexto);
+            if (kilosVal != null) partes.push(`${kilosVal.toFixed(0)} kg`);
+            if (dens) partes.push(`${dens} dens`);
+            if (temp != null) partes.push(`${temp.toFixed(1)}°C`);
+            const sufijo = partes.length ? ` (${partes.join(" · ")})` : "";
+            return { id: e.id, label: `Entrada #${e.id}${sufijo}` };
+          })
+        : ([...(cacheDepositos || []), ...(cacheMastelones || [])].map(d => {
+            const mixDep = formatearResumenVariedades(d.composicionVariedades || d.composicion_variedades);
+            const variedades = mixDep || d.vino_tipo || "";
+            const labelVar = variedades ? ` · ${variedades}` : "";
+            return {
+              id: d.id,
+              label: (d.codigo || `Depósito #${d.id}`) + labelVar,
+            };
+          }));
       const empty = document.createElement("option");
       empty.value = "";
       empty.textContent = "Selecciona ID";
@@ -5355,6 +6434,11 @@ function abrirFlowModal(id) {
           if (campoInput && nodo.datos[c.id] != null) {
             campoInput.value = nodo.datos[c.id];
           }
+          const displayEl = document.getElementById(`flowField-${c.id}-display`);
+          if (displayEl) {
+            const texto = obtenerValorCampoVisual(nodo, c) || "—";
+            displayEl.textContent = texto;
+          }
         });
         renderFlowNodes();
         mostrarInfoNodo(nodo.id);
@@ -5381,6 +6465,27 @@ function abrirFlowModal(id) {
         );
         const descripcion = describirContenedor(infoCont, nodo.datos.contenedor_tipo);
         nodo.datos.tipo = descripcion || nodo.datos.contenedor_tipo || "";
+        // Rellenamos capacidad/volumen de la crianza al seleccionar contenedor para que el llenado funcione como en depósitos.
+        if (infoCont) {
+          const capInfo =
+            infoCont.capacidad_l ??
+            (infoCont.capacidad_hl != null ? infoCont.capacidad_hl * 100 : null);
+          if (capInfo != null) {
+            nodo.datos.capacidad = capInfo;
+            nodo.datos.capacidad_l = capInfo;
+          }
+          if (infoCont.litros_actuales != null || infoCont.volumen != null) {
+            const vol = infoCont.litros_actuales ?? infoCont.volumen;
+            nodo.datos.volumen = vol;
+            nodo.datos.litros = vol;
+            nodo.datos.litros_directos = vol;
+          }
+          nodo.datos.vino_tipo = nodo.datos.vino_tipo || infoCont.vino_tipo;
+          nodo.datos.variedadBase = nodo.datos.variedadBase || infoCont.vino_tipo || "";
+          if (!Array.isArray(nodo.datos.composicionVariedades) || !nodo.datos.composicionVariedades.length) {
+            nodo.datos.variedad = nodo.datos.variedad || nodo.datos.variedadBase;
+          }
+        }
         const tipoInput = document.getElementById("flowField-tipo");
         if (tipoInput) {
           tipoInput.value = nodo.datos.tipo;
@@ -5543,6 +6648,8 @@ function intentarPoblarNodoEntrada(nodo) {
   nodo.datos.viticultor = entrada.viticultor || nodo.datos.viticultor;
   nodo.datos.tipo_suelo = entrada.tipo_suelo || nodo.datos.tipo_suelo;
   nodo.datos.anos_vid = entrada.anos_vid || nodo.datos.anos_vid;
+  nodo.datos.densidad = entrada.densidad ?? nodo.datos.densidad;
+  nodo.datos.temperatura = entrada.temperatura ?? nodo.datos.temperatura;
   actualizarTituloNodo(nodo);
   mostrarAviso("Datos del nodo cargados desde la entrada.", "success");
   redistribuirCargas(nodo);
@@ -5601,6 +6708,7 @@ function eliminarNodoActivo() {
   guardarEstadoNodos();
   renderFlowNodes();
   cerrarFlowModal();
+  mostrarInfoNodo(null);
 }
 
 function guardarEstadoNodos() {
@@ -5676,6 +6784,54 @@ function limpiarNodosFlujo() {
   guardarEstadoNodos();
   renderFlowNodes();
   guardarFlujoEnServidor();
+}
+
+// Resetea el mapa localmente sin pedir confirmación extra (botón rápido)
+function resetMapaFlujoLocal() {
+  flujoNodos = [];
+  guardarEstadoNodos();
+  guardarFlujoEnServidor();
+  renderFlowNodes();
+  mostrarAviso("Mapa vaciado.", "success");
+}
+
+// Carga un mapa mínimo con entrada → depósito para probar desde cero
+function seedMapaSimple() {
+  const entradaId = generarIdNodo();
+  const depositoId = generarIdNodo();
+  const entrada = {
+    id: entradaId,
+    tipo: "entrada",
+    titulo: "Entrada de uva",
+    x: 120,
+    y: 140,
+    datos: {
+      variedad: "Tempranillo",
+      kilos: 1000,
+      fecha: new Date().toISOString().slice(0, 10),
+    },
+    targets: [depositoId],
+  };
+  asegurarMermaPorDefecto(entrada);
+  const deposito = {
+    id: depositoId,
+    tipo: "deposito",
+    titulo: "Depósito A1",
+    x: 380,
+    y: 160,
+    datos: {
+      codigo: "A1",
+      capacidad: 1500,
+      volumen: 0,
+      variedad: "",
+    },
+    targets: [],
+  };
+  asegurarMermaPorDefecto(deposito);
+  flujoNodos = [entrada, deposito];
+  guardarEstadoNodos();
+  renderFlowNodes();
+  mostrarAviso("Mapa simple cargado.", "success");
 }
 
 async function sincronizarNodoConSistema(nodo) {
@@ -6423,7 +7579,7 @@ function renderPlano() {
     body.appendChild(info);
 
     const colorVino =
-      obtenerColorVino(item.colorReferencia) ||
+      obtenerColorVinoReferencia(item.colorReferencia) ||
       (item.tipo === "barrica"
         ? "#c48a1b"
         : item.tipo === "mastelone"
@@ -6633,7 +7789,7 @@ async function cargarResumen() {
         // ---------- Entradas de uva ----------
         async function cargarEntradas() {
             try {
-                mostrarSkeletonTabla("tablaEntradas", 10, 4);
+                mostrarSkeletonTabla("tablaEntradas", 12, 4);
                 const res = await fetch("/api/entradas_uva");
                 if (!res.ok) return;
                 const datos = await res.json();
@@ -6652,6 +7808,9 @@ async function cargarResumen() {
                 datos.forEach(e => {
                     const anada = e.anada || obtenerAnadaDesdeFecha(e.fecha || "");
                     const fechaEntrada = formatearFechaCorta(e.fecha);
+                    const densidad = formatearDensidad(e.densidad);
+                    const temperaturaVal = Number(e.temperatura);
+                    const temperatura = Number.isFinite(temperaturaVal) ? temperaturaVal.toFixed(1) : "";
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
                         <td>${e.id}</td>
@@ -6663,6 +7822,8 @@ async function cargarResumen() {
                         <td>${e.parcela || ""}</td>
                         <td>${e.anos_vid || ""}</td>
                         <td>${e.kilos ?? ""}</td>
+                        <td>${densidad}</td>
+                        <td>${temperatura}</td>
                         <td>
                             <button class="small-btn" style="margin-right:6px;"
                                 onclick="editarEntradaUva(${e.id})">
@@ -6679,6 +7840,7 @@ async function cargarResumen() {
                 renderResumenParcelas();
                 actualizarAprovechamientoAnual();
                 actualizarMapaFlujo();
+                renderFlowNodes();
             } catch (err) {
                 console.error("Error cargando entradas:", err);
             }
@@ -6755,7 +7917,16 @@ function renderResumenParcelas() {
             const parcela = document.getElementById("entradaParcela").value;
             const tipo_suelo = document.getElementById("entradaSuelo").value;
             const anos_vid = document.getElementById("entradaAnosVid").value;
-            const kilos = parseFloat(document.getElementById("entradaKilos").value || "0");
+            const parseValor = (id) => {
+                const raw = (document.getElementById(id).value || "").toString().trim();
+                if (!raw) return null;
+                const limpio = raw.replace(",", ".");
+                const num = parseFloat(limpio);
+                return Number.isFinite(num) ? num : null;
+            };
+            const kilos = parseValor("entradaKilos") || 0;
+            const densidad = parseValor("entradaDensidad");
+            const temperatura = parseValor("entradaTemperatura");
 
             if (!fecha || !variedad || !kilos) {
                 setFormFeedback("feedbackEntradaUva", "Faltan datos: fecha, variedad o kilos.", "error");
@@ -6770,7 +7941,9 @@ function renderResumenParcelas() {
                     tipo_suelo,
                     parcela,
                     anos_vid,
-                    kilos
+                    kilos,
+                    densidad,
+                    temperatura
                 };
                 const url = entradaEditandoId ? `/api/entradas_uva/${entradaEditandoId}` : "/api/entradas_uva";
                 const metodo = entradaEditandoId ? "PUT" : "POST";
@@ -6812,6 +7985,8 @@ function renderResumenParcelas() {
             document.getElementById("entradaSuelo").value = entrada.tipo_suelo || "";
             document.getElementById("entradaAnosVid").value = entrada.anos_vid || "";
             document.getElementById("entradaKilos").value = entrada.kilos ?? "";
+            document.getElementById("entradaDensidad").value = entrada.densidad ?? "";
+            document.getElementById("entradaTemperatura").value = entrada.temperatura ?? "";
             const btnGuardar = document.getElementById("btnGuardarEntrada");
             if (btnGuardar) btnGuardar.textContent = "Actualizar entrada";
             const btnCancelar = document.getElementById("btnCancelarEdicionEntrada");
@@ -7421,7 +8596,7 @@ function formatearFechaParaInput(valor) {
   return `${año}-${mes}-${dia}T${horas}:${minutos}`;
 }
 
-function obtenerColorVino(texto) {
+function obtenerColorVinoReferencia(texto) {
   if (!texto) return null;
   const t = texto
     .toString()
@@ -8533,7 +9708,7 @@ async function registrarUsoEnologico(id) {
                 let url = "/api/analisis-lab";
                 if (filtroActual && (filtroActual.id || filtroActual.tipo)) {
                     const params = new URLSearchParams();
-                    if (filtroActual.id) params.set("deposito_id", filtroActual.id);
+                    if (filtroActual.id) params.set("contenedor_id", filtroActual.id);
                     if (filtroActual.tipo) params.set("tipo", filtroActual.tipo);
                     const qs = params.toString();
                     if (qs) {
@@ -8567,8 +9742,8 @@ async function registrarUsoEnologico(id) {
                 const fecha = reg.fecha ? formatearFechaCorta(reg.fecha) : "—";
                 const tipoCont = reg.contenedor_tipo || "deposito";
                 const contenedor =
-                    formatearUbicacionMovimiento(tipoCont, reg.deposito_id) ||
-                    `${tipoCont} ${reg.deposito_id}`;
+                    formatearUbicacionMovimiento(tipoCont, reg.contenedor_id) ||
+                    `${tipoCont} ${reg.contenedor_id}`;
                 const laboratorio = reg.laboratorio || "—";
                 const descripcion = reg.descripcion || "—";
                 const archivo =
@@ -8624,13 +9799,94 @@ async function registrarUsoEnologico(id) {
             await cargarAnalisisLab(null);
         }
 
-        function leerArchivoBase64(file) {
+function leerArchivoBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo"));
                 reader.readAsDataURL(file);
             });
+        }
+
+        // ---------- Demo ligera de drag & drop de tanques/barricas ----------
+        const tanques = [
+            { id: "T101", tipo: "Tanque", vino: "Tempranillo", volumen: 8000, capacidad: 10000, estado: "FA", x: 80, y: 60 },
+            { id: "B045", tipo: "Barrica", vino: "Crianza Lote 5", volumen: 225, capacidad: 225, estado: "Reposo", x: 320, y: 120 },
+            { id: "T204", tipo: "Tanque", vino: "Garnacha", volumen: 5200, capacidad: 8000, estado: "FML", x: 180, y: 200 },
+        ];
+        let demoDrag = null;
+
+        function renderDemoFlow() {
+            const stage = document.getElementById("demoFlowStage");
+            if (!stage) return;
+            stage.innerHTML = "";
+            tanques.forEach((nodo, idx) => {
+                const el = document.createElement("div");
+                el.className = "flow-node demo-flow-node";
+                el.style.left = `${nodo.x}px`;
+                el.style.top = `${nodo.y}px`;
+                el.dataset.index = idx;
+                el.innerHTML = `
+                    <h4 style="margin:0 0 4px;">${nodo.id}</h4>
+                    <div class="flow-node-subtitle">${nodo.tipo} · ${nodo.vino}</div>
+                    <div class="flow-node-subtitle">Volumen ${nodo.volumen} / ${nodo.capacidad} L</div>
+                    <div class="estado-pill estado-${(nodo.estado || "").toLowerCase()}" style="margin-top:6px;">${nodo.estado}</div>
+                `;
+                el.addEventListener("pointerdown", ev => startDemoDrag(ev, idx));
+                stage.appendChild(el);
+            });
+        }
+
+        function startDemoDrag(ev, idx) {
+            const stage = document.getElementById("demoFlowStage");
+            const nodeEl = ev.currentTarget;
+            if (!stage || !nodeEl) return;
+            const rect = stage.getBoundingClientRect();
+            demoDrag = {
+                idx,
+                nodeEl,
+                stage,
+                pointerId: ev.pointerId,
+                offsetX: ev.clientX - rect.left - tanques[idx].x,
+                offsetY: ev.clientY - rect.top - tanques[idx].y,
+            };
+            nodeEl.setPointerCapture(ev.pointerId);
+            nodeEl.classList.add("dragging");
+            nodeEl.addEventListener("pointermove", moveDemoDrag);
+            nodeEl.addEventListener("pointerup", endDemoDrag);
+            nodeEl.addEventListener("pointercancel", endDemoDrag);
+        }
+
+        function moveDemoDrag(ev) {
+            if (!demoDrag || ev.pointerId !== demoDrag.pointerId) return;
+            const { stage, nodeEl, idx, offsetX, offsetY } = demoDrag;
+            const stageRect = stage.getBoundingClientRect();
+            const nodeRect = nodeEl.getBoundingClientRect();
+            let x = ev.clientX - stageRect.left - offsetX;
+            let y = ev.clientY - stageRect.top - offsetY;
+            const maxX = stageRect.width - nodeRect.width;
+            const maxY = stageRect.height - nodeRect.height;
+            x = Math.max(0, Math.min(maxX, x));
+            y = Math.max(0, Math.min(maxY, y));
+            tanques[idx].x = Math.round(x);
+            tanques[idx].y = Math.round(y);
+            nodeEl.style.left = `${tanques[idx].x}px`;
+            nodeEl.style.top = `${tanques[idx].y}px`;
+        }
+
+        function endDemoDrag(ev) {
+            if (!demoDrag || ev.pointerId !== demoDrag.pointerId) return;
+            const { nodeEl, pointerId } = demoDrag;
+            try {
+                nodeEl.releasePointerCapture(pointerId);
+            } catch (e) {
+                // noop
+            }
+            nodeEl.classList.remove("dragging");
+            nodeEl.removeEventListener("pointermove", moveDemoDrag);
+            nodeEl.removeEventListener("pointerup", endDemoDrag);
+            nodeEl.removeEventListener("pointercancel", endDemoDrag);
+            demoDrag = null;
         }
 
         // ---------- Inicialización ----------
@@ -8648,6 +9904,7 @@ async function registrarUsoEnologico(id) {
                 cargarEmbotellados(),
                 cargarAnalisisLab(),
             ]);
+            renderDemoFlow();
 
             const campoFechaEntrada = document.getElementById("entradaFecha");
             if (campoFechaEntrada) {

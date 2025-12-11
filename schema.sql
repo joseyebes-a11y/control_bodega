@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS entradas_uva (
   anos_vid TEXT,
   proveedor TEXT,
   grado_potencial REAL,
+  densidad REAL,
+  temperatura REAL,
   observaciones TEXT,
   FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
   FOREIGN KEY (user_id) REFERENCES usuarios(id)
@@ -127,15 +129,14 @@ CREATE TABLE IF NOT EXISTS analisis_laboratorio (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   bodega_id INTEGER NOT NULL,
-  deposito_id INTEGER NOT NULL,
   contenedor_tipo TEXT DEFAULT 'deposito',
+  contenedor_id INTEGER NOT NULL,
   fecha TEXT,
   laboratorio TEXT,
   descripcion TEXT,
   archivo_nombre TEXT,
   archivo_fichero TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (deposito_id) REFERENCES depositos(id),
   FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
   FOREIGN KEY (user_id) REFERENCES usuarios(id)
 );
