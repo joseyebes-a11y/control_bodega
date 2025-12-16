@@ -8639,8 +8639,8 @@ function renderPlano() {
       pos_y: d.pos_y,
       capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
       volumen: (() => {
-        const vNodo = obtenerVolumenFinalNodoContenedor("deposito", d.id);
-        if (Number.isFinite(vNodo)) return vNodo;
+        const estado = obtenerEstadoDepositoDesdeNodo(d.id);
+        if (estado && estado.enMapa && estado.volumen != null) return Number(estado.volumen);
         return d.litros_actuales ?? 0;
       })(),
       detalle: d.material || d.contenido || d.elaboracion || "",
@@ -8657,7 +8657,11 @@ function renderPlano() {
       pos_x: d.pos_x,
       pos_y: d.pos_y,
       capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
-      volumen: d.litros_actuales ?? 0,
+      volumen: (() => {
+        const estado = obtenerEstadoDepositoDesdeNodo(d.id);
+        if (estado && estado.enMapa && estado.volumen != null) return Number(estado.volumen);
+        return d.litros_actuales ?? 0;
+      })(),
       detalle: d.material || d.contenido || d.elaboracion || "",
       vino_tipo: d.vino_tipo || "",
       contenido: d.material || d.contenido || "",
@@ -8673,8 +8677,8 @@ function renderPlano() {
       pos_y: b.pos_y,
       capacidad: b.capacidad_l ?? null,
       volumen: (() => {
-        const vNodo = obtenerVolumenFinalNodoContenedor("barrica", b.id);
-        if (Number.isFinite(vNodo)) return vNodo;
+        const estado = obtenerEstadoBarricaDesdeNodo(b.id);
+        if (estado && estado.enMapa && estado.volumen != null) return Number(estado.volumen);
         return b.litros_actuales ?? 0;
       })(),
       detalle: [b.tipo_roble, b.tostado].filter(Boolean).join(" · "),
@@ -8728,6 +8732,14 @@ function renderPlano() {
     const icono = document.createElement("div");
     icono.className = `plano-card-barrel ${item.tipo}`;
     icono.innerHTML = `<span>${(porcentaje || 0).toString()}%</span>`;
+    const materialColor = obtenerColorMaterialContenedor(
+      item.tipo === "barrica" ? "Madera" : item.contenido || item.detalle || "",
+      item.tipo
+    );
+    bloque.style.borderTop = `4px solid ${materialColor}`;
+    icono.style.background = materialColor;
+    icono.style.borderColor = materialColor;
+    icono.style.color = materialColor === "#4a4f59" || materialColor === "#7b1b47" ? "#fff" : "#1a1a1a";
     body.appendChild(icono);
 
     const info = document.createElement("div");
@@ -8745,6 +8757,10 @@ function renderPlano() {
     body.appendChild(info);
 
     const colorVino =
+      obtenerColorMaterialContenedor(
+        item.tipo === "barrica" ? "Madera" : item.contenido || item.detalle || "",
+        item.tipo
+      ) ||
       obtenerColorVinoReferencia(item.colorReferencia) ||
       (item.tipo === "barrica"
         ? "#c48a1b"
@@ -9773,6 +9789,29 @@ function obtenerColorVinoReferencia(texto) {
   if (t.includes("ros") || t.includes("clarete")) return "#f48fb1";
   if (t.includes("tinto") || t.includes("red") || t.includes("tannat")) return "#7b1b47";
   return null;
+}
+
+function obtenerColorMaterialContenedor(material, tipo = "") {
+  const base = (material || tipo || "")
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (!base && tipo === "barrica") return "#c69c6d"; // madera (por defecto)
+
+  if (base.includes("inox")) return "#c0c7d1"; // plata
+  if (base.includes("fibra")) return "#ff8a3d"; // anaranjado
+  if (base.includes("cement")) return "#4a4f59"; // gris oscuro
+  if (base.includes("barro") || base.includes("anfora") || base.includes("tinaja")) return "#8a5a3c"; // marrón
+  if (base.includes("madera") || base.includes("roble") || base.includes("wood")) return "#c69c6d"; // marrón claro
+  if (base.includes("cristal") || base.includes("vidrio") || base.includes("glass")) return "#8fd3ff"; // azul claro
+  if (base.includes("plast") || base.includes("plastico")) return "#7b1b47"; // granate
+
+  // fallback por tipo
+  if (tipo === "barrica") return "#c69c6d";
+  return "#8f97a8";
 }
 
 function normalizarTipoVino(entrada, actual = "") {
