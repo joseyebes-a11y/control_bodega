@@ -688,22 +688,53 @@ body::after {
             vertical-align: middle;
         }
 
+        .flow-zoom-controls {
+            margin-left: auto;
+        }
+
+        .flow-toolbar .flow-zoom-btn {
+            width: 38px;
+            padding: 0;
+            font-weight: 900;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .flow-toolbar .flow-zoom-label {
+            min-width: 70px;
+            text-align: center;
+            padding: 9px 12px;
+            font-weight: 800;
+        }
+
         .flow-editor {
             position: relative;
             border: 1px dashed rgba(255,255,255,0.25);
             border-radius: 24px;
             background: rgba(8,4,15,0.5);
-            min-height: 80vh;
+            height: 80vh;
+            min-height: 640px;
             overflow: auto;
             margin-top: 4px;
         }
 
         .flow-stage {
             position: relative;
-            width: 100%;
+            width: 5000px;
+            height: 3000px;
             min-width: 1400px;
-            height: 80vh;
             min-height: 640px;
+            overflow: hidden;
+        }
+
+        .flow-world {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 5000px;
+            height: 3000px;
+            transform-origin: 0 0;
+            transform: scale(1);
         }
 
         .demo-flow-stage {
@@ -843,10 +874,31 @@ body::after {
             border-radius: 14px;
             pointer-events: none;
             z-index: -2;
+            opacity: 0.8;
+            -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+            mask: radial-gradient(closest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
         }
 
         .flow-node-icon {
             font-size: 15px;
+        }
+
+        .flow-tooltip {
+            position: fixed;
+            z-index: 9999;
+            display: none;
+            max-width: min(360px, calc(100vw - 24px));
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(18, 10, 30, 0.92);
+            border: 1px solid rgba(255,255,255,0.16);
+            box-shadow: 0 20px 45px rgba(0,0,0,0.45);
+            color: rgba(255,255,255,0.92);
+            font-size: 12px;
+            line-height: 1.25;
+            white-space: pre-line;
+            pointer-events: none;
+            backdrop-filter: blur(10px);
         }
 
         .grape-badge {
@@ -1456,45 +1508,47 @@ label {
             width: 100%;
         }
 
-        .plano-canvas {
-            flex: 2.6;
-            min-width: 460px;
-            height: 620px;
-            position: relative;
-            border: 1px solid rgba(255,255,255,0.4);
-            border-radius: 26px;
-            background-image:
-                linear-gradient(0deg, rgba(255,255,255,0.18) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px),
-                linear-gradient(0deg, rgba(95,44,130,0.08) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(95,44,130,0.08) 1px, transparent 1px);
-            background-size: 26px 26px;
-            background-color: rgba(14,6,24,0.6);
-            box-shadow: inset 0 0 25px rgba(0,0,0,0.25);
-            overflow: hidden;
-            backdrop-filter: blur(6px);
-        }
+	        .plano-canvas {
+	            flex: 2.6;
+	            min-width: 460px;
+	            height: 620px;
+	            position: relative;
+	            border: 1px solid rgba(255,255,255,0.4);
+	            border-radius: 24px;
+	            background-image:
+	                linear-gradient(0deg, rgba(255,255,255,0.16) 1px, transparent 1px),
+	                linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px),
+	                linear-gradient(0deg, rgba(95,44,130,0.06) 1px, transparent 1px),
+	                linear-gradient(90deg, rgba(95,44,130,0.06) 1px, transparent 1px),
+	                radial-gradient(circle at 18% 22%, rgba(243,120,156,0.12), transparent 55%),
+	                radial-gradient(circle at 82% 70%, rgba(195,169,255,0.10), transparent 60%);
+	            background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px, auto, auto;
+	            background-color: rgba(12,6,22,0.62);
+	            box-shadow: inset 0 0 32px rgba(0,0,0,0.28);
+	            overflow: hidden;
+	            backdrop-filter: blur(6px);
+	        }
 
 .plano-item {
-    position: absolute;
-    width: 102px;
-    min-height: 108px;
-    padding: 7px;
-    padding-right: 26px;
-    border-radius: 16px;
-    color: var(--texto);
-    font-size: 12px;
-    cursor: grab;
-    user-select: none;
-    box-shadow: 0 25px 60px rgba(6,2,10,0.4);
-    transition: box-shadow 0.2s, transform 0.2s;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    background: rgba(255,255,255,0.97);
-    border: 1px solid rgba(255,255,255,0.6);
-    backdrop-filter: blur(6px);
-    align-items: center;
+	    position: absolute;
+	    width: 90px;
+	    min-height: 96px;
+	    padding: 6px;
+	    padding-right: 22px;
+	    border-radius: 14px;
+	    color: var(--texto);
+	    font-size: 11px;
+	    cursor: grab;
+	    user-select: none;
+	    box-shadow: 0 22px 52px rgba(6,2,10,0.38);
+	    transition: box-shadow 0.2s, transform 0.2s;
+	    display: flex;
+	    flex-direction: column;
+	    gap: 5px;
+	    background: rgba(255,255,255,0.97);
+	    border: 1px solid rgba(255,255,255,0.6);
+	    backdrop-filter: blur(6px);
+	    align-items: center;
 }
 
 .plano-item.deposito {
@@ -1516,52 +1570,52 @@ label {
 }
 
 .plano-card-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 700;
-    color: var(--vino-oscuro);
-    text-align: center;
-    gap: 2px;
-    width: 100%;
-    word-break: break-word;
-    position: relative;
-    padding-top: 4px;
+	    display: flex;
+	    flex-direction: column;
+	    align-items: center;
+	    font-size: 10px;
+	    text-transform: uppercase;
+	    letter-spacing: 0.05em;
+	    font-weight: 700;
+	    color: var(--vino-oscuro);
+	    text-align: center;
+	    gap: 2px;
+	    width: 100%;
+	    word-break: break-word;
+	    position: relative;
+	    padding-top: 2px;
 }
 
 .plano-card-header small {
-    font-size: 9px;
-    color: rgba(47,31,59,0.55);
+	    font-size: 8px;
+	    color: rgba(47,31,59,0.55);
 }
 
 .plano-card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    align-items: center;
-    width: 100%;
+	    display: flex;
+	    flex-direction: column;
+	    gap: 5px;
+	    align-items: center;
+	    width: 100%;
 }
 
 .plano-card-barrel {
-    width: 34px;
-    height: 44px;
-    border-radius: 22px / 16px;
-    border: 3px solid rgba(139,92,64,0.4);
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    flex-shrink: 0;
-    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.08);
+	    width: 30px;
+	    height: 40px;
+	    border-radius: 22px / 16px;
+	    border: 2px solid rgba(139,92,64,0.4);
+	    position: relative;
+	    display: flex;
+	    align-items: center;
+	    justify-content: center;
+	    font-weight: 700;
+	    flex-shrink: 0;
+	    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.08);
 }
 
 .plano-card-barrel span {
-    font-size: 11px;
-    letter-spacing: 0.05em;
+	    font-size: 10px;
+	    letter-spacing: 0.05em;
 }
 
 .plano-card-barrel.deposito {
@@ -1617,33 +1671,33 @@ label {
 }
 
 .plano-card-info strong {
-    font-size: 11px;
-    display: block;
-    color: var(--vino-oscuro);
+	    font-size: 10px;
+	    display: block;
+	    color: var(--vino-oscuro);
 }
 
 .plano-card-extra {
-    font-size: 8px;
-    color: rgba(47,31,59,0.75);
-    text-align: center;
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+	    font-size: 7.5px;
+	    color: rgba(47,31,59,0.75);
+	    text-align: center;
+	    width: 100%;
+	    overflow: hidden;
+	    text-overflow: ellipsis;
+	    white-space: nowrap;
 }
 
 .plano-card-progress {
-    position: absolute;
-    top: 8px;
-    right: 6px;
-    width: 12px;
-    height: calc(100% - 16px);
-    background: rgba(47,31,59,0.12);
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
+	    position: absolute;
+	    top: 7px;
+	    right: 5px;
+	    width: 10px;
+	    height: calc(100% - 14px);
+	    background: rgba(47,31,59,0.12);
+	    border-radius: 12px;
+	    overflow: hidden;
+	    display: flex;
+	    align-items: flex-end;
+	    justify-content: center;
 }
 
 .plano-card-progress-bar {
@@ -1653,14 +1707,14 @@ label {
 }
 
 .plano-card-progress span {
-    position: absolute;
-    top: -16px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--vino-oscuro);
-    white-space: nowrap;
+	    position: absolute;
+	    top: -16px;
+	    left: 50%;
+	    transform: translateX(-50%);
+	    font-size: 9px;
+	    font-weight: 700;
+	    color: var(--vino-oscuro);
+	    white-space: nowrap;
 }
 
         #planoMensaje {
@@ -1669,15 +1723,538 @@ label {
             font-size: 14px;
         }
 
-        .plano-placeholder {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: rgba(255,255,255,0.7);
-            font-size: 14px;
+	        .plano-placeholder {
+	            position: absolute;
+	            top: 50%;
+	            left: 50%;
+	            transform: translate(-50%, -50%);
+	            color: rgba(255,255,255,0.7);
+	            font-size: 14px;
+	        }
+
+	        /* =====================
+	           UI Refresh (especial: mapa de nodos)
+	        ===================== */
+	        :root {
+	            --ui-focus: rgba(243,120,156,0.55);
+	            --flow-surface: rgba(12, 7, 20, 0.72);
+	            --flow-surface-2: rgba(26, 16, 38, 0.78);
+	            --flow-border: rgba(255,255,255,0.14);
+	            --flow-border-2: rgba(255,255,255,0.22);
+	            --flow-text: rgba(255,255,255,0.92);
+	            --flow-muted: rgba(255,255,255,0.68);
+	            --flow-grid-dot: rgba(255,255,255,0.08);
+	            --flow-grid-dot-strong: rgba(255,255,255,0.14);
+	            --flow-accent-entrada: #ff8ec7;
+	            --flow-accent-estilo: #b07bff;
+	            --flow-accent-deposito: #f3c77b;
+	            --flow-accent-barrica: #c2a9ff;
+	            --flow-accent-coupage: #90f2c9;
+	            --flow-accent-embotellado: #7ee2ff;
+	            --flow-accent-almacen: #c2c9ff;
+	            --flow-accent-salida: #ff7aa8;
+	        }
+
+	        :focus-visible {
+	            outline: 2px solid var(--ui-focus);
+	            outline-offset: 3px;
+	        }
+
+	        #flujo .flow-toolbar {
+	            position: sticky;
+	            top: 86px;
+	            z-index: 6;
+	            padding: 14px;
+	            border-radius: 22px;
+	            background: rgba(255,255,255,0.78);
+	            border: 1px solid rgba(255,255,255,0.55);
+	            box-shadow: 0 18px 45px rgba(0,0,0,0.22);
+	            backdrop-filter: blur(14px);
+	        }
+
+	        #flujo .flow-toolbar-group {
+	            padding: 6px;
+	            border-radius: 18px;
+	            background: rgba(255,255,255,0.40);
+	            border: 1px solid rgba(0,0,0,0.06);
+	        }
+
+	        #flujo .flow-toolbar-group button {
+	            margin-top: 0;
+	        }
+
+	        #flujo .flow-toolbar .btnPrimario,
+	        #flujo .flow-toolbar .btnSecundario {
+	            border-radius: 999px;
+	            padding: 10px 14px;
+	            min-height: 40px;
+	            display: inline-flex;
+	            align-items: center;
+	            justify-content: center;
+	            gap: 8px;
+	        }
+
+	        #flujo .flow-toolbar .btnSecundario {
+	            background: rgba(255,255,255,0.55);
+	            border-color: rgba(0,0,0,0.10);
+	        }
+
+	        #flujo .flow-toolbar .btnSecundario:hover {
+	            border-color: rgba(0,0,0,0.18);
+	        }
+
+	        .flow-layout {
+	            display: grid;
+	            grid-template-columns: minmax(0, 1fr) 360px;
+	            gap: 18px;
+	            margin-top: 14px;
+	            align-items: start;
+	        }
+
+	        #flujo .flow-helper {
+	            margin-top: 16px;
+	            padding: 12px 14px;
+	            border-radius: 18px;
+	            background: rgba(255,255,255,0.60);
+	            border: 1px solid rgba(255,255,255,0.55);
+	            box-shadow: 0 14px 35px rgba(0,0,0,0.14);
+	        }
+
+	        #flujo .flow-helper p {
+	            margin: 0;
+	            color: rgba(47,31,59,0.78);
+	        }
+
+	        .flow-inspector {
+	            position: sticky;
+	            top: 126px;
+	            max-height: calc(100vh - 156px);
+	            overflow: auto;
+	            margin-top: 0;
+	            border-radius: 24px;
+	            padding: 16px;
+	            background: rgba(255,255,255,0.88);
+	            border: 1px solid rgba(255,255,255,0.65);
+	            box-shadow: 0 22px 60px rgba(11, 5, 21, 0.22);
+	        }
+
+	        .flow-inspector .flow-inspector-header {
+	            display: flex;
+	            gap: 12px;
+	            align-items: center;
+	            margin-bottom: 14px;
+	        }
+
+	        .flow-inspector .flow-inspector-icon {
+	            width: 44px;
+	            height: 44px;
+	            border-radius: 16px;
+	            display: flex;
+	            align-items: center;
+	            justify-content: center;
+	            background: radial-gradient(circle at 25% 20%, rgba(255, 230, 180, 0.6), transparent 45%),
+	                        linear-gradient(135deg, rgba(243,199,123,0.85), rgba(243,120,156,0.75), rgba(155,93,229,0.75));
+	            box-shadow: 0 18px 40px rgba(0,0,0,0.2);
+	            color: #140818;
+	            font-weight: 900;
+	        }
+
+	        .flow-inspector .flow-inspector-title {
+	            font-weight: 800;
+	            font-size: 14px;
+	            color: var(--vino-oscuro);
+	            letter-spacing: 0.02em;
+	        }
+
+	        .flow-inspector .flow-inspector-sub {
+	            margin-top: 2px;
+	            font-size: 12px;
+	            color: rgba(47,31,59,0.68);
+	        }
+
+	        .flow-inspector .flow-inspector-tags {
+	            display: flex;
+	            flex-wrap: wrap;
+	            gap: 8px;
+	            margin: 10px 0 14px;
+	        }
+
+	        .flow-inspector .flow-tag {
+	            display: inline-flex;
+	            align-items: center;
+	            padding: 6px 10px;
+	            border-radius: 999px;
+	            border: 1px solid rgba(0,0,0,0.08);
+	            background: rgba(255,255,255,0.65);
+	            font-size: 11px;
+	            font-weight: 700;
+	            letter-spacing: 0.02em;
+	            color: rgba(47,31,59,0.82);
+	        }
+
+	        .flow-inspector .flow-inspector-fields {
+	            display: grid;
+	            gap: 10px;
+	            margin: 0;
+	        }
+
+	        .flow-inspector .flow-field {
+	            display: grid;
+	            grid-template-columns: 1fr 1fr;
+	            gap: 10px;
+	            padding: 10px 12px;
+	            border-radius: 16px;
+	            background: rgba(255,255,255,0.68);
+	            border: 1px solid rgba(0,0,0,0.06);
+	        }
+
+	        .flow-inspector .flow-field dt {
+	            margin: 0;
+	            font-size: 11px;
+	            font-weight: 800;
+	            text-transform: uppercase;
+	            letter-spacing: 0.09em;
+	            color: rgba(47,31,59,0.55);
+	        }
+
+		        .flow-inspector .flow-field dd {
+		            margin: 0;
+		            font-size: 12px;
+		            font-weight: 650;
+		            color: rgba(47,31,59,0.88);
+		            text-align: right;
+		            display: -webkit-box;
+		            -webkit-box-orient: vertical;
+		            -webkit-line-clamp: 6;
+		            overflow: hidden;
+		            white-space: pre-line;
+		            word-break: break-word;
+		        }
+
+	        #flujo .flow-editor {
+	            border: 1px solid rgba(255,255,255,0.16);
+	            border-radius: 28px;
+	            background: linear-gradient(180deg, rgba(8,4,15,0.62), rgba(8,4,15,0.48));
+	            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06),
+	                        inset 0 0 50px rgba(0,0,0,0.35);
+	            overflow: auto;
+	        }
+
+	        #flujo .flow-stage {
+	            min-width: 1400px;
+	        }
+
+	        #flujo .flow-canvas {
+	            background-image:
+	                radial-gradient(circle at 1px 1px, var(--flow-grid-dot) 1.25px, transparent 0),
+	                radial-gradient(circle at 1px 1px, var(--flow-grid-dot-strong) 1.35px, transparent 0),
+	                radial-gradient(circle at 18% 18%, rgba(243,120,156,0.10), transparent 50%),
+	                radial-gradient(circle at 70% 10%, rgba(195,169,255,0.10), transparent 55%),
+	                radial-gradient(circle at 82% 72%, rgba(243,199,123,0.08), transparent 55%);
+	            background-size: 28px 28px, 112px 112px, auto, auto, auto;
+	            background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+	        }
+
+	        #flowCanvas[data-mode="connecting"] {
+	            cursor: crosshair;
+	        }
+
+	        #flowCanvas[data-mode="connecting"] .flow-node {
+	            cursor: crosshair;
+	        }
+
+	        #flowCanvas[data-mode="connecting"] .flow-node:not(.is-connect-source):hover {
+	            border-color: rgba(116,245,162,0.55);
+	            box-shadow: 0 26px 70px rgba(0,0,0,0.45), 0 0 0 6px rgba(116,245,162,0.10);
+	        }
+
+	        #flujo .flow-connector-line {
+	            stroke: rgba(255,255,255,0.55);
+	            stroke-width: 2.4;
+	            filter: drop-shadow(0 10px 18px rgba(0,0,0,0.35));
+	        }
+
+	        #flujo .flow-connector-line.type-entrada { stroke: rgba(255,142,199,0.78); }
+	        #flujo .flow-connector-line.type-estilo { stroke: rgba(176,123,255,0.78); }
+	        #flujo .flow-connector-line.type-deposito { stroke: rgba(243,199,123,0.78); }
+	        #flujo .flow-connector-line.type-barrica { stroke: rgba(255,215,156,0.78); }
+	        #flujo .flow-connector-line.type-coupage { stroke: rgba(144,242,201,0.78); }
+	        #flujo .flow-connector-line.type-embotellado { stroke: rgba(126,226,255,0.78); }
+	        #flujo .flow-connector-line.type-almacen { stroke: rgba(194,201,255,0.78); }
+	        #flujo .flow-connector-line.type-salida { stroke: rgba(255,122,168,0.78); }
+
+	        #flujo .flow-connector-line.is-highlight {
+	            stroke-width: 3.2;
+	            opacity: 0.95;
+	            filter: drop-shadow(0 12px 22px rgba(0,0,0,0.45));
+	        }
+
+	        #flujo .flow-connector-label {
+	            font-weight: 750;
+	            letter-spacing: 0.02em;
+	            paint-order: stroke fill;
+	            stroke: rgba(0,0,0,0.60);
+	            stroke-width: 4px;
+	        }
+
+        #flujo .flow-node {
+            min-width: 120px;
+            padding: 6px 6px 30px;
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(34, 20, 52, 0.92), rgba(19, 10, 30, 0.82));
+            border: 1px solid var(--flow-border);
+            box-shadow: 0 16px 36px rgba(0,0,0,0.36);
+            backdrop-filter: blur(10px);
+            color: var(--flow-text);
+            text-transform: none;
+            letter-spacing: 0.2px;
         }
-    </style>
+
+	        #flujo .flow-node::after {
+	            content: "";
+	            position: absolute;
+	            left: 8px;
+	            right: 8px;
+	            top: 6px;
+	            height: 2px;
+	            border-radius: 999px;
+	            background: var(--flow-accent, rgba(255,255,255,0.25));
+	            opacity: 0.95;
+	        }
+
+	        #flujo .flow-node[data-tipo="entrada"] { --flow-accent: var(--flow-accent-entrada); }
+	        #flujo .flow-node[data-tipo="estilo"] { --flow-accent: var(--flow-accent-estilo); }
+	        #flujo .flow-node[data-tipo="deposito"] { --flow-accent: var(--flow-accent-deposito); }
+	        #flujo .flow-node[data-tipo="barrica"] { --flow-accent: var(--flow-accent-barrica); }
+	        #flujo .flow-node[data-tipo="coupage"] { --flow-accent: var(--flow-accent-coupage); }
+	        #flujo .flow-node[data-tipo="embotellado"] { --flow-accent: var(--flow-accent-embotellado); }
+	        #flujo .flow-node[data-tipo="almacen"] { --flow-accent: var(--flow-accent-almacen); }
+	        #flujo .flow-node[data-tipo="salida"] { --flow-accent: var(--flow-accent-salida); }
+
+	        #flujo .flow-node:hover {
+	            border-color: var(--flow-border-2);
+	            box-shadow: 0 26px 70px rgba(0,0,0,0.45);
+	        }
+
+	        #flujo .flow-node.is-selected {
+	            border-color: rgba(243,120,156,0.55);
+	            box-shadow: 0 30px 90px rgba(0,0,0,0.55), 0 0 0 6px rgba(243,120,156,0.12);
+	        }
+
+	        #flujo .flow-node.is-connect-source {
+	            border-color: rgba(195,169,255,0.65);
+	            box-shadow: 0 30px 90px rgba(0,0,0,0.55), 0 0 0 6px rgba(195,169,255,0.12);
+	        }
+
+	        #flujo .flow-node-header {
+	            display: flex;
+	            align-items: center;
+	            gap: 6px;
+	            margin: 3px 0 6px;
+	        }
+
+	        #flujo .flow-node-icon {
+	            width: 20px;
+	            height: 20px;
+	            border-radius: 10px;
+	            display: inline-flex;
+	            align-items: center;
+	            justify-content: center;
+	            background: rgba(255,255,255,0.10);
+	            border: 1px solid rgba(255,255,255,0.12);
+	            box-shadow: 0 10px 20px rgba(0,0,0,0.22);
+	            font-size: 13px;
+	        }
+
+        #flujo .flow-node h4 {
+            font-size: 9px;
+            margin: 0;
+            font-weight: 850;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            text-align: left;
+        }
+
+        #flujo .flow-node-body {
+            padding-right: 0;
+            align-items: flex-start;
+            text-align: left;
+            gap: 3px;
+        }
+
+        #flujo .flow-node-subtitle {
+            font-size: 10px;
+            color: rgba(255,255,255,0.78);
+            text-align: left;
+            line-height: 1.2;
+            max-width: 100%;
+        }
+
+        #flujo .flow-node-subtitle.flow-subtitle-variedad {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 4;
+            overflow: hidden;
+            white-space: pre-line;
+        }
+
+        #flujo .flow-node .flow-unit {
+            padding: 1px 4px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.14);
+            color: rgba(255,255,255,0.92);
+            font-size: 8px;
+            letter-spacing: 0.04em;
+        }
+
+        #flujo .flow-node .flow-node-controls {
+            bottom: 8px;
+            right: 8px;
+            gap: 5px;
+        }
+
+        #flujo .flow-node .flow-node-controls button {
+            width: 20px;
+            height: 20px;
+            border-radius: 9px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.10);
+            margin: 0;
+            padding: 0;
+            box-shadow: 0 10px 18px rgba(0,0,0,0.24);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+
+        #flujo .flow-node .flow-node-controls button:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255,255,255,0.22);
+            box-shadow: 0 18px 34px rgba(0,0,0,0.32);
+        }
+
+        #flujo .flow-node .flow-node-controls button::before {
+            display: none;
+        }
+
+        #flujo .flow-node .flow-node-controls button.blue {
+            background: linear-gradient(180deg, rgba(109,168,255,0.30), rgba(109,168,255,0.10));
+        }
+
+        #flujo .flow-node .flow-node-controls button.green {
+            background: linear-gradient(180deg, rgba(116,245,162,0.26), rgba(116,245,162,0.10));
+        }
+
+        #flujo .flow-node .flow-node-controls button.red {
+            background: linear-gradient(180deg, rgba(255,122,122,0.28), rgba(255,122,122,0.10));
+        }
+
+        #flujo .flow-node .flow-node-controls button.blue::after {
+            content: "✎";
+            font-size: 12px;
+            color: rgba(255,255,255,0.95);
+        }
+
+        #flujo .flow-node .flow-node-controls button.green::after {
+            content: "⟶";
+            font-size: 12px;
+            color: rgba(255,255,255,0.95);
+        }
+
+        #flujo .flow-node .flow-node-controls button.red::after {
+            content: "✕";
+            font-size: 12px;
+            color: rgba(255,255,255,0.95);
+        }
+
+        #flujo .flow-node .flow-node-controls button.conectando {
+            outline: 2px solid rgba(243,120,156,0.55);
+            outline-offset: 2px;
+        }
+
+        #flowModal.flow-modal {
+            background: rgba(4, 2, 8, 0.62);
+            backdrop-filter: blur(10px);
+            padding: 110px 20px 40px;
+        }
+
+	        #flowModal .flow-modal-content {
+	            border-radius: 24px;
+	            border: 1px solid rgba(255,255,255,0.65);
+	            background: rgba(255,255,255,0.94);
+	            box-shadow: 0 40px 90px rgba(0,0,0,0.55);
+	            max-height: calc(100vh - 160px);
+	            overflow: auto;
+	        }
+
+	        #flowModalTitulo {
+	            margin: 4px 0 14px;
+	            font-size: 18px;
+	            letter-spacing: 0.02em;
+	        }
+
+	        #flowModal .flow-modal-content form label {
+	            margin-top: 12px;
+	            display: block;
+	            font-weight: 800;
+	            font-size: 12px;
+	            letter-spacing: 0.08em;
+	            text-transform: uppercase;
+	            color: rgba(47,31,59,0.65);
+	        }
+
+	        #flowModal .flow-modal-content form input,
+	        #flowModal .flow-modal-content form textarea,
+	        #flowModal .flow-modal-content form select {
+	            border-radius: 14px;
+	            border: 1px solid rgba(95,44,130,0.18);
+	            background: rgba(255,255,255,0.88);
+	            transition: border-color 0.2s, box-shadow 0.2s;
+	        }
+
+	        #flowModal .flow-modal-content form input:focus,
+	        #flowModal .flow-modal-content form textarea:focus,
+	        #flowModal .flow-modal-content form select:focus {
+	            outline: none;
+	            border-color: rgba(243,120,156,0.75);
+	            box-shadow: 0 0 0 4px rgba(243,120,156,0.18);
+	        }
+
+	        #flowModal .flow-modal-actions {
+	            position: sticky;
+	            bottom: -10px;
+	            background: rgba(255,255,255,0.94);
+	            padding: 14px 0 2px;
+	            margin-top: 18px;
+	            border-top: 1px solid rgba(0,0,0,0.06);
+	        }
+
+	        @media (max-width: 1100px) {
+	            #flujo .flow-toolbar {
+	                position: static;
+	                top: auto;
+	            }
+	            .flow-layout {
+	                grid-template-columns: 1fr;
+	            }
+	            .flow-inspector {
+	                position: relative;
+	                top: auto;
+	                max-height: none;
+	            }
+	        }
+
+	        @media (prefers-reduced-motion: reduce) {
+	            *, *::before, *::after {
+	                animation-duration: 0.01ms !important;
+	                animation-iteration-count: 1 !important;
+	                transition-duration: 0.01ms !important;
+	                scroll-behavior: auto !important;
+	            }
+	        }
+	    </style>
     <!-- Librerías para exportar PDF de la tabla de control -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-5Bg/sA0tE5mr39QQcvKA3evSvKWK2Kx4UvHQ3UKQY6u1/JmgvXIL1sSTB+kJDd/KikJS9rBDjocM9V0bP7nU5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" integrity="sha512-V8bfSFHzEIE8KPQrX61/6LvTItI+ZXhWU1Yai0udDCR0Y9uRMq8eGX2WizzKkbKhYzZ0vjFaZ8WFtQ28gLeg4A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -1714,6 +2291,8 @@ label {
         </div>
         <button type="button" class="user-chip" id="userBadge" title="Usuario activo">—</button>
     </div>
+
+    <div id="flowTooltip" class="flow-tooltip" role="tooltip"></div>
 
     <!-- Contenido principal -->
     <div class="content">
@@ -1820,10 +2399,10 @@ label {
         <section id="flujo" class="card" style="display:none;">
             <h1><span class="h1-emoji">🗺</span>Mapa de nodos de vinificación</h1>
             <p>Diseña visualmente el recorrido de cada partida: arrastra nodos, conéctalos y edita la información con doble clic.</p>
-        <div class="flow-toolbar">
-                <div class="flow-toolbar-group">
-                    <button class="btnSecundario" type="button" onclick="sembrarNodosDesdeDatos()">Sembrar nodos desde datos</button>
-                </div>
+	            <div class="flow-toolbar">
+	                <div class="flow-toolbar-group">
+	                    <button class="btnSecundario" type="button" onclick="sembrarNodosDesdeDatos()">Sembrar nodos desde datos</button>
+	                </div>
                 <div class="flow-toolbar-group">
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('entrada')">🍇 Entrada de uva</button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('estilo')">⚗️ Elaboración</button>
@@ -1842,35 +2421,43 @@ label {
                 <div class="flow-toolbar-group">
                     <button class="btnSecundario" type="button" onclick="resetMapaFlujoLocal()">Limpiar mapa</button>
                 </div>
-                <div class="flow-toolbar-group">
-                    <button class="btnSecundario" type="button" onclick="exportarNodosComoImagen()">Exportar imagen</button>
-                </div>
-            </div>
-            <div class="flow-editor" id="flowEditor">
-                <div class="flow-stage">
-                    <svg id="flowConnections" class="flow-connections">
-                        <defs>
-                            <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
-                                <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.7)" />
-                            </marker>
-                        </defs>
-                        <g id="flowConnectionsLayer"></g>
-                    </svg>
-                    <div id="flowCanvas" class="flow-canvas"></div>
-                </div>
-            </div>
-            <div class="flow-helper">
-                <p>Doble clic en un nodo para editarlo. Pulsa “Conectar” en un nodo y luego haz clic sobre el destino para crear el hilo. Puedes arrastrar los nodos a cualquier punto del lienzo.</p>
-            </div>
+	                <div class="flow-toolbar-group">
+	                    <button class="btnSecundario" type="button" onclick="exportarNodosComoImagen()">Exportar imagen</button>
+	                </div>
+	                <div class="flow-toolbar-group flow-zoom-controls">
+	                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(-1)" title="Alejar" aria-label="Alejar">−</button>
+	                    <button class="btnSecundario flow-zoom-label" id="flowZoomLabel" type="button" onclick="resetZoomMapaFlujo()" title="Reset zoom" aria-label="Reset zoom">100%</button>
+	                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(1)" title="Acercar" aria-label="Acercar">+</button>
+	                </div>
+	            </div>
+	            <div class="flow-layout">
+	                <div class="flow-editor" id="flowEditor">
+	                    <div class="flow-stage" id="flowStage">
+	                        <div class="flow-world" id="flowWorld">
+	                            <svg id="flowConnections" class="flow-connections">
+	                                <defs>
+	                                    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+	                                        <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.7)" />
+	                                    </marker>
+	                                </defs>
+	                                <g id="flowConnectionsLayer"></g>
+	                            </svg>
+	                            <div id="flowCanvas" class="flow-canvas"></div>
+	                        </div>
+	                    </div>
+	                </div>
+	                <aside id="flowNodeInfo" class="flow-node-info flow-inspector">Selecciona un nodo para ver los detalles.</aside>
+	            </div>
+	            <div class="flow-helper">
+	                <p>Doble clic en un nodo para editarlo. Pulsa “Conectar” en un nodo y luego haz clic sobre el destino para crear el hilo. Puedes arrastrar los nodos a cualquier punto del lienzo.</p>
+	            </div>
 
             <div class="chart-card" style="margin-top:18px;">
                 <h3 style="margin-top:0;">Demo rápida: arrastra tanques y barricas</h3>
                 <p style="margin:6px 0 12px;">Usa el array <code>tanques</code> y esta zona sandbox para probar drag & drop ligero sin tocar el mapa principal.</p>
-                <div id="demoFlowStage" class="demo-flow-stage"></div>
-            </div>
-
-            <div id="flowNodeInfo" class="flow-node-info">Selecciona un nodo para ver los detalles.</div>
-        </section>
+	                <div id="demoFlowStage" class="demo-flow-stage"></div>
+	            </div>
+	        </section>
         <div id="flowModal" class="flow-modal">
             <div class="flow-modal-content">
                 <h3 id="flowModalTitulo">Editar nodo</h3>
@@ -2717,6 +3304,11 @@ function obtenerValorCampoVisual(nodo, campo) {
     if (combinado) return combinado;
   }
 
+  if (campo.id === "variedad") {
+    const texto = obtenerVariedadVisibleNodo(nodo);
+    if (texto) return texto;
+  }
+
   const valor = nodo.datos ? nodo.datos[campo.id] : "";
   if (valor === undefined || valor === null || valor === "") return "";
   if (campo.id === "fecha" || campo.id === "fecha_operacion") {
@@ -2762,9 +3354,12 @@ function esNodoConversor(nodo) {
   return esNodoPrensado(nodo) || esNodoSangrado(nodo);
 }
 
-function obtenerPredecesores(id) {
-  return flujoNodos.filter(n => (n.targets || []).includes(id));
-}
+	function obtenerPredecesores(id) {
+	  const idNorm = normalizarIdNodo(id);
+	  return flujoNodos.filter(n =>
+	    (n.targets || []).some(targetId => normalizarIdNodo(targetId) === idNorm)
+	  );
+	}
 
 function obtenerUnidadNodo(nodo, memo = new Map()) {
   if (!nodo) return "kilos";
@@ -2811,6 +3406,7 @@ function asegurarAsignacionRegistro(destino, origenId, kilosPorDefecto = 0, litr
     destino.datos.asignaciones[key] = {
       kilos: kilosPorDefecto,
       litros: litrosPorDefecto,
+      __manual: false,
     };
   } else {
     if (existente.kilos == null && kilosPorDefecto) existente.kilos = kilosPorDefecto;
@@ -2821,17 +3417,20 @@ function asegurarAsignacionRegistro(destino, origenId, kilosPorDefecto = 0, litr
 
 function normalizarIdNodo(nodo) {
   if (!nodo) return "";
+  if (typeof nodo === "string" || typeof nodo === "number") return String(nodo);
   return nodo.id != null ? String(nodo.id) : "";
 }
 
-function esAncestro(posibleAncestroId, nodoId, visitados = new Set()) {
-  if (!posibleAncestroId || !nodoId) return false;
-  if (posibleAncestroId === nodoId) return true;
-  if (visitados.has(nodoId)) return false;
-  visitados.add(nodoId);
-  const padres = obtenerPredecesores(nodoId);
-  return padres.some(pre => esAncestro(posibleAncestroId, pre.id, visitados));
-}
+	function esAncestro(posibleAncestroId, nodoId, visitados = new Set()) {
+	  const ancestroId = normalizarIdNodo(posibleAncestroId);
+	  const nodoNorm = normalizarIdNodo(nodoId);
+	  if (!ancestroId || !nodoNorm) return false;
+	  if (ancestroId === nodoNorm) return true;
+	  if (visitados.has(nodoNorm)) return false;
+	  visitados.add(nodoNorm);
+	  const padres = obtenerPredecesores(nodoNorm);
+	  return padres.some(pre => esAncestro(ancestroId, pre.id, visitados));
+	}
 
 function limpiarAsignacionesOrfanas(nodo) {
   if (!nodo || !["deposito", "coupage"].includes(nodo.tipo) || !nodo.datos?.asignaciones) return;
@@ -2843,7 +3442,110 @@ function limpiarAsignacionesOrfanas(nodo) {
       delete nodo.datos.asignaciones[key];
     }
   });
+  limpiarAportesOrfanos(nodo);
   actualizarVariedadDesdeAportes(nodo);
+}
+
+function limpiarAportesOrfanos(nodo) {
+  if (!nodo || !nodo.datos?.aportes || typeof nodo.datos.aportes !== "object") return;
+  const clavesPermitidas = new Set(
+    obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre))
+  );
+  Object.keys(nodo.datos.aportes).forEach(key => {
+    if (!clavesPermitidas.has(String(key))) {
+      delete nodo.datos.aportes[key];
+    }
+  });
+}
+
+function recalcularDatosDesdeAportes(nodo) {
+  if (!nodo || !nodo.datos || !nodo.datos.aportes || typeof nodo.datos.aportes !== "object") return;
+
+  // En depósitos/coupages el volumen lo llevan las asignaciones (tabla), no los aportes.
+  if (["deposito", "coupage"].includes(nodo.tipo)) return;
+
+  const aportes = Object.values(nodo.datos.aportes || {});
+  if (!aportes.length) {
+    nodo.datos.kilos = 0;
+    nodo.datos.litros = 0;
+    nodo.datos.litros_directos = 0;
+    nodo.datos.volumen = 0;
+    nodo.datos.densidad = "";
+    nodo.datos.temperatura = "";
+    return;
+  }
+
+  let sumK = 0;
+  let sumL = 0;
+  let densidadSuma = 0;
+  let densidadPeso = 0;
+  let densidadPrimera = null;
+  let tempSuma = 0;
+  let tempPeso = 0;
+  let tempPrimera = null;
+
+  aportes.forEach(a => {
+    const k = normalizarNumero(a?.kilos) || 0;
+    const ld = normalizarNumero(a?.litros_directos) || 0;
+    const l = normalizarNumero(a?.litros) || 0;
+    if (k > 0) sumK += k;
+    if (ld > 0) sumL += ld;
+    else if (l > 0) sumL += l;
+    const peso = (ld > 0 ? ld : l > 0 ? l : k > 0 ? k : 0) || 0;
+
+    const dens = normalizarNumero(a?.densidad);
+    if (dens != null) {
+      const pesoD = peso || 1;
+      densidadSuma += dens * pesoD;
+      densidadPeso += pesoD;
+      if (densidadPrimera == null) densidadPrimera = dens;
+    }
+
+    const temp = normalizarNumero(a?.temperatura);
+    if (temp != null) {
+      const pesoT = peso || 1;
+      tempSuma += temp * pesoT;
+      tempPeso += pesoT;
+      if (tempPrimera == null) tempPrimera = temp;
+    }
+  });
+
+  // Barricas: guardamos el volumen para el relleno visual.
+  if (nodo.tipo === "barrica") {
+    nodo.datos.kilos = Number(sumK.toFixed(2));
+    nodo.datos.litros = Number(sumL.toFixed(2));
+    nodo.datos.litros_directos = nodo.datos.litros;
+    nodo.datos.volumen = nodo.datos.litros;
+  } else {
+    // Nodos de proceso: consolidamos totales.
+    nodo.datos.kilos = Number(sumK.toFixed(2));
+    if (sumL > 0) {
+      nodo.datos.litros = Number(sumL.toFixed(2));
+      nodo.datos.litros_directos = nodo.datos.litros;
+      nodo.datos.volumen = nodo.datos.litros;
+    } else {
+      nodo.datos.litros = 0;
+      nodo.datos.litros_directos = 0;
+      nodo.datos.volumen = nodo.datos.kilos;
+    }
+  }
+
+  const densidadMedia = densidadPeso > 0 ? densidadSuma / densidadPeso : densidadPrimera;
+  const temperaturaMedia = tempPeso > 0 ? tempSuma / tempPeso : tempPrimera;
+  nodo.datos.densidad =
+    densidadMedia != null ? Number(densidadMedia.toFixed(4)) : "";
+  nodo.datos.temperatura =
+    temperaturaMedia != null ? Number(temperaturaMedia.toFixed(2)) : "";
+
+  // Recalcular mezcla visible acorde a los aportes actuales.
+  try {
+    const comp = calcularComposicionVariedades(nodo);
+    if (comp.mix && comp.mix.size) {
+      guardarComposicionEnNodo(nodo, comp.mix, comp.total);
+    }
+  } catch (e) {
+    // noop
+  }
 }
 
 function limpiarCargaNodo(nodo) {
@@ -2863,6 +3565,15 @@ function limpiarCargaNodo(nodo) {
       nodo.datos[campo] = "";
     }
   });
+  if ("aportes" in nodo.datos) {
+    nodo.datos.aportes = {};
+  }
+  if ("asignaciones" in nodo.datos) {
+    nodo.datos.asignaciones = {};
+  }
+  if ("composicionVariedades" in nodo.datos) {
+    nodo.datos.composicionVariedades = [];
+  }
 }
 
 function obtenerTextoVariedadColor(nodo) {
@@ -2992,14 +3703,135 @@ function obtenerTemperaturaNodo(nodo) {
 function calcularProgresoBarrica(nodo) {
   if (!nodo || nodo.tipo !== "barrica") return null;
   const inicioStr = nodo.datos?.fecha_operacion || nodo.datos?.fecha;
-  const mesesObjetivo = normalizarNumero(nodo.datos?.tiempo) || 12; // default 12 meses
-  if (!inicioStr || !mesesObjetivo) return null;
-  const inicio = new Date(inicioStr);
-  if (isNaN(inicio.getTime())) return null;
+  const finStr = nodo.datos?.tiempo;
+  if (!inicioStr) return null;
+  const inicio = parsearFechaValor(inicioStr);
+  if (!inicio) return null;
   const ahora = new Date();
-  const msTotal = mesesObjetivo * 30 * 24 * 60 * 60 * 1000;
+
+  const fin = finStr ? parsearFechaValor(finStr) : null;
+  let msTotal = 0;
+  if (fin) {
+    msTotal = fin.getTime() - inicio.getTime();
+  } else {
+    const mesesObjetivo = normalizarNumero(finStr) || 12; // fallback si guardaron meses como número
+    msTotal = mesesObjetivo * 30 * 24 * 60 * 60 * 1000;
+  }
+  if (!(msTotal > 0)) return null;
+
   const transcurrido = Math.max(0, ahora.getTime() - inicio.getTime());
   return Math.max(0, Math.min(1, transcurrido / msTotal));
+}
+
+function obtenerTooltipCrianza(nodo) {
+  if (!nodo || nodo.tipo !== "barrica") return "";
+  const inicioStr = nodo.datos?.fecha_operacion || nodo.datos?.fecha;
+  const finStr = nodo.datos?.tiempo;
+  const inicio = inicioStr ? parsearFechaValor(inicioStr) : null;
+  if (!inicio) {
+    return 'Crianza\nDefine "Fecha operación" (inicio).';
+  }
+
+  const formatearFechaTooltip = date => {
+    if (!date) return "—";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "—";
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  const finDate = finStr ? parsearFechaValor(finStr) : null;
+  let fin = finDate;
+  let finEsEstimado = false;
+  if (!finDate) {
+    const meses = normalizarNumero(finStr);
+    if (meses != null && meses > 0) {
+      fin = new Date(inicio.getTime() + meses * 30 * 24 * 60 * 60 * 1000);
+      finEsEstimado = true;
+    }
+  }
+
+  if (!fin) {
+    return [
+      "Crianza",
+      `Inicio: ${formatearFechaTooltip(inicio)}`,
+      'Define "Fin previsto de la crianza" para ver el avance.',
+    ].join("\n");
+  }
+
+  const ahora = new Date();
+  const msTotal = fin.getTime() - inicio.getTime();
+  if (!(msTotal > 0)) {
+    return [
+      "Crianza",
+      `Inicio: ${formatearFechaTooltip(inicio)}`,
+      `Fin: ${formatearFechaTooltip(fin)}`,
+      "Revisa fechas: el fin debe ser posterior al inicio.",
+    ].join("\n");
+  }
+
+  const msDia = 24 * 60 * 60 * 1000;
+  const transcurridoMs = ahora.getTime() - inicio.getTime();
+  const restanteMs = fin.getTime() - ahora.getTime();
+  const pct = Math.max(0, Math.min(1, transcurridoMs / msTotal));
+  const diasTotal = Math.max(1, Math.round(msTotal / msDia));
+  const diasTrans = Math.max(0, Math.round(Math.max(0, transcurridoMs) / msDia));
+  const diasRest = Math.max(0, Math.round(Math.max(0, restanteMs) / msDia));
+
+  const lineas = [
+    `Crianza: ${Math.round(pct * 100)}%`,
+    `Inicio: ${formatearFechaTooltip(inicio)}`,
+    `Fin: ${formatearFechaTooltip(fin)}${finEsEstimado ? " (estimado)" : ""}`,
+    `Transcurrido: ${Math.min(diasTrans, diasTotal)}/${diasTotal} días`,
+  ];
+  if (restanteMs >= 0) {
+    lineas.push(`Restan: ${diasRest} días`);
+  } else {
+    lineas.push(`Finalizada hace: ${Math.abs(Math.round(restanteMs / msDia))} días`);
+  }
+  return lineas.join("\n");
+}
+
+function getFlowTooltipEl() {
+  return document.getElementById("flowTooltip");
+}
+
+function posicionarFlowTooltip(clientX, clientY) {
+  const tip = getFlowTooltipEl();
+  if (!tip || tip.style.display === "none") return;
+  const padding = 12;
+  const offset = 14;
+  const rect = tip.getBoundingClientRect();
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+
+  let x = clientX + offset;
+  let y = clientY + offset;
+  if (x + rect.width + padding > vw) x = Math.max(padding, clientX - rect.width - offset);
+  if (y + rect.height + padding > vh) y = Math.max(padding, clientY - rect.height - offset);
+
+  tip.style.left = `${Math.round(x)}px`;
+  tip.style.top = `${Math.round(y)}px`;
+}
+
+function mostrarFlowTooltip(texto, clientX, clientY) {
+  const tip = getFlowTooltipEl();
+  if (!tip) return;
+  if (!texto) {
+    tip.style.display = "none";
+    return;
+  }
+  tip.textContent = texto;
+  tip.style.display = "block";
+  posicionarFlowTooltip(clientX, clientY);
+}
+
+function ocultarFlowTooltip() {
+  const tip = getFlowTooltipEl();
+  if (!tip) return;
+  tip.style.display = "none";
 }
 
 function limpiarNodosSinEntradas() {
@@ -3153,9 +3985,9 @@ function mixToArray(mix, total) {
 
 function formatearPctVariedad(valor) {
   if (!Number.isFinite(valor)) return "0%";
-  if (valor >= 1 || valor <= -1) {
-    return `${Math.round(valor)}%`;
-  }
+  if (Math.abs(valor) < 1) return `${valor.toFixed(1)}%`;
+  const redondeado = Math.round(valor);
+  if (Math.abs(valor - redondeado) < 0.05) return `${redondeado}%`;
   return `${valor.toFixed(1)}%`;
 }
 
@@ -3218,38 +4050,19 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
     return { total: totalizar(), mix };
   }
 
-  // Si el nodo tiene aportes acumulados (nodos de proceso), usamos esa mezcla directa.
-  if (nodo.datos?.aportes) {
-    Object.values(nodo.datos.aportes).forEach(a => {
-      const peso =
-        (pesoNumerico(a.litros_directos) ||
-          pesoNumerico(a.litros) ||
-          pesoNumerico(a.kilos)) ||
-        0;
-      if (a.variedad) {
-        // Si no hay cantidad válida, contamos 1 para reflejar mezcla visual.
-        const pesoEfectivo = peso > 0 ? peso : 1;
-        agregarVariedadAPeso(mix, a.variedad, pesoEfectivo);
-      }
-    });
-    const total = totalizar();
-    if (total > 0 && mix.size) {
-      return { total, mix };
-    }
-  }
-
   const tieneAsignaciones = nodo.datos?.asignaciones && Object.keys(nodo.datos.asignaciones).length;
   if (tieneAsignaciones) {
     const permitidos = new Set(obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre)));
     Object.entries(nodo.datos.asignaciones).forEach(([origenId, info]) => {
+      if (!permitidos.has(origenId)) return;
       const kilos = pesoNumerico(normalizarNumero(info?.kilos));
       const litros = pesoNumerico(normalizarNumero(info?.litros));
       const cantidad = kilos + litros;
-      if (!permitidos.has(origenId)) return;
+      if (!(cantidad > 0)) return;
       const origen = obtenerNodoPorId(origenId);
       const comp = calcularComposicionVariedades(origen, visitados);
       if (!comp.mix.size) return;
-      const factor = comp.total > 0 ? (cantidad > 0 ? cantidad / comp.total : 1) : 1;
+      const factor = comp.total > 0 ? cantidad / comp.total : 1;
       comp.mix.forEach((valor, nombre) => {
         agregarVariedadAPeso(mix, nombre, valor * factor);
       });
@@ -3257,21 +4070,49 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
     if (mix.size) {
       return { total: totalizar(), mix };
     }
-    // Fallback: si hay asignaciones pero sin cantidades, mezclar a partes iguales por origen
-    Object.keys(nodo.datos.asignaciones).forEach(origenId => {
-      if (!permitidos.has(origenId)) return;
-      const origen = obtenerNodoPorId(origenId);
-      const comp = calcularComposicionVariedades(origen, visitados);
-      if (!comp.mix.size) return;
-      comp.mix.forEach((valor, nombre) => {
-        // peso unitario para mostrar variedad aunque no haya litros/kilos definidos
-        agregarVariedadAPeso(mix, nombre, 1);
-      });
-    });
-    if (mix.size) {
-      return { total: totalizar(), mix };
-    }
+    // Si hay asignaciones pero sin cantidades, no forzamos porcentajes: seguimos con aportes/padres.
+    // Solo si no hay otra fuente de cantidad, haremos fallback al final.
     // Si no hay cantidades válidas, seguimos buscando en padres o dato propio.
+  }
+
+  // Si el nodo tiene aportes acumulados (nodos de proceso/trasiegos), usamos esa mezcla directa.
+  // Filtramos por predecesores actuales para evitar aportes huérfanos o incompletos.
+  if (nodo.datos?.aportes) {
+    const predecesores = obtenerPredecesores(nodo.id);
+    const idsPermitidos = new Set(predecesores.map(pre => normalizarIdNodo(pre)));
+    if (idsPermitidos.size) {
+      const entries = Object.entries(nodo.datos.aportes).filter(([origenId]) =>
+        idsPermitidos.has(String(origenId))
+      );
+      // Si faltan aportes para algún predecesor, preferimos calcular desde los padres.
+      if (!(idsPermitidos.size > 1 && entries.length < idsPermitidos.size)) {
+        const aportes = entries.map(([, a]) => a);
+        const pesos = aportes.map(a => {
+          return (
+            pesoNumerico(a?.litros_directos) ||
+            pesoNumerico(a?.litros) ||
+            pesoNumerico(a?.kilos) ||
+            0
+          );
+        });
+        const hayPesos = pesos.some(p => p > 0);
+        aportes.forEach((a, idx) => {
+          if (!a?.variedad) return;
+          const peso = pesos[idx] || 0;
+          if (hayPesos) {
+            if (!(peso > 0)) return;
+            agregarVariedadAPeso(mix, a.variedad, peso);
+            return;
+          }
+          // Si no hay cantidad válida en ningún aporte, mostramos mezcla visual a partes iguales.
+          agregarVariedadAPeso(mix, a.variedad, 1);
+        });
+        const total = totalizar();
+        if (total > 0 && mix.size) {
+          return { total, mix };
+        }
+      }
+    }
   }
 
   const padres = obtenerPredecesores(nodo.id);
@@ -3284,6 +4125,24 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
       const factor = comp.total > 0 ? pesoBase / comp.total : pesoBase;
       comp.mix.forEach((valor, nombre) => {
         agregarVariedadAPeso(mix, nombre, valor * factor);
+      });
+    });
+    if (mix.size) {
+      return { total: totalizar(), mix };
+    }
+  }
+
+  // Fallback final: si hay asignaciones pero no cantidades, mezclamos a partes iguales por origen
+  // (p.ej. recién conectado pero sin litros/kilos asignados todavía).
+  if (tieneAsignaciones) {
+    const permitidos = new Set(obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre)));
+    Object.keys(nodo.datos.asignaciones).forEach(origenId => {
+      if (!permitidos.has(origenId)) return;
+      const origen = obtenerNodoPorId(origenId);
+      const comp = calcularComposicionVariedades(origen, visitados);
+      if (!comp.mix.size) return;
+      comp.mix.forEach((valor, nombre) => {
+        agregarVariedadAPeso(mix, nombre, 1);
       });
     });
     if (mix.size) {
@@ -3308,10 +4167,14 @@ function obtenerTextoVolumenNodo(nodo) {
   if (!nodo) return "";
   const unidad = obtenerUnidadVisual(nodo);
   const unidadLabel = unidad === "L" ? "L" : "kg";
-  const valLitros =
-    normalizarNumero(nodo.datos?.litros_directos) ??
-    normalizarNumero(nodo.datos?.litros) ??
-    normalizarNumero(nodo.datos?.volumen);
+  const esDepositoOCoupage = nodo.tipo === "deposito" || nodo.tipo === "coupage";
+  const valLitros = esDepositoOCoupage
+    ? normalizarNumero(nodo.datos?.volumen) ??
+      normalizarNumero(nodo.datos?.litros) ??
+      normalizarNumero(nodo.datos?.litros_directos)
+    : normalizarNumero(nodo.datos?.litros_directos) ??
+      normalizarNumero(nodo.datos?.litros) ??
+      normalizarNumero(nodo.datos?.volumen);
   const valKilos = normalizarNumero(nodo.datos?.kilos);
   const valor =
     unidad === "L"
@@ -3334,7 +4197,7 @@ function obtenerTextoVolumenNodo(nodo) {
   const cont = redondear(valor);
 
   if ((nodo.tipo === "deposito" || nodo.tipo === "barrica") && (cap != null || cont != null)) {
-    if (cap != null && cont != null) return `Volumen ${cap}/${cont} ${unidadLabel}`;
+    if (cap != null && cont != null) return `Volumen ${cont}/${cap} ${unidadLabel}`;
     if (cap != null) return `Volumen ${cap} ${unidadLabel}`;
   }
   if (cont != null) {
@@ -3724,46 +4587,87 @@ function obtenerEtiquetaNodoLimite(nodo) {
   return nodo.titulo || "Este nodo";
 }
 
-function obtenerNodoPorId(id) {
-  return flujoNodos.find(n => String(n.id) === String(id));
-}
+	function sumarConsumoDesdeNodo(origen) {
+	  if (!origen) return 0;
+	  const unidad = obtenerUnidadNodo(origen);
+	  const origenKey = normalizarIdNodo(origen);
+	  return (origen.targets || []).reduce((total, targetId) => {
+	    const destino = obtenerNodoPorId(targetId);
+	    if (!destino) return total;
 
-function sumarConsumoDesdeNodo(origen) {
-  if (!origen) return 0;
-  const origenKey = origen.id?.toString?.() ?? String(origen.id);
-  return (origen.targets || []).reduce((total, targetId) => {
-    const destino = obtenerNodoPorId(targetId);
-    if (!destino) return total;
-    const registro =
-      destino.datos?.asignaciones?.[origenKey] || destino.datos?.asignaciones?.[origen.id];
-    if (!registro) return total;
-    let valor = 0;
-    const litros = normalizarNumero(registro.litros);
-    const kilos = normalizarNumero(registro.kilos);
-    if (litros > 0) valor += litros;
-    if (kilos > 0) valor += kilos;
-    if (valor > 0) {
-      return total + valor;
-    }
-    return total;
-  }, 0);
-}
+	    const registroAsignacion =
+	      destino.datos?.asignaciones?.[origenKey] ||
+	      destino.datos?.asignaciones?.[String(origen.id)];
+	    // En contenedores (depósito/coupage), la fuente de verdad para el consumo son las asignaciones (tabla).
+	    if (registroAsignacion && (destino.tipo === "deposito" || destino.tipo === "coupage")) {
+	      const litros = normalizarNumero(registroAsignacion.litros) || 0;
+	      const kilos = normalizarNumero(registroAsignacion.kilos) || 0;
+	      const valor =
+	        unidad === "litros"
+	          ? litros > 0
+	            ? litros
+	            : kilos
+	          : kilos > 0
+	          ? kilos
+	          : litros;
+	      return total + (valor > 0 ? valor : 0);
+	    }
+
+	    const aporte =
+	      destino.datos?.aportes?.[origenKey] ||
+	      destino.datos?.aportes?.[String(origen.id)];
+	    if (aporte) {
+	      const litros = normalizarNumero(aporte.litros_directos ?? aporte.litros) || 0;
+	      const kilos = normalizarNumero(aporte.kilos) || 0;
+	      const valor =
+	        unidad === "litros"
+	          ? litros > 0
+	            ? litros
+	            : kilos
+	          : kilos > 0
+	          ? kilos
+	          : litros;
+	      return total + (valor > 0 ? valor : 0);
+	    }
+
+	    if (registroAsignacion) {
+	      const litros = normalizarNumero(registroAsignacion.litros) || 0;
+	      const kilos = normalizarNumero(registroAsignacion.kilos) || 0;
+	      const valor =
+	        unidad === "litros"
+	          ? litros > 0
+	            ? litros
+	            : kilos
+	          : kilos > 0
+	          ? kilos
+	          : litros;
+	      return total + (valor > 0 ? valor : 0);
+	    }
+	    return total;
+	  }, 0);
+	}
 
 function obtenerLimiteNodo(nodo) {
   if (!nodo) return null;
   const unidad = obtenerUnidadNodo(nodo);
+  // Recalcular/normalizar la carga antes de validar para evitar inconsistencias visual vs. validación.
+  const carga = obtenerCargaDesdeNodo(nodo);
   if (unidad === "litros") {
-    const litros = normalizarNumero(
-      nodo.datos?.volumen ?? nodo.datos?.litros ?? nodo.datos?.litros_directos
-    );
-    if (Number.isFinite(litros)) return litros;
-    const kilosComoLitros = normalizarNumero(nodo.datos?.kilos);
-    return Number.isFinite(kilosComoLitros) ? kilosComoLitros : null;
+    const litros = normalizarNumero(carga?.litros_directos ?? carga?.litros);
+    if (litros != null) return litros;
+    const kilosComoLitros = normalizarNumero(carga?.kilos ?? nodo.datos?.kilos);
+    return kilosComoLitros != null ? kilosComoLitros : null;
   }
-  const kilos = normalizarNumero(
-    nodo.datos?.kilos ?? nodo.datos?.volumen ?? nodo.datos?.litros ?? nodo.datos?.litros_directos
+  const kilos = normalizarNumero(carga?.kilos ?? nodo.datos?.kilos);
+  if (kilos != null) return kilos;
+  const fallback = normalizarNumero(
+    carga?.litros_directos ??
+      carga?.litros ??
+      nodo.datos?.volumen ??
+      nodo.datos?.litros ??
+      nodo.datos?.litros_directos
   );
-  return Number.isFinite(kilos) ? kilos : null;
+  return fallback != null ? fallback : null;
 }
 
 function validarLimitesFlujo() {
@@ -3771,18 +4675,7 @@ function validarLimitesFlujo() {
     const limite = obtenerLimiteNodo(nodo);
     if (limite == null) continue;
     const consumoAsignaciones = sumarConsumoDesdeNodo(nodo);
-    // Añadir consumo implícito de nodos de proceso (prensado/estilo/coupage) que no tienen asignaciones
-    const esProceso = !TIPOS_CONTENEDOR_FLUJO.has(nodo.tipo) && nodo.tipo !== "entrada";
-    let consumoProceso = 0;
-    if (esProceso) {
-      const carga = obtenerCargaDesdeNodo(nodo);
-      const valor =
-        obtenerUnidadNodo(nodo) === "litros"
-          ? normalizarNumero(carga?.litros_directos ?? carga?.litros)
-          : normalizarNumero(carga?.kilos);
-      if (valor > 0) consumoProceso += valor;
-    }
-    const consumo = consumoAsignaciones + consumoProceso;
+    const consumo = consumoAsignaciones;
     if (consumo > limite + 0.0001) {
       return {
         ok: false,
@@ -3985,14 +4878,15 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
     if (!soloLectura) {
       const inputs = tr.querySelectorAll("input");
       inputs.forEach(input => {
-        input.addEventListener("input", () => {
-          const valor = Number(input.value);
-          const tipo = input.dataset.tipo;
-          registro[tipo] = Number.isFinite(valor) ? valor : "";
-          if (esCoupage && tipo === "litros") {
-            const maxAttr = input.dataset.maxLitros;
-            const max = maxAttr != null ? Number(maxAttr) : null;
-            if (Number.isFinite(max) && max > 0 && valor > max) {
+	        input.addEventListener("input", () => {
+	          const valor = Number(input.value);
+	          const tipo = input.dataset.tipo;
+	          registro[tipo] = Number.isFinite(valor) ? valor : "";
+	          registro.__manual = true;
+	          if (esCoupage && tipo === "litros") {
+	            const maxAttr = input.dataset.maxLitros;
+	            const max = maxAttr != null ? Number(maxAttr) : null;
+	            if (Number.isFinite(max) && max > 0 && valor > max) {
               registro.litros = max;
               input.value = max.toFixed(2);
               mostrarAviso("No puedes usar más litros de los disponibles en el depósito.", "error");
@@ -4125,28 +5019,17 @@ function obtenerCargaDistribuida(origen, destinoId, cargaBase) {
 
 function actualizarVariedadDesdeAportes(nodo) {
   if (!nodo || !["deposito", "coupage"].includes(nodo.tipo)) return;
-  // Si el nodo tiene mezcla precalculada desde aportes, úsala primero
-  if (nodo.datos?.aportes) {
-    const mix = new Map();
-    let total = 0;
-    Object.values(nodo.datos.aportes).forEach(a => {
-      const peso =
-        (normalizarNumero(a.litros_directos) ??
-          normalizarNumero(a.litros) ??
-          normalizarNumero(a.kilos)) || 0;
-      if (!peso || !a.variedad) return;
-      agregarVariedadAPeso(mix, a.variedad, peso);
-      total += peso;
-    });
-    if (mix.size && total > 0) {
-      guardarComposicionEnNodo(nodo, mix, total);
+  nodo.datos = nodo.datos || {};
+  try {
+    const comp = calcularComposicionVariedades(nodo);
+    if (comp.mix.size) {
+      guardarComposicionEnNodo(nodo, comp.mix, comp.total);
     } else {
       nodo.datos.composicionVariedades = [];
       nodo.datos.variedad = obtenerVariedadDesdeAsignaciones(nodo);
     }
-  } else {
-    nodo.datos.composicionVariedades = [];
-    nodo.datos.variedad = obtenerVariedadDesdeAsignaciones(nodo);
+  } catch (e) {
+    console.warn("No se pudo recalcular la composición del nodo:", e);
   }
   actualizarVolumenDesdeAsignaciones(nodo);
 }
@@ -4291,12 +5174,36 @@ function calcularTotalesAsignaciones(nodo) {
 
 function actualizarVolumenDesdeAsignaciones(nodo) {
   if (!nodo || !["deposito", "coupage"].includes(nodo.tipo)) return;
-  const totales = calcularTotalesAsignaciones(nodo);
-  if (!totales) return;
-  nodo.datos.kilos = Number(totales.totalKilos.toFixed(2));
-  nodo.datos.litros_directos = Number(totales.totalLitros.toFixed(2));
-  nodo.datos.volumen = Number(totales.total.toFixed(2));
-  nodo.datos.litros = nodo.datos.volumen;
+  nodo.datos = nodo.datos || {};
+  const predecesores = obtenerPredecesores(nodo.id);
+  if (!predecesores.length) return;
+
+  const total = predecesores.reduce(
+    (acc, pre) => {
+      const key = normalizarIdNodo(pre);
+      const reg = nodo.datos?.asignaciones?.[key];
+      const aporte = reg
+        ? null
+        : nodo.datos?.aportes?.[key] || nodo.datos?.aportes?.[String(pre.id)];
+      const kilos = normalizarNumero(reg?.kilos ?? aporte?.kilos) || 0;
+      const litros =
+        normalizarNumero(reg?.litros ?? aporte?.litros_directos ?? aporte?.litros) || 0;
+      if (kilos > 0) acc.totalKilos += kilos;
+      if (litros > 0) acc.totalLitros += litros;
+      return acc;
+    },
+    { totalKilos: 0, totalLitros: 0 }
+  );
+
+  if (!(total.totalKilos > 0 || total.totalLitros > 0)) return;
+
+  nodo.datos.kilos = Number(total.totalKilos.toFixed(2));
+  const volumenCalculado = total.totalLitros + total.totalKilos;
+  const volumenFinal = Number(volumenCalculado.toFixed(2));
+
+  nodo.datos.litros_directos = volumenFinal;
+  nodo.datos.volumen = volumenFinal;
+  nodo.datos.litros = volumenFinal;
   if (nodo.tipo === "coupage") {
     nodo.datos.litros_blend = nodo.datos.volumen;
   }
@@ -4328,10 +5235,8 @@ function obtenerEstadoDepositoDesdeNodo(idDeposito) {
     volumen = volumenNodo;
   } else {
     if (!nodoDeposito) return null;
-    const totales = calcularTotalesAsignaciones(nodoDeposito);
-    if (totales) {
-      volumen = totales.total;
-    } else if (nodoDeposito.datos && nodoDeposito.datos.volumen != null) {
+    actualizarVolumenDesdeAsignaciones(nodoDeposito);
+    if (nodoDeposito.datos && nodoDeposito.datos.volumen != null) {
       volumen = Number(nodoDeposito.datos.volumen);
     }
   }
@@ -4476,7 +5381,7 @@ const FLOW_NODE_TYPES = {
         placeholder: "Selecciona contenedor",
       },
       { id: "tipo", label: "Tipo de contenedor", tipo: "text", placeholder: "Roble francés 225L o Depósito mixto" },
-      { id: "tiempo", label: "Tiempo previsto", tipo: "date", placeholder: "" },
+      { id: "tiempo", label: "Fin previsto de la crianza", tipo: "date", placeholder: "" },
       { id: "tiempo_estimado", label: "Duración estimada", tipo: "info" },
       { id: "notas", label: "Notas", tipo: "textarea", placeholder: "Batonnage mensual" },
     ],
@@ -4608,13 +5513,19 @@ Object.keys(FLOW_NODE_TYPES).forEach(key => {
     });
   }
 });
-let datosEtapasFlujo = {};
-let flujoNodos = [];
-let nodoConectandoOrigen = null;
-let nodoEnEdicion = null;
-let dragEstado = null;
-let ultimoNodoManual = null;
-let filtrosMovimientos = {
+	let datosEtapasFlujo = {};
+	let flujoNodos = [];
+	let nodoConectandoOrigen = null;
+		let nodoSeleccionadoId = null;
+		let nodoEnEdicion = null;
+		let dragEstado = null;
+		let ultimoNodoManual = null;
+		let flowZoom = 1;
+		const FLOW_ZOOM_MIN = 0.3;
+		const FLOW_ZOOM_MAX = 2;
+		const FLOW_ZOOM_STEP = 0.1;
+		const FLOW_WORLD_BASE = { width: 5000, height: 3000 };
+	let filtrosMovimientos = {
   tipo: "",
   desde: "",
   hasta: "",
@@ -4845,6 +5756,68 @@ function actualizarMapaFlujo() {
   datosEtapasFlujo = calcularDatosMapaFlujo();
 }
 
+function limitarZoomFlow(valor) {
+  const num = Number(valor);
+  if (!Number.isFinite(num)) return 1;
+  return Math.min(Math.max(num, FLOW_ZOOM_MIN), FLOW_ZOOM_MAX);
+}
+
+function actualizarEtiquetaZoomFlow() {
+  const label = document.getElementById("flowZoomLabel");
+  if (!label) return;
+  label.textContent = `${Math.round(flowZoom * 100)}%`;
+}
+
+function aplicarLayoutFlow({ mantenerCentro = false } = {}) {
+  const editor = document.getElementById("flowEditor");
+  const stage = document.getElementById("flowStage");
+  const world = document.getElementById("flowWorld");
+  if (!editor || !stage || !world) return;
+
+  const prevZoom = flowZoom || 1;
+  let centroWorld = null;
+  if (mantenerCentro) {
+    const cx = editor.scrollLeft + editor.clientWidth / 2;
+    const cy = editor.scrollTop + editor.clientHeight / 2;
+    centroWorld = { x: cx / prevZoom, y: cy / prevZoom };
+  }
+
+  flowZoom = limitarZoomFlow(flowZoom);
+  world.style.width = `${FLOW_WORLD_BASE.width}px`;
+  world.style.height = `${FLOW_WORLD_BASE.height}px`;
+  world.style.transform = `scale(${flowZoom})`;
+  stage.style.width = `${FLOW_WORLD_BASE.width * flowZoom}px`;
+  stage.style.height = `${FLOW_WORLD_BASE.height * flowZoom}px`;
+
+  if (centroWorld) {
+    editor.scrollLeft = Math.max(0, centroWorld.x * flowZoom - editor.clientWidth / 2);
+    editor.scrollTop = Math.max(0, centroWorld.y * flowZoom - editor.clientHeight / 2);
+  }
+
+  actualizarEtiquetaZoomFlow();
+}
+
+function aplicarZoomMapaFlujo(nuevoZoom, { mantenerCentro = true } = {}) {
+  flowZoom = limitarZoomFlow(nuevoZoom);
+  aplicarLayoutFlow({ mantenerCentro });
+  try {
+    localStorage.setItem("flowZoom", String(flowZoom));
+  } catch (err) {
+    // noop
+  }
+  renderFlowConnections();
+}
+
+function zoomMapaFlujo(direccion) {
+  const delta = Number(direccion) || 0;
+  if (!delta) return;
+  aplicarZoomMapaFlujo(flowZoom + delta * FLOW_ZOOM_STEP);
+}
+
+function resetZoomMapaFlujo() {
+  aplicarZoomMapaFlujo(1);
+}
+
 function exportarNodosComoImagen() {
   const editor = document.querySelector(".flow-editor");
   if (!editor) return;
@@ -4882,15 +5855,39 @@ function exportarNodosComoImagen() {
   document.body.appendChild(script);
 }
 
-async function inicializarFlowEditor() {
-  await cargarNodosGuardados();
-  renderFlowNodes();
-  const canvas = document.getElementById("flowCanvas");
-  if (canvas) {
-    canvas.addEventListener("click", () => cancelarConexionEnCurso());
-  }
-  window.addEventListener("resize", renderFlowConnections);
-}
+	async function inicializarFlowEditor() {
+	  await cargarNodosGuardados();
+	  try {
+	    const savedZoom = Number(localStorage.getItem("flowZoom"));
+	    if (Number.isFinite(savedZoom)) {
+	      flowZoom = savedZoom;
+	    }
+	  } catch (err) {
+	    // noop
+	  }
+	  flowZoom = limitarZoomFlow(flowZoom);
+	  aplicarLayoutFlow();
+	  renderFlowNodes();
+	  const canvas = document.getElementById("flowCanvas");
+	  if (canvas) {
+	    canvas.addEventListener("click", e => {
+	      if (!e.target.closest(".flow-node")) {
+	        ocultarFlowTooltip();
+	        nodoSeleccionadoId = null;
+	        try {
+	          mostrarInfoNodo(null);
+	        } catch (err) {
+	          // noop
+	        }
+	        canvas
+	          .querySelectorAll(".flow-node.is-selected")
+	          .forEach(el => el.classList.remove("is-selected"));
+	      }
+	      cancelarConexionEnCurso();
+	    });
+	  }
+	  window.addEventListener("resize", renderFlowConnections);
+	}
 
 function generarIdNodo() {
   if (window.crypto && crypto.randomUUID) {
@@ -4977,63 +5974,89 @@ async function sembrarNodosDesdeDatos() {
 }
 
 // Override renderFlowNodes with a clean version (prev block had duplicated closures)
-function renderFlowNodes() {
-  const canvas = document.getElementById("flowCanvas");
-  if (!canvas) return;
-  canvas.innerHTML = "";
-
-  flujoNodos.forEach(nodo => {
-    if (nodo.tipo === "entrada") {
-      rellenarDatosEntradaDesdeCache(nodo);
+	function renderFlowNodes() {
+	  const canvas = document.getElementById("flowCanvas");
+	  if (!canvas) return;
+	  aplicarLayoutFlow();
+	  canvas.innerHTML = "";
+	  canvas.dataset.mode = nodoConectandoOrigen ? "connecting" : "default";
+	
+	  flujoNodos.forEach(nodo => {
+	    if (nodo.tipo === "entrada") {
+	      rellenarDatosEntradaDesdeCache(nodo);
     } else if (nodo.tipo === "deposito") {
       rellenarDatosDepositoDesdeCache(nodo);
       actualizarTituloNodo(nodo);
     }
-    // Recalcular mezcla visible por si el nodo recibe varias variedades
-    const compRender = calcularComposicionVariedades(nodo);
-    if (compRender.mix.size) {
-      guardarComposicionEnNodo(nodo, compRender.mix, compRender.total);
-    }
+	    // Recalcular mezcla visible por si el nodo recibe varias variedades
+	    const compRender = calcularComposicionVariedades(nodo);
+	    if (compRender.mix.size) {
+	      guardarComposicionEnNodo(nodo, compRender.mix, compRender.total);
+	    }
+	    if (nodo.tipo === "deposito" || nodo.tipo === "coupage") {
+	      actualizarVolumenDesdeAsignaciones(nodo);
+	    }
 
-    const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo" };
-    const div = document.createElement("div");
-    div.className = "flow-node";
-
-    const fill = document.createElement("div");
-    fill.className = "fill-level";
-    const colorVino = obtenerColorVino(nodo);
-    fill.classList.add(colorVino === "white" ? "white" : "red");
-    if (nodo.tipo === "barrica") {
-      rellenarDatosCrianzaDesdeCache(nodo);
-    }
+	    const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo" };
+	    const div = document.createElement("div");
+	    div.className = "flow-node";
+	    div.dataset.tipo = nodo.tipo;
+	    if (nodo.tipo === "barrica") {
+	      const tooltip = obtenerTooltipCrianza(nodo);
+	      if (tooltip) div.title = tooltip;
+	      div.addEventListener("pointerenter", e => {
+	        if (e.pointerType !== "mouse") return;
+	        ocultarFlowTooltip();
+	        mostrarFlowTooltip(tooltip, e.clientX, e.clientY);
+	      });
+	      div.addEventListener("pointermove", e => {
+	        if (e.pointerType !== "mouse") return;
+	        posicionarFlowTooltip(e.clientX, e.clientY);
+	      });
+	      div.addEventListener("pointerleave", () => ocultarFlowTooltip());
+	      div.addEventListener("pointerdown", () => ocultarFlowTooltip());
+	    }
+	    if (nodoConectandoOrigen === nodo.id) {
+	      div.classList.add("is-connect-source");
+	    }
+	    if (nodoSeleccionadoId && nodoSeleccionadoId === nodo.id) {
+	      div.classList.add("is-selected");
+	    }
+	
+	    const fill = document.createElement("div");
+	    fill.className = "fill-level";
+	    const colorVino = obtenerColorVino(nodo);
+	    div.dataset.vino = colorVino === "white" ? "white" : "red";
+	    fill.classList.add(colorVino === "white" ? "white" : "red");
+	    if (nodo.tipo === "barrica") {
+	      rellenarDatosCrianzaDesdeCache(nodo);
+	    }
     const ocupacion = calcularOcupacionNodo(nodo);
     if (ocupacion != null) {
       fill.style.height = `${(ocupacion * 100).toFixed(1)}%`;
     }
     div.appendChild(fill);
 
-    const progresoBarrica = calcularProgresoBarrica(nodo);
-    if (progresoBarrica != null) {
-      const ring = document.createElement("div");
-      const pct = Math.max(0, Math.min(1, progresoBarrica));
-      const ang = pct * 360;
-      ring.className = "flow-progress-ring";
-      ring.style.background = `conic-gradient(#ffd79c ${ang}deg, rgba(255,255,255,0.08) 0deg)`;
-      div.appendChild(ring);
-    }
+	    const progresoBarrica = calcularProgresoBarrica(nodo);
+	    if (progresoBarrica != null) {
+	      const ring = document.createElement("div");
+	      const pct = Math.max(0, Math.min(1, progresoBarrica));
+	      const ang = pct * 360;
+	      ring.className = "flow-progress-ring";
+	      ring.style.background = `conic-gradient(from -90deg, var(--flow-accent, rgba(255,255,255,0.75)) 0deg ${ang}deg, rgba(255,255,255,0.08) ${ang}deg 360deg)`;
+	      div.appendChild(ring);
+	    }
 
-    div.style.left = `${nodo.x}px`;
-    div.style.top = `${nodo.y}px`;
-    div.dataset.id = nodo.id;
-
-    const headerWrap = document.createElement("div");
-    headerWrap.style.display = "flex";
-    headerWrap.style.alignItems = "center";
-    headerWrap.style.gap = "6px";
-    const icon = document.createElement("span");
-    icon.className = "flow-node-icon";
-    if (config.icono && config.icono.trim().startsWith("<")) {
-      icon.innerHTML = config.icono;
+	    div.style.left = `${nodo.x}px`;
+	    div.style.top = `${nodo.y}px`;
+	    div.dataset.id = nodo.id;
+	
+	    const headerWrap = document.createElement("div");
+	    headerWrap.className = "flow-node-header";
+	    const icon = document.createElement("span");
+	    icon.className = "flow-node-icon";
+	    if (config.icono && config.icono.trim().startsWith("<")) {
+	      icon.innerHTML = config.icono;
     } else {
       let iconChar = config.icono || "●";
       if (config.icono === "🍇") iconChar = "🍇";
@@ -5085,14 +6108,14 @@ function renderFlowNodes() {
       body.appendChild(metrics);
     }
 
-    const variedadVisible = obtenerVariedadVisibleNodo(nodo);
-    if (variedadVisible) {
-      const subtitleVar = document.createElement("div");
-      subtitleVar.className = "flow-node-subtitle";
-      subtitleVar.textContent = variedadVisible;
-      subtitleVar.style.whiteSpace = "pre-line";
-      body.appendChild(subtitleVar);
-    }
+	    const variedadVisible = obtenerVariedadVisibleNodo(nodo);
+	    if (variedadVisible) {
+	      const subtitleVar = document.createElement("div");
+	      subtitleVar.className = "flow-node-subtitle flow-subtitle-variedad";
+	      subtitleVar.textContent = variedadVisible;
+	      subtitleVar.title = variedadVisible;
+	      body.appendChild(subtitleVar);
+	    }
 
     const textoVolumen = obtenerTextoVolumenNodo(nodo);
     if (textoVolumen) {
@@ -5109,14 +6132,12 @@ function renderFlowNodes() {
 
     div.appendChild(body);
 
-    if (nodo.tipo === "estilo" && nodo.datos?.metodo) {
-      const metodoSubtitle = document.createElement("div");
-      metodoSubtitle.className = "flow-node-subtitle";
-      metodoSubtitle.textContent = nodo.datos.metodo;
-      metodoSubtitle.style.fontSize = "11px";
-      metodoSubtitle.style.opacity = "0.8";
-      div.appendChild(metodoSubtitle);
-    }
+	    if (nodo.tipo === "estilo" && nodo.datos?.metodo) {
+	      const metodoSubtitle = document.createElement("div");
+	      metodoSubtitle.className = "flow-node-subtitle";
+	      metodoSubtitle.textContent = nodo.datos.metodo;
+	      div.appendChild(metodoSubtitle);
+	    }
 
     const controls = document.createElement("div");
     controls.className = "flow-node-controls";
@@ -5169,17 +6190,25 @@ function renderFlowNodes() {
       div.classList.add("temp-alert");
     }
 
-    div.addEventListener("pointerdown", e => iniciarArrastreNodo(e, nodo.id));
-    div.addEventListener("click", () => {
-      if (dragEstado && dragEstado.activo) return;
-      if (nodoConectandoOrigen && nodoConectandoOrigen !== nodo.id) {
-        conectarNodos(nodoConectandoOrigen, nodo.id);
-        nodoConectandoOrigen = null;
-        renderFlowNodes();
-      } else {
-        mostrarInfoNodo(nodo.id);
-      }
-    });
+	    div.addEventListener("pointerdown", e => iniciarArrastreNodo(e, nodo.id));
+	    div.addEventListener("click", () => {
+	      if (dragEstado && dragEstado.activo) return;
+	      if (nodoConectandoOrigen && nodoConectandoOrigen !== nodo.id) {
+	        conectarNodos(nodoConectandoOrigen, nodo.id);
+	        nodoConectandoOrigen = null;
+	        renderFlowNodes();
+	      } else {
+	        nodoSeleccionadoId = nodo.id;
+	        const canvasEl = document.getElementById("flowCanvas");
+	        if (canvasEl) {
+	          canvasEl
+	            .querySelectorAll(".flow-node.is-selected")
+	            .forEach(el => el.classList.remove("is-selected"));
+	          div.classList.add("is-selected");
+	        }
+	        mostrarInfoNodo(nodo.id);
+	      }
+	    });
     div.addEventListener("dblclick", e => {
       e.stopPropagation();
       abrirFlowModal(nodo.id);
@@ -5233,14 +6262,19 @@ function renderFlowConnections() {
         if (!destinoEl) return;
         const destinoNodo = flujoNodos.find(n => n.id === targetId);
         if (!destinoNodo) return;
-        const x2 = destinoNodo.x + destinoEl.offsetWidth / 2;
-        const y2 = destinoNodo.y + destinoEl.offsetHeight / 2;
-        const curva = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        const delta = Math.max(Math.abs(x2 - x1) / 2, 60);
-        const d = `M${x1} ${y1} C ${x1 + delta} ${y1}, ${x2 - delta} ${y2}, ${x2} ${y2}`;
-        curva.setAttribute("d", d);
-        curva.setAttribute("class", "flow-connector-line");
-        (layer || svg).appendChild(curva);
+	        const x2 = destinoNodo.x + destinoEl.offsetWidth / 2;
+	        const y2 = destinoNodo.y + destinoEl.offsetHeight / 2;
+	        const curva = document.createElementNS("http://www.w3.org/2000/svg", "path");
+	        const delta = Math.max(Math.abs(x2 - x1) / 2, 60);
+	        const d = `M${x1} ${y1} C ${x1 + delta} ${y1}, ${x2 - delta} ${y2}, ${x2} ${y2}`;
+	        curva.setAttribute("d", d);
+	        const tipoLinea = String(nodo.tipo || "").toLowerCase();
+	        const seleccion = nodoSeleccionadoId && (nodoSeleccionadoId === nodo.id || nodoSeleccionadoId === targetId);
+	        curva.setAttribute(
+	          "class",
+	          `flow-connector-line${tipoLinea ? " type-" + tipoLinea : ""}${seleccion ? " is-highlight" : ""}`
+	        );
+	        (layer || svg).appendChild(curva);
 
         // Etiqueta de composición de variedades en la mitad del conector
         try {
@@ -5273,8 +6307,9 @@ function iniciarArrastreNodo(ev, nodoId) {
   const editor = document.getElementById("flowEditor");
   const canvas = document.getElementById("flowCanvas");
   const editorRect = editor.getBoundingClientRect();
-  const posX = ev.clientX - editorRect.left + editor.scrollLeft;
-  const posY = ev.clientY - editorRect.top + editor.scrollTop;
+  const zoom = flowZoom || 1;
+  const posX = (ev.clientX - editorRect.left + editor.scrollLeft) / zoom;
+  const posY = (ev.clientY - editorRect.top + editor.scrollTop) / zoom;
   dragEstado = {
     id: nodoId,
     offsetX: posX - nodo.x,
@@ -5309,8 +6344,9 @@ function moverNodoArrastre(ev) {
   }
   const nodoWidth = dragEstado.elemento ? dragEstado.elemento.offsetWidth : 120;
   const nodoHeight = dragEstado.elemento ? dragEstado.elemento.offsetHeight : 70;
-  const posX = ev.clientX - editorRect.left + editor.scrollLeft;
-  const posY = ev.clientY - editorRect.top + editor.scrollTop;
+  const zoom = flowZoom || 1;
+  const posX = (ev.clientX - editorRect.left + editor.scrollLeft) / zoom;
+  const posY = (ev.clientY - editorRect.top + editor.scrollTop) / zoom;
   const maxX = Math.max(0, canvas.offsetWidth - nodoWidth - 10);
   const maxY = Math.max(0, canvas.offsetHeight - nodoHeight - 10);
   nodo.x = Math.min(Math.max(posX - dragEstado.offsetX, 10), maxX);
@@ -5631,10 +6667,7 @@ function redistribuirCargas(origen, visitados = new Set()) {
   // Reparto automático solo si no hay asignaciones manuales en destinos contenedor
   const hayAsignacionesManuales = targets.some(dest => {
     const reg = dest?.datos?.asignaciones?.[origen.id];
-    if (!reg) return false;
-    const k = normalizarNumero(reg.kilos);
-    const l = normalizarNumero(reg.litros);
-    return (k != null && k !== 0) || (l != null && l !== 0);
+    return reg?.__manual === true;
   });
   if (targets.length > 1 && !hayAsignacionesManuales) {
     const shareKilos =
@@ -5649,6 +6682,7 @@ function redistribuirCargas(origen, visitados = new Set()) {
     targets.forEach(dest => {
       if (TIPOS_CONTENEDOR_FLUJO.has(dest.tipo)) {
         const registro = asegurarAsignacionRegistro(dest, origen.id);
+        registro.__manual = false;
         if (shareKilos != null) registro.kilos = shareKilos;
         if (shareLitros != null) {
           registro.litros = shareLitros;
@@ -5658,8 +6692,12 @@ function redistribuirCargas(origen, visitados = new Set()) {
   }
   let cargaLibre = { ...cargaBase };
   const totalDestinos = targets.length;
-  targets.forEach(dest => {
-    const cargaDestino = prepararCargaParaDestino(origen, dest, cargaLibre, totalDestinos);
+  targets.forEach((dest, idx) => {
+    // En nodos de elaboración restamos lo ya asignado; para mantener el reparto automático correcto,
+    // dividimos por los destinos restantes (no por el total original) cuando usamos `cargaLibre`.
+    const destinosRestantes =
+      origen.tipo === "estilo" ? Math.max(1, totalDestinos - idx) : totalDestinos;
+    const cargaDestino = prepararCargaParaDestino(origen, dest, cargaLibre, destinosRestantes);
     if (cargaDestino) {
       const aplicado = manejarTransferenciaNodo(origen, dest, cargaDestino);
       if (origen.tipo === "estilo" && aplicado) {
@@ -5681,75 +6719,45 @@ function redistribuirCargas(origen, visitados = new Set()) {
   visitados.delete(origen.id);
 }
 
-function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
-  if (!origen || !destino) return;
-  origen.datos = origen.datos || {};
-  destino.datos = destino.datos || {};
-  asegurarMermaPorDefecto(origen);
-  asegurarMermaPorDefecto(destino);
-  const cargaBase = obtenerCargaDesdeNodo(origen);
-  if (!cargaBase) return;
-  const unidadOrigen = obtenerUnidadNodo(origen);
-  const esCargaManual = cargaPersonalizada?.__manual === true;
-  let carga = completarCargaVisual(cargaPersonalizada ? { ...cargaPersonalizada } : { ...cargaBase });
+	function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
+	  if (!origen || !destino) return null;
+	  origen.datos = origen.datos || {};
+	  destino.datos = destino.datos || {};
+	  asegurarMermaPorDefecto(origen);
+	  asegurarMermaPorDefecto(destino);
+	  const cargaBase = obtenerCargaDesdeNodo(origen);
+	  if (!cargaBase) return null;
+	  const unidadOrigen = obtenerUnidadNodo(origen);
+	  const esCargaManual = cargaPersonalizada?.__manual === true;
+	  let carga = completarCargaVisual(cargaPersonalizada ? { ...cargaPersonalizada } : { ...cargaBase });
 
-  if (!carga) return;
+	  if (!carga) return null;
 
-  const factorMermaOrigen = !esNodoConversor(origen) ? obtenerFactorMermaNodo(origen) : 0;
-  if (factorMermaOrigen > 0 && !esCargaManual) {
-    carga = aplicarMermaACarga(carga, factorMermaOrigen);
-  }
+	  const factorMermaOrigen = !esNodoConversor(origen) ? obtenerFactorMermaNodo(origen) : 0;
+	  if (factorMermaOrigen > 0 && !esCargaManual) {
+	    carga = aplicarMermaACarga(carga, factorMermaOrigen);
+	  }
 
-  if (esNodoPrensado(destino)) {
-    if (unidadOrigen === "litros") {
-      mostrarAviso("Ya estás trabajando en litros; no puedes volver a convertir con otro prensado o sangrado.", "error");
-      return null;
-    }
-    const kilosAsignados = normalizarNumero(carga.kilos);
-    const litrosDirectosAsignados = normalizarNumero(carga.litros_directos);
-    if (!(kilosAsignados > 0 || litrosDirectosAsignados > 0)) {
-      return null;
-    }
-    const factor = obtenerFactorMermaNodo(destino);
-    const litrosPrensados = kilosAsignados > 0 ? aplicarMerma(kilosAsignados, factor) : 0;
-    const totalSalida = litrosPrensados + (litrosDirectosAsignados > 0 ? litrosDirectosAsignados : 0);
-    aplicarCargaANodo(destino, {
-      variedad: carga.variedad,
-      litros: totalSalida,
-      litros_directos: totalSalida,
-      kilos: 0,
-      parcela: carga.parcela,
-      anada: carga.anada,
-      fecha: carga.fecha,
-      densidad: carga.densidad,
-      temperatura: carga.temperatura,
-    });
-    return {
-      ...carga,
-      kilos: 0,
-      litros: totalSalida,
-      litros_directos: totalSalida,
-    };
-  }
+	  if (esNodoPrensado(destino)) {
+	    if (unidadOrigen === "litros") {
+	      mostrarAviso("Ya estás trabajando en litros; no puedes volver a convertir con otro prensado o sangrado.", "error");
+	      return null;
+	    }
+	    const kilosAsignados = normalizarNumero(carga.kilos);
+	    const litrosDirectosAsignados = normalizarNumero(carga.litros_directos);
+	    if (!(kilosAsignados > 0 || litrosDirectosAsignados > 0)) {
+	      return null;
+	    }
+	    const factor = obtenerFactorMermaNodo(destino);
+	    const litrosPrensados = kilosAsignados > 0 ? aplicarMerma(kilosAsignados, factor) : 0;
+	    const totalSalida = litrosPrensados + (litrosDirectosAsignados > 0 ? litrosDirectosAsignados : 0);
+	    // Guardar entrada en kilos (para consumo) y salida ya convertida en litros (para volumen).
+	    carga.kilos = kilosAsignados > 0 ? kilosAsignados : 0;
+	    carga.litros_directos = totalSalida;
+	    carga.litros = totalSalida;
+	  }
 
-  if (esNodoPrensado(origen)) {
-    const baseKilos = normalizarNumero(carga.kilos);
-    const factor = obtenerFactorMermaNodo(origen);
-    const litrosTrasPrensa = baseKilos > 0 ? aplicarMerma(baseKilos, factor) : 0;
-    const litrosDirectosPrevios = normalizarNumero(carga.litros_directos);
-    const total = litrosTrasPrensa + (litrosDirectosPrevios > 0 ? litrosDirectosPrevios : 0);
-    carga.kilos = 0;
-    if (total > 0) {
-      carga.litros_directos = total;
-      carga.litros = total;
-      origen.datos.kilos = 0;
-      origen.datos.litros_directos = total;
-      origen.datos.litros = total;
-      origen.datos.volumen = total;
-      guardarEstadoNodos();
-      mostrarInfoNodo(origen.id);
-    }
-  }
+	  
 
   // Trasiego: contenedor a contenedor (depósitos, barricas, almacén).
   if (esConexionTrasiego(origen, destino)) {
@@ -5780,11 +6788,11 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
   if (destino.tipo === "deposito" && destino.datos.id_ref) {
     actualizarDepositoContenido(destino.datos.id_ref, carga.variedad, carga.litros, carga.anada);
   }
-  if (destino.tipo === "deposito" || destino.tipo === "coupage") {
-    const registro = asegurarAsignacionRegistro(destino, origen.id);
-    const litrosFinales =
-      normalizarNumero(carga.litros_directos) ??
-      normalizarNumero(carga.litros) ??
+	  if (destino.tipo === "deposito" || destino.tipo === "coupage") {
+	    const registro = asegurarAsignacionRegistro(destino, origen.id);
+	    const litrosFinales =
+	      normalizarNumero(carga.litros_directos) ??
+	      normalizarNumero(carga.litros) ??
       0;
     const kilosFinales = normalizarNumero(carga.kilos) ?? 0;
     if (litrosFinales > 0) {
@@ -5795,11 +6803,12 @@ function manejarTransferenciaNodo(origen, destino, cargaPersonalizada = null) {
     } else if (esNodoPrensado(origen)) {
       registro.kilos = 0;
     }
-    actualizarVariedadDesdeAportes(destino);
-    actualizarVolumenDesdeAsignaciones(destino);
-    guardarEstadoNodos();
-  }
-}
+	    actualizarVariedadDesdeAportes(destino);
+	    actualizarVolumenDesdeAsignaciones(destino);
+	    guardarEstadoNodos();
+	  }
+	  return carga;
+	}
 
 function normalizarNumero(valor) {
   if (valor === undefined || valor === null || valor === "") return null;
@@ -5824,17 +6833,20 @@ function obtenerVariedadNodo(nodo, visitados = new Set()) {
   return nodo?.datos?.variedad || nodo?.datos?.variedadBase || "";
 }
 
-function obtenerCargaDesdeNodo(nodo, visitados = new Set()) {
-  if (!nodo) return null;
-  const clave = nodo.id || nodo;
-  if (visitados.has(clave)) return null;
-  visitados.add(clave);
-  const unidadNodo = obtenerUnidadNodo(nodo);
+	function obtenerCargaDesdeNodo(nodo, visitados = new Set()) {
+	  if (!nodo) return null;
+	  const clave = nodo.id || nodo;
+	  if (visitados.has(clave)) return null;
+	  visitados.add(clave);
+	  const unidadNodo = obtenerUnidadNodo(nodo);
   if (nodo.tipo === "entrada" && nodo.datos?.id_ref && nodo.datos?.kilos == null) {
     intentarPoblarNodoEntrada(nodo);
   }
   if (nodo.tipo === "deposito" && nodo.datos?.id_ref && nodo.datos?.codigo == null) {
     intentarPoblarNodoDeposito(nodo);
+  }
+  if ((nodo.tipo === "deposito" || nodo.tipo === "coupage") && nodo.datos?.asignaciones) {
+    actualizarVolumenDesdeAsignaciones(nodo);
   }
   const datos = { ...(nodo.datos || {}) };
   if (nodo.tipo === "entrada" && nodo.datos?.id_ref) {
@@ -5904,30 +6916,80 @@ function obtenerCargaDesdeNodo(nodo, visitados = new Set()) {
 
   const sinKilos = !(carga.kilos > 0);
   const sinLitros = !(carga.litros > 0) && !(carga.litros_directos > 0);
-  if (sinKilos && sinLitros && nodo.id != null) {
-    let sumK = 0;
-    let sumL = 0;
-    obtenerPredecesores(nodo.id).forEach(pre => {
-      const cargaPre = obtenerCargaDesdeNodo(pre, visitados);
-      if (!cargaPre) return;
-      const k = normalizarNumero(cargaPre.kilos);
-      const l = normalizarNumero(cargaPre.litros_directos ?? cargaPre.litros);
-      if (k > 0) sumK += k;
-      if (l > 0) sumL += l;
-    });
-    if (sumK > 0) {
-      carga.kilos = Number(sumK.toFixed(2));
-    }
-    if (sumL > 0) {
-      const lnum = Number(sumL.toFixed(2));
-      carga.litros_directos = lnum;
-      carga.litros = lnum;
-    }
-  }
+	  if (sinKilos && sinLitros && nodo.id != null) {
+	    let sumK = 0;
+	    let sumL = 0;
+	    obtenerPredecesores(nodo.id).forEach(pre => {
+	      const cargaPre = obtenerCargaDesdeNodo(pre, visitados);
+	      if (!cargaPre) return;
+	      const k = normalizarNumero(cargaPre.kilos);
+	      const l = normalizarNumero(cargaPre.litros_directos ?? cargaPre.litros);
+	      if (k > 0) sumK += k;
+	      if (l > 0) sumL += l;
+	    });
+	    if (sumK > 0) {
+	      carga.kilos = Number(sumK.toFixed(2));
+	    }
+	    if (sumL > 0) {
+	      const lnum = Number(sumL.toFixed(2));
+	      carga.litros_directos = lnum;
+	      carga.litros = lnum;
+	    }
+	  }
 
-  visitados.delete(clave);
-  return Object.keys(carga).length ? carga : null;
-}
+	  if (nodo.id != null && esNodoConversor(nodo)) {
+	    const factor = obtenerFactorMermaNodo(nodo);
+	    let kilosEntrantes = 0;
+	    let litrosDirectosEntrantes = 0;
+
+	    const aportesObj = nodo.datos?.aportes;
+	    const aportes = aportesObj && typeof aportesObj === "object" ? Object.values(aportesObj) : [];
+
+	    // Preferimos los aportes reales del nodo (cantidad asignada a ESTE nodo) para evitar
+	    // sobrecontar cuando un padre reparte su carga entre varios destinos.
+	    if (aportes.length) {
+	      aportes.forEach(a => {
+	        const k = normalizarNumero(a?.kilos) || 0;
+	        const l = normalizarNumero(a?.litros_directos ?? a?.litros) || 0;
+	        if (k > 0) {
+	          kilosEntrantes += k;
+	          return;
+	        }
+	        if (l > 0) {
+	          litrosDirectosEntrantes += l;
+	        }
+	      });
+	    } else {
+	      // Fallback: si aún no hay aportes (recién conectado), usamos los padres.
+	      const padres = obtenerPredecesores(nodo.id);
+	      padres.forEach(pre => {
+	        const cargaPre = obtenerCargaDesdeNodo(pre, visitados);
+	        if (!cargaPre) return;
+	        const k = normalizarNumero(cargaPre.kilos) || 0;
+	        const l = normalizarNumero(cargaPre.litros_directos ?? cargaPre.litros) || 0;
+	        if (k > 0) kilosEntrantes += k;
+	        if (l > 0) litrosDirectosEntrantes += l;
+	      });
+	    }
+
+	    const litrosConvertidos = kilosEntrantes > 0 ? aplicarMerma(kilosEntrantes, factor) : 0;
+	    const totalSalida = litrosConvertidos + (litrosDirectosEntrantes > 0 ? litrosDirectosEntrantes : 0);
+	    if (totalSalida > 0) {
+	      const totalRed = Number(totalSalida.toFixed(2));
+	      carga.kilos = 0;
+	      carga.litros_directos = totalRed;
+	      carga.litros = totalRed;
+	      nodo.datos = nodo.datos || {};
+	      nodo.datos.kilos = 0;
+	      nodo.datos.litros_directos = totalRed;
+	      nodo.datos.litros = totalRed;
+	      nodo.datos.volumen = totalRed;
+	    }
+	  }
+
+	  visitados.delete(clave);
+	  return Object.keys(carga).length ? carga : null;
+	}
 
 function obtenerMermaDefault(nodo) {
   // Por defecto no aplicamos merma; solo se usa la que indique el usuario.
@@ -6041,6 +7103,7 @@ function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
     temperatura: normalizarNumero(carga.temperatura),
   };
   destino.datos.aportes[normalizarIdNodo(origenId)] = aporte;
+  limpiarAportesOrfanos(destino);
   let sumK = 0;
   let sumL = 0;
   const mixVariedades = new Map();
@@ -6056,8 +7119,7 @@ function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
     else if (a.litros > 0) sumL += a.litros;
     const peso = (a.litros_directos > 0 ? a.litros_directos : a.litros > 0 ? a.litros : a.kilos) || 0;
     if (a.variedad && peso > 0) {
-      const clave = a.variedad.toString().trim();
-      mixVariedades.set(clave, (mixVariedades.get(clave) || 0) + peso);
+      agregarVariedadAPeso(mixVariedades, a.variedad, peso);
     }
     const dens = normalizarNumero(a.densidad);
     if (dens != null) {
@@ -6148,6 +7210,8 @@ function desconectarNodo(id) {
     const origen = flujoNodos.find(n => n.id === origenId);
     redistribuirCargas(origen);
   });
+  flujoNodos.forEach(n => limpiarAportesOrfanos(n));
+  flujoNodos.forEach(n => recalcularDatosDesdeAportes(n));
   flujoNodos.forEach(n => limpiarAsignacionesOrfanas(n));
   limpiarNodosSinEntradas();
   limpiarVariedadDepositosSinEntradas();
@@ -6196,6 +7260,8 @@ function eliminarNodoPorId(id) {
     const origen = flujoNodos.find(n => n.id === origenId);
     redistribuirCargas(origen);
   });
+  flujoNodos.forEach(n => limpiarAportesOrfanos(n));
+  flujoNodos.forEach(n => recalcularDatosDesdeAportes(n));
   flujoNodos.forEach(n => limpiarAsignacionesOrfanas(n));
   limpiarNodosSinEntradas();
   guardarEstadoNodos();
@@ -6257,28 +7323,109 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
   }
 }
 
-function mostrarInfoNodo(id) {
-  const nodo = flujoNodos.find(n => n.id === id);
-  const panel = document.getElementById("flowNodeInfo");
-  if (!panel) return;
-  if (!nodo) {
-    panel.textContent = "Selecciona un nodo para ver los detalles.";
-    return;
-  }
-  const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo", campos: [] };
-  const campos = config.campos || [];
-  const detalles = campos
-    .map(campo => {
-      const valor = obtenerValorCampoVisual(nodo, campo);
-      return `<strong>${campo.label}:</strong> ${valor || "—"}`;
-    })
-    .join("<br>");
-  panel.innerHTML = `<strong>${config.icono || "●"} ${nodo.titulo || config.label}</strong><br>${detalles || "Sin datos"}`;
-}
+	function mostrarInfoNodo(id) {
+	  const panel = document.getElementById("flowNodeInfo");
+	  if (!panel) return;
+	  const escapeHtml = value =>
+	    String(value ?? "")
+	      .replace(/&/g, "&amp;")
+	      .replace(/</g, "&lt;")
+	      .replace(/>/g, "&gt;")
+	      .replace(/\"/g, "&quot;")
+	      .replace(/'/g, "&#39;");
+
+	  const renderEmpty = () => {
+	    panel.innerHTML = `
+	      <div class="flow-inspector-header">
+	        <div class="flow-inspector-icon">🔎</div>
+	        <div>
+	          <div class="flow-inspector-title">Inspector</div>
+	          <div class="flow-inspector-sub">Selecciona un nodo en el mapa para ver detalles.</div>
+	        </div>
+	      </div>
+	      <div class="flow-inspector-tags">
+	        <span class="flow-tag">Doble clic: editar</span>
+	        <span class="flow-tag">Conectar: origen → destino</span>
+	        <span class="flow-tag">Arrastrar: mover</span>
+	        <span class="flow-tag">Click fuera: limpiar</span>
+	      </div>
+	      <dl class="flow-inspector-fields">
+	        <div class="flow-field"><dt>Consejo</dt><dd>Usa “Exportar imagen” para compartir el flujo.</dd></div>
+	      </dl>
+	    `;
+	  };
+
+	  const nodo = flujoNodos.find(n => n.id === id);
+	  if (!nodo) {
+	    renderEmpty();
+	    return;
+	  }
+
+	  const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo", campos: [] };
+	  const iconHtml =
+	    config.icono && config.icono.trim().startsWith("<")
+	      ? config.icono
+	      : escapeHtml(config.icono || "●");
+	  const tituloNodo = escapeHtml(nodo.titulo || config.label);
+	  const tipoLabel = escapeHtml(config.label || nodo.tipo || "Nodo");
+
+	  const entradas = obtenerPredecesores(nodo.id).length;
+	  const salidas = (nodo.targets || []).length;
+	  const unidad = obtenerUnidadVisual(nodo);
+	  const textoVolumen = obtenerTextoVolumenNodo(nodo);
+
+	  const tags = [
+	    `Tipo: ${tipoLabel}`,
+	    `Entradas: ${entradas}`,
+	    `Salidas: ${salidas}`,
+	    `Unidad: ${unidad}`,
+	  ];
+
+	  const campos = (config.campos || []).filter(campo => campo && campo.tipo !== "tablaControl");
+	  const filas = campos
+	    .map(campo => ({
+	      label: campo.label,
+	      value: obtenerValorCampoVisual(nodo, campo),
+	    }))
+	    .filter(item => item.label && item.value);
+
+	  const detalles =
+	    filas.length > 0
+	      ? `<dl class="flow-inspector-fields">${filas
+	          .map(
+	            item =>
+	              `<div class="flow-field"><dt>${escapeHtml(item.label)}</dt><dd>${escapeHtml(item.value)}</dd></div>`
+	          )
+	          .join("")}</dl>`
+	      : `<div class="flow-inspector-sub">Sin datos adicionales.</div>`;
+
+	  panel.innerHTML = `
+	    <div class="flow-inspector-header">
+	      <div class="flow-inspector-icon">${iconHtml}</div>
+	      <div>
+	        <div class="flow-inspector-title">${tituloNodo}</div>
+	        <div class="flow-inspector-sub">${escapeHtml(textoVolumen || "")}</div>
+	      </div>
+	    </div>
+	    <div class="flow-inspector-tags">${tags
+	      .map(t => `<span class="flow-tag">${escapeHtml(t)}</span>`)
+	      .join("")}</div>
+	    ${detalles}
+	  `;
+	}
 
 function abrirFlowModal(id) {
   const nodo = flujoNodos.find(n => n.id === id);
   if (!nodo) return;
+  // Asegurar que la mezcla/variedad esté recalculada antes de pintar el formulario (modal).
+  try {
+    const comp = calcularComposicionVariedades(nodo);
+    if (comp.mix && comp.mix.size) {
+      guardarComposicionEnNodo(nodo, comp.mix, comp.total);
+    }
+  } catch (e) {
+    // noop
+  }
   nodoEnEdicion = nodo;
   const modal = document.getElementById("flowModal");
   const titulo = document.getElementById("flowModalTitulo");
@@ -6377,7 +7524,20 @@ function abrirFlowModal(id) {
           })
         : ([...(cacheDepositos || []), ...(cacheMastelones || [])].map(d => {
             const mixDep = formatearResumenVariedades(d.composicionVariedades || d.composicion_variedades);
-            const variedades = mixDep || d.vino_tipo || "";
+            let variedades = mixDep || d.vino_tipo || "";
+            // Si el depósito está en el mapa de nodos, usar su mezcla real aunque aún no esté persistida en la BD.
+            try {
+              const nodoDepo = flujoNodos.find(
+                n => n.tipo === "deposito" && n.datos && String(n.datos.id_ref) === String(d.id)
+              );
+              if (nodoDepo) {
+                const comp = calcularComposicionVariedades(nodoDepo);
+                const texto = formatearComposicionVariedades(comp.mix, comp.total);
+                if (texto) variedades = texto;
+              }
+            } catch (e) {
+              // noop
+            }
             const labelVar = variedades ? ` · ${variedades}` : "";
             return {
               id: d.id,
@@ -6666,9 +7826,18 @@ function intentarPoblarNodoDeposito(nodo) {
   const camposResguardar = ["volumen", "tipo", "material", "fase", "kilos", "variedad"];
   const valoresPrevios = {};
   camposResguardar.forEach(campo => {
-    if (nodo.datos && nodo.datos[campo] != null && nodo.datos[campo] !== "") {
-      valoresPrevios[campo] = nodo.datos[campo];
+    if (!nodo.datos) return;
+    const valor = nodo.datos[campo];
+    if (valor == null || valor === "") return;
+    // Si viene a 0 (default), dejamos que el depósito real rellene el volumen/kilos.
+    if (["volumen", "kilos"].includes(campo)) {
+      const num = normalizarNumero(valor);
+      if (num != null && num !== 0) {
+        valoresPrevios[campo] = valor;
+      }
+      return;
     }
+    valoresPrevios[campo] = valor;
   });
   const controlPrevio = Array.isArray(nodo.datos.control)
     ? nodo.datos.control.map(item => ({ ...item }))
@@ -6701,14 +7870,7 @@ function intentarPoblarNodoDeposito(nodo) {
 
 function eliminarNodoActivo() {
   if (!nodoEnEdicion) return;
-  flujoNodos = flujoNodos.filter(n => n.id !== nodoEnEdicion.id);
-  flujoNodos.forEach(n => {
-    n.targets = (n.targets || []).filter(t => t !== nodoEnEdicion.id);
-  });
-  guardarEstadoNodos();
-  renderFlowNodes();
-  cerrarFlowModal();
-  mostrarInfoNodo(null);
+  eliminarNodoPorId(nodoEnEdicion.id);
 }
 
 function guardarEstadoNodos() {
@@ -6734,6 +7896,8 @@ async function cargarNodosGuardados() {
       if (Array.isArray(data.nodos)) {
         flujoNodos = data.nodos;
         flujoNodos.forEach(n => {
+          limpiarAportesOrfanos(n);
+          recalcularDatosDesdeAportes(n);
           actualizarTituloNodo(n);
           actualizarVariedadDesdeAportes(n);
           asegurarMermaPorDefecto(n);
@@ -6753,6 +7917,8 @@ async function cargarNodosGuardados() {
     if (Array.isArray(guardados)) {
       flujoNodos = guardados;
       flujoNodos.forEach(n => {
+        limpiarAportesOrfanos(n);
+        recalcularDatosDesdeAportes(n);
         actualizarTituloNodo(n);
         actualizarVariedadDesdeAportes(n);
         asegurarMermaPorDefecto(n);
@@ -7458,8 +8624,8 @@ function renderPlano() {
 
   const canvasWidth = canvas.clientWidth || canvas.offsetWidth || 600;
   const canvasHeight = canvas.clientHeight || canvas.offsetHeight || 400;
-  const cardWidth = 102;
-  const cardHeight = 108;
+  const cardWidth = 90;
+  const cardHeight = 96;
   const offsetXPercent = (cardWidth / canvasWidth) * 100;
   const offsetYPercent = (cardHeight / canvasHeight) * 100;
 
