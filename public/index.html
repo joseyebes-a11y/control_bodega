@@ -2888,6 +2888,17 @@ label {
 	            letter-spacing: 0.01em;
 	        }
 
+	        .nav-search-empty {
+	            display: none;
+	            margin: 8px 8px 6px;
+	            padding: 10px 12px;
+	            border-radius: 14px;
+	            border: 1px dashed rgba(255,255,255,0.16);
+	            background: rgba(255,255,255,0.04);
+	            color: rgba(255,255,255,0.62);
+	            font-size: 12px;
+	        }
+
 	        .nav-item-hidden {
 	            display: none !important;
 	        }
@@ -3046,26 +3057,27 @@ label {
             <div class="nav-dropdown-menu" id="navMenu">
                 <div class="nav-search" role="search">
                     <span class="nav-search-icon" aria-hidden="true">🔎</span>
-                    <input id="navSearch" type="search" placeholder="Buscar sección…" autocomplete="off" oninput="filtrarNavMenu(this.value)" />
+                    <input id="navSearch" type="search" placeholder="Buscar sección…" autocomplete="off" oninput="filtrarNavMenu(this.value)" onkeydown="onNavSearchKeydown(event)" />
                     <button type="button" class="nav-search-clear" onclick="limpiarNavBusqueda()" aria-label="Limpiar búsqueda">✕</button>
                 </div>
                 <div class="nav-search-hint">⌘/Ctrl K · Esc</div>
-                <a href="#" data-section="bodega" onclick="cerrarNavMenu(); mostrarSeccion('bodega')">🏠 Resumen</a>
-                <a href="#" data-section="entradas" onclick="cerrarNavMenu(); mostrarSeccion('entradas')">🍇 Entradas de uva</a>
-                <a href="#" data-section="depositos" onclick="cerrarNavMenu(); mostrarSeccion('depositos')">🛢 Depósitos</a>
-	                <a href="#" data-section="barricas" onclick="cerrarNavMenu(); mostrarSeccion('barricas')" class="nav-barricas-link">
+                <div class="nav-search-empty" id="navSearchEmpty">Sin resultados</div>
+                <a href="#" data-section="bodega" data-keywords="inicio home dashboard bodega resumen" onclick="cerrarNavMenu(); mostrarSeccion('bodega')">🏠 Resumen</a>
+                <a href="#" data-section="entradas" data-keywords="uva entrada vendimia kilos" onclick="cerrarNavMenu(); mostrarSeccion('entradas')">🍇 Entradas de uva</a>
+                <a href="#" data-section="depositos" data-keywords="deposito depositos tanque mastelone mastelones" onclick="cerrarNavMenu(); mostrarSeccion('depositos')">🛢 Depósitos</a>
+	                <a href="#" data-section="barricas" data-keywords="barrica barricas crianza madera maderas roble" onclick="cerrarNavMenu(); mostrarSeccion('barricas')" class="nav-barricas-link">
 	                    <img src="/barricas.png" alt="Maderas" class="nav-barricas-icon" />
 	                    Maderas
 	                </a>
-                <a href="#" data-section="plano" onclick="cerrarNavMenu(); mostrarSeccion('plano')">🗺 Plano bodega</a>
-                <a href="#" data-section="flujo" onclick="cerrarNavMenu(); mostrarSeccion('flujo')">🔗 Mapa de nodos</a>
-                <a href="#" data-section="movimientos" onclick="cerrarNavMenu(); mostrarSeccion('movimientos')">🔄 Movimientos</a>
-                <a href="#" data-section="embotellado" onclick="cerrarNavMenu(); mostrarSeccion('embotellado')">🍾 Embotellado</a>
-                <a href="#" data-section="enologicos" onclick="cerrarNavMenu(); mostrarSeccion('enologicos')">🧪 Productos enológicos</a>
-                <a href="#" data-section="analiticos" onclick="cerrarNavMenu(); mostrarSeccion('analiticos')">📊 Registros analíticos</a>
-                <a href="#" data-section="analisisLab" onclick="cerrarNavMenu(); mostrarSeccion('analisisLab')">📄 Análisis laboratorio</a>
-                <a href="#" data-section="limpieza" onclick="cerrarNavMenu(); mostrarSeccion('limpieza')">🧽 Almacén limpieza</a>
-                <a href="#" id="navLogout">🚪 Cerrar sesión</a>
+                <a href="#" data-section="plano" data-keywords="plano mapa bodega ubicacion" onclick="cerrarNavMenu(); mostrarSeccion('plano')">🗺 Plano bodega</a>
+                <a href="#" data-section="flujo" data-keywords="flujo nodos mapa nodos replay" onclick="cerrarNavMenu(); mostrarSeccion('flujo')">🔗 Mapa de nodos</a>
+                <a href="#" data-section="movimientos" data-keywords="movimientos trasiego trasvase entradas salidas" onclick="cerrarNavMenu(); mostrarSeccion('movimientos')">🔄 Movimientos</a>
+                <a href="#" data-section="embotellado" data-keywords="embotellado botellas botella lote" onclick="cerrarNavMenu(); mostrarSeccion('embotellado')">🍾 Embotellado</a>
+                <a href="#" data-section="enologicos" data-keywords="enologicos aditivos productos sulfuroso" onclick="cerrarNavMenu(); mostrarSeccion('enologicos')">🧪 Productos enológicos</a>
+                <a href="#" data-section="analiticos" data-keywords="analiticos analitica registros" onclick="cerrarNavMenu(); mostrarSeccion('analiticos')">📊 Registros analíticos</a>
+                <a href="#" data-section="analisisLab" data-keywords="analisis laboratorio lab pdf" onclick="cerrarNavMenu(); mostrarSeccion('analisisLab')">📄 Análisis laboratorio</a>
+                <a href="#" data-section="limpieza" data-keywords="limpieza almacen productos limpieza" onclick="cerrarNavMenu(); mostrarSeccion('limpieza')">🧽 Almacén limpieza</a>
+                <a href="#" id="navLogout" data-keywords="logout salir cerrar sesion">🚪 Cerrar sesión</a>
             </div>
         </div>
         <button type="button" class="user-chip" id="userBadge" title="Usuario activo">—</button>
@@ -9705,23 +9717,61 @@ function normalizarTextoBusqueda(texto) {
 function filtrarNavMenu(valor) {
   const menu = document.getElementById("navMenu");
   if (!menu) return;
+  const empty = document.getElementById("navSearchEmpty");
   const q = normalizarTextoBusqueda(valor);
   const enlaces = Array.from(menu.querySelectorAll("a"));
+  let visibles = 0;
   enlaces.forEach(a => {
     if (!q) {
       a.classList.remove("nav-item-hidden");
       return;
     }
-    const txt = normalizarTextoBusqueda(a.textContent);
+    const txt = normalizarTextoBusqueda(
+      [
+        a.textContent,
+        a.dataset.section || "",
+        a.dataset.keywords || "",
+        a.getAttribute("title") || "",
+      ].join(" ")
+    );
     const visible = txt.includes(q);
     a.classList.toggle("nav-item-hidden", !visible);
+    if (visible) visibles += 1;
   });
+  if (empty) {
+    empty.style.display = q && visibles === 0 ? "block" : "none";
+  }
 }
 
 function limpiarNavBusqueda() {
   const input = document.getElementById("navSearch");
   if (input) input.value = "";
   filtrarNavMenu("");
+}
+
+function onNavSearchKeydown(ev) {
+  const menu = document.getElementById("navMenu");
+  if (!menu) return;
+  const key = ev.key || "";
+  if (key === "Escape") {
+    ev.preventDefault();
+    cerrarNavMenu();
+    return;
+  }
+  if (key === "Enter") {
+    ev.preventDefault();
+    const first = menu.querySelector("a:not(.nav-item-hidden)");
+    if (first) {
+      first.click();
+    }
+    return;
+  }
+  if (key === "ArrowDown") {
+    ev.preventDefault();
+    const first = menu.querySelector("a:not(.nav-item-hidden)");
+    if (first) first.focus();
+    return;
+  }
 }
 
 function obtenerInicialesUsuario(usuario) {
@@ -9887,6 +9937,30 @@ document.addEventListener("DOMContentLoaded", () => {
     navToggleBtn.addEventListener("click", event => {
       event.stopPropagation();
       toggleNavMenu();
+    });
+  }
+  const navSearch = document.getElementById("navSearch");
+  if (navSearch) {
+    navSearch.addEventListener("input", () => filtrarNavMenu(navSearch.value));
+    navSearch.addEventListener("keydown", onNavSearchKeydown);
+  }
+  const navLogout = document.getElementById("navLogout");
+  if (navLogout) {
+    navLogout.addEventListener("click", async event => {
+      event.preventDefault();
+      cerrarNavMenu();
+      try {
+        const res = await fetch("/logout", { method: "POST", credentials: "same-origin" });
+        if (!res.ok) {
+          mostrarAviso("No se pudo cerrar la sesión.", "error");
+          return;
+        }
+      } catch (err) {
+        console.error("Error cerrando sesión:", err);
+        mostrarAviso("No se pudo cerrar la sesión.", "error");
+        return;
+      }
+      window.location.assign("/login");
     });
   }
   inicializarFlowEditor();
