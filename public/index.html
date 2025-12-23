@@ -2723,6 +2723,310 @@ label {
 	            }
 	        }
 	    </style>
+	    <style id="modernUiTheme">
+	        :root {
+	            --vino-oscuro: #120612;
+	            --vino: #6b1036;
+	            --magenta: #ff4d97;
+	            --rose: #fff3f8;
+	            --arena: #f8f2ff;
+	            --oro: #f3c77b;
+	            --texto: #1c1024;
+	            --accent: #c2a9ff;
+	            --linea: rgba(255, 255, 255, 0.34);
+	            --gris-ligero: rgba(255,255,255,0.62);
+
+	            --ui-bg0: #07030b;
+	            --ui-bg1: #1a0f26;
+	            --ui-surface: rgba(255,255,255,0.92);
+	            --ui-surface-2: rgba(255,255,255,0.72);
+	            --ui-surface-3: rgba(255,255,255,0.58);
+	            --ui-border: rgba(255,255,255,0.42);
+	            --ui-border-strong: rgba(255,255,255,0.62);
+	            --ui-border-dark: rgba(255,255,255,0.14);
+	            --ui-shadow-lg: 0 32px 90px rgba(0,0,0,0.45);
+	            --ui-shadow-md: 0 20px 60px rgba(0,0,0,0.30);
+	            --ui-shadow-sm: 0 12px 30px rgba(0,0,0,0.18);
+	            --ui-radius-xl: 30px;
+	            --ui-radius-lg: 24px;
+	            --ui-radius-md: 16px;
+	            --ui-radius-sm: 12px;
+	            --ui-focus: rgba(255, 77, 151, 0.45);
+	        }
+
+	        body {
+	            background:
+	                radial-gradient(circle at 16% 18%, rgba(255, 142, 199, 0.14), transparent 48%),
+	                radial-gradient(circle at 82% 10%, rgba(195, 169, 255, 0.16), transparent 52%),
+	                radial-gradient(circle at 70% 85%, rgba(243, 199, 123, 0.10), transparent 55%),
+	                linear-gradient(180deg, var(--ui-bg1), var(--ui-bg0) 60%);
+	            color: var(--texto);
+	        }
+
+	        body::before,
+	        body::after {
+	            opacity: 0.7;
+	            filter: blur(22px);
+	        }
+
+	        :focus-visible {
+	            outline: 2px solid var(--ui-focus);
+	            outline-offset: 3px;
+	        }
+
+	        .topbar {
+	            padding: 10px 18px;
+	            background: rgba(8, 4, 15, 0.22);
+	            border-bottom: 1px solid rgba(255,255,255,0.10);
+	            backdrop-filter: blur(16px);
+	        }
+
+	        .topbar-title button {
+	            border-radius: 26px;
+	            padding: 14px 22px;
+	            box-shadow:
+	                0 18px 48px rgba(0,0,0,0.45),
+	                0 0 0 1px rgba(255,255,255,0.14) inset,
+	                0 0 0 7px rgba(255,255,255,0.05);
+	        }
+
+	        .topbar-title .marca {
+	            font-size: 34px;
+	        }
+
+	        .topbar-title .submarca {
+	            letter-spacing: 5px;
+	            font-size: 18px;
+	        }
+
+	        .user-chip {
+	            display: inline-flex;
+	            align-items: center;
+	            justify-content: center;
+	            width: 46px;
+	            height: 46px;
+	            border-radius: 999px;
+	            border: 1px solid rgba(255,255,255,0.16);
+	            background: rgba(255,255,255,0.06);
+	            color: rgba(255,255,255,0.92);
+	            font-weight: 900;
+	            box-shadow: 0 18px 45px rgba(0,0,0,0.35);
+	            backdrop-filter: blur(16px);
+	            cursor: default;
+	        }
+
+	        .nav-dropdown-menu {
+	            border-radius: 22px;
+	            border: 1px solid rgba(255,255,255,0.14);
+	            box-shadow: var(--ui-shadow-lg);
+	        }
+
+	        .nav-search {
+	            display: flex;
+	            align-items: center;
+	            gap: 10px;
+	            padding: 10px 12px;
+	            border-radius: 16px;
+	            background: rgba(255,255,255,0.06);
+	            border: 1px solid rgba(255,255,255,0.12);
+	            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+	        }
+
+	        .nav-search-icon {
+	            width: 22px;
+	            height: 22px;
+	            display: inline-flex;
+	            align-items: center;
+	            justify-content: center;
+	            color: rgba(255,255,255,0.7);
+	            flex: 0 0 auto;
+	        }
+
+	        #navSearch {
+	            margin: 0;
+	            padding: 0;
+	            border: none;
+	            background: transparent;
+	            color: rgba(255,255,255,0.92);
+	            font-size: 13px;
+	            outline: none;
+	            width: 100%;
+	            min-width: 0;
+	        }
+
+	        #navSearch:focus {
+	            box-shadow: none;
+	            transform: none;
+	        }
+
+	        #navSearch::placeholder {
+	            color: rgba(255,255,255,0.5);
+	        }
+
+	        .nav-search-clear {
+	            border: none;
+	            width: 34px;
+	            height: 34px;
+	            border-radius: 12px;
+	            background: rgba(255,255,255,0.08);
+	            color: rgba(255,255,255,0.85);
+	            cursor: pointer;
+	            box-shadow: none;
+	            margin-top: 0;
+	            padding: 0;
+	        }
+
+	        .nav-search-clear:hover {
+	            background: rgba(255,255,255,0.14);
+	            transform: translateY(-1px);
+	        }
+
+	        .nav-search-hint {
+	            margin: 8px 8px 4px;
+	            font-size: 11px;
+	            color: rgba(255,255,255,0.55);
+	            letter-spacing: 0.01em;
+	        }
+
+	        .nav-item-hidden {
+	            display: none !important;
+	        }
+
+	        .card {
+	            background: var(--ui-surface);
+	            border-radius: var(--ui-radius-xl);
+	            border: 1px solid var(--ui-border);
+	            box-shadow: var(--ui-shadow-md);
+	        }
+
+	        .card::before {
+	            opacity: 0.55;
+	        }
+
+	        .card .card {
+	            background: var(--ui-surface-2);
+	            border-radius: var(--ui-radius-lg);
+	            border: 1px solid rgba(255,255,255,0.38);
+	            box-shadow: var(--ui-shadow-sm);
+	        }
+
+	        .chart-card {
+	            background: var(--ui-surface-3);
+	            border-radius: var(--ui-radius-lg);
+	            border: 1px solid rgba(255,255,255,0.30);
+	        }
+
+	        .indicador-card {
+	            background: var(--ui-surface-2);
+	            border-radius: var(--ui-radius-lg);
+	            box-shadow: 0 14px 40px rgba(20,8,32,0.16);
+	        }
+
+	        table {
+	            border-radius: 22px;
+	            border: 1px solid rgba(255,255,255,0.32);
+	            box-shadow: 0 12px 34px rgba(16,6,28,0.12);
+	        }
+
+	        th {
+	            background: linear-gradient(90deg, rgba(95,44,130,0.10), rgba(241,92,146,0.10));
+	        }
+
+	        input,
+	        select,
+	        textarea {
+	            border-radius: 14px;
+	            border: 1px solid rgba(95,44,130,0.16);
+	            background: rgba(255,255,255,0.86);
+	            box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+	        }
+
+	        input:focus,
+	        select:focus,
+	        textarea:focus {
+	            border-color: rgba(255, 77, 151, 0.70);
+	            box-shadow: 0 0 0 4px rgba(255, 77, 151, 0.16);
+	            transform: translateY(-1px);
+	        }
+
+	        button {
+	            border-radius: 14px;
+	            background: linear-gradient(120deg, rgba(255, 77, 151, 0.95), rgba(95, 44, 130, 0.95));
+	            box-shadow: 0 16px 42px rgba(95, 44, 130, 0.28);
+	        }
+
+	        button:hover {
+	            box-shadow: 0 22px 60px rgba(95, 44, 130, 0.33);
+	        }
+
+	        .btnSecundario {
+	            --btn-sec-bg: rgba(15, 7, 20, 0.06);
+	            --btn-sec-border: rgba(18, 12, 28, 0.14);
+	            --btn-sec-text: rgba(18, 12, 28, 0.92);
+	            --btn-sec-bg-hover: rgba(15, 7, 20, 0.08);
+	            --btn-sec-border-hover: rgba(18, 12, 28, 0.20);
+	            background: var(--btn-sec-bg);
+	            color: var(--btn-sec-text);
+	            border: 1px solid var(--btn-sec-border);
+	            box-shadow: none;
+	        }
+
+	        .btnSecundario:hover {
+	            background: var(--btn-sec-bg-hover);
+	            border-color: var(--btn-sec-border-hover);
+	            transform: translateY(-1px);
+	        }
+
+	        .flow-replay-bar,
+	        .nav-dropdown-menu {
+	            --btn-sec-bg: rgba(255,255,255,0.08);
+	            --btn-sec-border: rgba(255,255,255,0.18);
+	            --btn-sec-text: rgba(255,255,255,0.92);
+	            --btn-sec-bg-hover: rgba(255,255,255,0.12);
+	            --btn-sec-border-hover: rgba(255,255,255,0.26);
+	        }
+
+	        .small-btn {
+	            background: rgba(15, 7, 20, 0.08);
+	            border: 1px solid rgba(18, 12, 28, 0.10);
+	            border-radius: 999px;
+	            padding: 8px 14px;
+	        }
+
+	        .metric-card {
+	            display: flex;
+	            flex-direction: column;
+	            gap: 8px;
+	            padding: 22px;
+	            border-radius: 24px;
+	            background: rgba(255,255,255,0.70);
+	            border: 1px solid rgba(255,255,255,0.34);
+	            box-shadow: 0 18px 52px rgba(11, 5, 21, 0.18);
+	        }
+
+	        .metric-value {
+	            font-size: 34px;
+	            font-weight: 900;
+	            letter-spacing: 0.2px;
+	            margin: 0;
+	            color: rgba(18, 12, 28, 0.92);
+	            font-variant-numeric: tabular-nums;
+	        }
+
+	        .toast {
+	            border: 1px solid rgba(255,255,255,0.14);
+	            backdrop-filter: blur(16px);
+	        }
+
+	        .toast-icon {
+	            font-size: 16px;
+	            filter: drop-shadow(0 6px 14px rgba(0,0,0,0.25));
+	        }
+
+	        .toast-text {
+	            flex: 1;
+	        }
+	    </style>
     <!-- Librerías para exportar PDF de la tabla de control -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-5Bg/sA0tE5mr39QQcvKA3evSvKWK2Kx4UvHQ3UKQY6u1/JmgvXIL1sSTB+kJDd/KikJS9rBDjocM9V0bP7nU5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" integrity="sha512-V8bfSFHzEIE8KPQrX61/6LvTItI+ZXhWU1Yai0udDCR0Y9uRMq8eGX2WizzKkbKhYzZ0vjFaZ8WFtQ28gLeg4A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -2740,6 +3044,13 @@ label {
                 <span class="caret">▼</span>
             </button>
             <div class="nav-dropdown-menu" id="navMenu">
+                <div class="nav-search" role="search">
+                    <span class="nav-search-icon" aria-hidden="true">🔎</span>
+                    <input id="navSearch" type="search" placeholder="Buscar sección…" autocomplete="off" oninput="filtrarNavMenu(this.value)" />
+                    <button type="button" class="nav-search-clear" onclick="limpiarNavBusqueda()" aria-label="Limpiar búsqueda">✕</button>
+                </div>
+                <div class="nav-search-hint">⌘/Ctrl K · Esc</div>
+                <a href="#" data-section="bodega" onclick="cerrarNavMenu(); mostrarSeccion('bodega')">🏠 Resumen</a>
                 <a href="#" data-section="entradas" onclick="cerrarNavMenu(); mostrarSeccion('entradas')">🍇 Entradas de uva</a>
                 <a href="#" data-section="depositos" onclick="cerrarNavMenu(); mostrarSeccion('depositos')">🛢 Depósitos</a>
 	                <a href="#" data-section="barricas" onclick="cerrarNavMenu(); mostrarSeccion('barricas')" class="nav-barricas-link">
@@ -2771,22 +3082,22 @@ label {
             <p>Visión rápida de cómo va todo.</p>
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">
-                <div class="card" style="flex:1;">
+                <div class="metric-card" style="flex:1;">
                     <h3>🍇 Kilos de uva entrados</h3>
-                    <p id="resumenKilos" style="font-size:32px; font-weight:bold;">0 kg</p>
+                    <p id="resumenKilos" class="metric-value">0 kg</p>
                 </div>
 
-                <div class="card" style="flex:1;">
+                <div class="metric-card" style="flex:1;">
                     <h3>🛢 Depósitos registrados</h3>
-                    <p id="resumenDepositos" style="font-size:32px; font-weight:bold;">0</p>
+                    <p id="resumenDepositos" class="metric-value">0</p>
                 </div>
 
-                <div class="card" style="flex:1;">
+                <div class="metric-card" style="flex:1;">
                     <h3 style="display:flex; align-items:center; gap:8px;">
                         <img src="/barricas.png" alt="Barricas" style="width:22px; height:22px; object-fit:contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25)); mix-blend-mode:multiply; background:transparent;">
                         Barricas registradas
                     </h3>
-                    <p id="resumenBarricas" style="font-size:32px; font-weight:bold;">0</p>
+                    <p id="resumenBarricas" class="metric-value">0</p>
                 </div>
 
             </div>
@@ -6502,7 +6813,15 @@ function mostrarAviso(mensaje, tipo = "info") {
   if (!contenedor) return;
   const toast = document.createElement("div");
   toast.className = `toast ${tipo}`;
-  toast.textContent = mensaje;
+  const icon = document.createElement("span");
+  icon.className = "toast-icon";
+  icon.textContent =
+    tipo === "success" ? "🍷" : tipo === "error" ? "⚠️" : tipo === "info" ? "🍇" : "ℹ️";
+  const text = document.createElement("span");
+  text.className = "toast-text";
+  text.textContent = mensaje;
+  toast.appendChild(icon);
+  toast.appendChild(text);
   contenedor.appendChild(toast);
   setTimeout(() => {
     toast.style.opacity = "0";
@@ -9346,8 +9665,13 @@ function toggleNavMenu() {
   const menu = document.getElementById("navMenu");
   const toggle = document.getElementById("navToggle");
   if (!menu || !toggle) return;
-  menu.classList.toggle("visible");
-  toggle.classList.toggle("open");
+  const abierto = menu.classList.toggle("visible");
+  toggle.classList.toggle("open", abierto);
+  if (abierto) {
+    prepararNavMenuAbierto();
+  } else {
+    limpiarNavBusqueda();
+  }
 }
 
 function cerrarNavMenu() {
@@ -9355,6 +9679,49 @@ function cerrarNavMenu() {
   const toggle = document.getElementById("navToggle");
   if (menu) menu.classList.remove("visible");
   if (toggle) toggle.classList.remove("open");
+  limpiarNavBusqueda();
+}
+
+function prepararNavMenuAbierto() {
+  const input = document.getElementById("navSearch");
+  if (!input) return;
+  try {
+    input.focus({ preventScroll: true });
+    input.select();
+  } catch (e) {
+    // noop
+  }
+}
+
+function normalizarTextoBusqueda(texto) {
+  return (texto || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function filtrarNavMenu(valor) {
+  const menu = document.getElementById("navMenu");
+  if (!menu) return;
+  const q = normalizarTextoBusqueda(valor);
+  const enlaces = Array.from(menu.querySelectorAll("a"));
+  enlaces.forEach(a => {
+    if (!q) {
+      a.classList.remove("nav-item-hidden");
+      return;
+    }
+    const txt = normalizarTextoBusqueda(a.textContent);
+    const visible = txt.includes(q);
+    a.classList.toggle("nav-item-hidden", !visible);
+  });
+}
+
+function limpiarNavBusqueda() {
+  const input = document.getElementById("navSearch");
+  if (input) input.value = "";
+  filtrarNavMenu("");
 }
 
 function obtenerInicialesUsuario(usuario) {
@@ -9487,6 +9854,27 @@ document.addEventListener("click", event => {
   }
 });
 
+document.addEventListener("keydown", ev => {
+  const menu = document.getElementById("navMenu");
+  const target = ev.target;
+  const esEditable =
+    target &&
+    (target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable);
+
+  if (!esEditable && (ev.metaKey || ev.ctrlKey) && (ev.key || "").toLowerCase() === "k") {
+    ev.preventDefault();
+    toggleNavMenu();
+    return;
+  }
+
+  if ((ev.key || "") === "Escape" && menu && menu.classList.contains("visible")) {
+    cerrarNavMenu();
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   mostrarSeccion("bodega");
   poblarSelectOpciones("depTipo", OPCIONES_TIPO_CONTENEDOR, "Tipo de contenedor");
@@ -9498,7 +9886,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (navToggleBtn) {
     navToggleBtn.addEventListener("click", event => {
       event.stopPropagation();
-      mostrarSeccion("bodega");
       toggleNavMenu();
     });
   }
