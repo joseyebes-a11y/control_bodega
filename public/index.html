@@ -9657,11 +9657,49 @@ function actualizarBarra(idBar, idLabel, valor, unidad, max) {
   }
 }
 
+function calcularLitrosResumenDesdeCaches() {
+  const sumarLitros = (lista, tipoNodo) =>
+    (lista || []).reduce((acc, item) => {
+      const capacidad = Number(item.capacidad_l ?? (item.capacidad_hl ? item.capacidad_hl * 100 : 0)) || 0;
+      const volNodo = tipoNodo ? obtenerVolumenFinalNodoContenedor(tipoNodo, item.id) : null;
+      const volumenFallback = Number(item.litros_actuales ?? 0) || 0;
+      const volumen = Number.isFinite(volNodo) ? Number(volNodo) : volumenFallback;
+      return { capacidad: acc.capacidad + capacidad, volumen: acc.volumen + (Number.isFinite(volumen) ? volumen : 0) };
+    }, { capacidad: 0, volumen: 0 });
+
+  const dep = sumarLitros(cacheDepositos, "deposito");
+  const mast = sumarLitros(cacheMastelones, "deposito");
+  const bar = sumarLitros(cacheBarricas, "barrica");
+  const kilos = (cacheEntradas || []).reduce((acc, e) => acc + (Number(e.kilos) || 0), 0);
+
+  return {
+    kilos_entrados: kilos,
+    litros_depositos: dep.volumen,
+    litros_mastelones: mast.volumen,
+    litros_barricas: bar.volumen,
+  };
+}
+
+function refrescarGraficosResumenDesdeCaches() {
+  const chartKilos = document.getElementById("chartKilosValue");
+  const chartLitros = document.getElementById("chartLitrosValue");
+  if (!chartKilos || !chartLitros) return;
+  const calculado = calcularLitrosResumenDesdeCaches();
+  actualizarGraficosResumen(calculado);
+}
+
 function actualizarGraficosResumen(data) {
-  const kilos = Number(data.kilos_entrados || 0);
-  const litrosDepositos = Number(data.litros_depositos || 0);
-  const litrosMastelones = Number(data.litros_mastelones || 0);
-  const litrosBarricas = Number(data.litros_barricas || 0);
+  const calculado = calcularLitrosResumenDesdeCaches();
+  const elegir = (valorApi, valorLocal) => {
+    const apiNum = Number(valorApi);
+    if (Number.isFinite(apiNum) && apiNum > 0) return apiNum;
+    const localNum = Number(valorLocal);
+    return Number.isFinite(localNum) ? localNum : 0;
+  };
+  const kilos = elegir(data?.kilos_entrados, calculado.kilos_entrados);
+  const litrosDepositos = elegir(data?.litros_depositos, calculado.litros_depositos);
+  const litrosMastelones = elegir(data?.litros_mastelones, calculado.litros_mastelones);
+  const litrosBarricas = elegir(data?.litros_barricas, calculado.litros_barricas);
   const litrosTotales = litrosDepositos + litrosMastelones + litrosBarricas;
   const maxValor = Math.max(kilos, litrosTotales, 1);
 
@@ -9695,13 +9733,16 @@ function actualizarIndicadores() {
   const depPrincipal = document.getElementById("indicadorDepositosPrincipal");
   if (!depPrincipal) return;
 
-  const calcularTotales = lista =>
+  const calcularTotales = (lista, tipoNodo) =>
     (lista || []).reduce(
       (acc, item) => {
         const capacidad = Number(
           item.capacidad_l ?? (item.capacidad_hl ? item.capacidad_hl * 100 : 0)
         ) || 0;
-        const volumen = Number(item.litros_actuales || 0) || 0;
+        const volNodo = tipoNodo ? obtenerVolumenFinalNodoContenedor(tipoNodo, item.id) : null;
+        const volumen = Number.isFinite(volNodo)
+          ? Number(volNodo)
+          : (Number(item.litros_actuales || 0) || 0);
         return {
           capacidad: acc.capacidad + capacidad,
           volumen: acc.volumen + volumen,
@@ -9710,7 +9751,7 @@ function actualizarIndicadores() {
       { capacidad: 0, volumen: 0 }
     );
 
-  const dep = calcularTotales(cacheDepositos);
+  const dep = calcularTotales(cacheDepositos, "deposito");
   const depPorcentaje = dep.capacidad > 0 ? Math.round((dep.volumen / dep.capacidad) * 100) : 0;
   depPrincipal.textContent = `${depPorcentaje}% ocupado`;
   const depDetalle = document.getElementById("indicadorDepositosDetalle");
@@ -9727,7 +9768,7 @@ function actualizarIndicadores() {
       : "Sin capacidad libre";
   }
 
-  const mast = calcularTotales(cacheMastelones);
+  const mast = calcularTotales(cacheMastelones, "deposito");
   const mastPrincipal = document.getElementById("indicadorMastelonesPrincipal");
   if (mastPrincipal) {
     const mastPorcentaje =
@@ -9748,7 +9789,7 @@ function actualizarIndicadores() {
     }
   }
 
-  const bar = calcularTotales(cacheBarricas);
+  const bar = calcularTotales(cacheBarricas, "barrica");
   const barPrincipal = document.getElementById("indicadorBarricasPrincipal");
   if (barPrincipal) {
     const barPorcentaje = bar.capacidad > 0 ? Math.round((bar.volumen / bar.capacidad) * 100) : 0;
@@ -10867,16 +10908,17 @@ async function cargarResumen() {
     const res = await fetch("/api/resumen");
     if (!res.ok) return;
     const data = await res.json();
+    const calculado = calcularLitrosResumenDesdeCaches();
 
     document.getElementById("resumenKilos").textContent =
-      (data.kilos_entrados || 0).toFixed(0) + " kg";
+      (Number(calculado.kilos_entrados || 0) || Number(data.kilos_entrados || 0) || 0).toFixed(0) + " kg";
 
     document.getElementById("resumenDepositos").textContent =
       data.depositos || 0;
 
     document.getElementById("resumenBarricas").textContent =
       data.barricas || 0;
-    actualizarGraficosResumen(data);
+    actualizarGraficosResumen({ ...data, ...calculado });
 
   } catch (err) {
     console.error("Error cargando resumen:", err);
@@ -10934,6 +10976,7 @@ async function cargarResumen() {
                     tbody.appendChild(tr);
                 });
                 renderResumenParcelas();
+                refrescarGraficosResumenDesdeCaches();
                 actualizarAprovechamientoAnual();
                 actualizarMapaFlujo();
                 renderFlowNodes();
@@ -11137,6 +11180,12 @@ async function cargarDepositos() {
         d.litros_actuales = volNodo;
       }
     });
+    cacheMastelones.forEach(d => {
+      const volNodo = obtenerVolumenFinalNodoContenedor("deposito", d.id);
+      if (Number.isFinite(volNodo)) {
+        d.litros_actuales = volNodo;
+      }
+    });
     mapaDepositosPorId = new Map(cacheDepositos.map(d => [d.id, d]));
     mapaMastelonesPorId = new Map(cacheMastelones.map(d => [d.id, d]));
 
@@ -11145,6 +11194,7 @@ async function cargarDepositos() {
     renderPlano();
     renderAnalisisLab();
     actualizarIndicadores();
+    refrescarGraficosResumenDesdeCaches();
     actualizarAprovechamientoAnual();
     actualizarMapaFlujo();
   } catch (err) {
@@ -12161,6 +12211,7 @@ async function construirHistorialLocal(tipo, id) {
                     tbody.appendChild(tr);
 });
                 actualizarIndicadores();
+                refrescarGraficosResumenDesdeCaches();
                 actualizarAprovechamientoAnual();
                 actualizarMapaFlujo();
             } catch (err) {
