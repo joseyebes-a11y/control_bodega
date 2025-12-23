@@ -625,6 +625,15 @@ body::after {
             padding: 3px 8px;
         }
 
+        .plano-item .estado-pill.mini {
+            right: 8px;
+            top: 8px;
+            padding: 3px 10px;
+            letter-spacing: 0.06em;
+            opacity: 0.92;
+            backdrop-filter: blur(8px);
+        }
+
         .acciones-rapidas {
             display: flex;
             flex-wrap: wrap;
@@ -700,18 +709,78 @@ body::after {
             line-height: 1;
         }
 
-        .flow-toolbar .flow-zoom-label {
-            min-width: 70px;
-            text-align: center;
-            padding: 9px 12px;
-            font-weight: 800;
-        }
+	        .flow-toolbar .flow-zoom-label {
+	            min-width: 70px;
+	            text-align: center;
+	            padding: 9px 12px;
+	            font-weight: 800;
+	        }
 
-        .flow-editor {
-            position: relative;
-            border: 1px dashed rgba(255,255,255,0.25);
-            border-radius: 24px;
-            background: rgba(8,4,15,0.5);
+	        .flow-replay-bar {
+	            display: none;
+	            margin-top: 10px;
+	            padding: 12px 14px;
+	            border-radius: 18px;
+	            border: 1px solid rgba(255,255,255,0.12);
+	            background: rgba(255,255,255,0.08);
+	            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+	            backdrop-filter: blur(12px);
+	        }
+
+	        .flow-replay-bar.visible {
+	            display: block;
+	        }
+
+	        .flow-replay-top {
+	            display: flex;
+	            align-items: flex-start;
+	            justify-content: space-between;
+	            gap: 12px;
+	        }
+
+	        .flow-replay-title {
+	            font-weight: 900;
+	            letter-spacing: 0.2px;
+	            color: rgba(255,255,255,0.95);
+	        }
+
+	        .flow-replay-sub {
+	            font-size: 12px;
+	            color: rgba(255,255,255,0.7);
+	            margin-top: 2px;
+	        }
+
+	        .flow-replay-controls {
+	            display: flex;
+	            align-items: center;
+	            gap: 8px;
+	            margin-top: 10px;
+	        }
+
+	        .flow-replay-range {
+	            flex: 1;
+	            min-width: 200px;
+	        }
+
+	        .flow-replay-date {
+	            min-width: 120px;
+	            text-align: right;
+	            font-size: 12px;
+	            font-weight: 800;
+	            color: rgba(255,255,255,0.9);
+	        }
+
+	        .flow-replay-hint {
+	            margin-top: 8px;
+	            font-size: 12px;
+	            color: rgba(255,255,255,0.6);
+	        }
+
+	        .flow-editor {
+	            position: relative;
+	            border: 1px dashed rgba(255,255,255,0.25);
+	            border-radius: 24px;
+	            background: rgba(8,4,15,0.5);
             height: 80vh;
             min-height: 640px;
             overflow: auto;
@@ -1031,19 +1100,79 @@ body::after {
             gap: 2px;
         }
 
-        .flow-connector-line {
-            stroke: rgba(255,255,255,0.65);
-            stroke-width: 1.6;
-            fill: none;
-            marker-end: url(#arrowHead);
-        }
-        .flow-connector-label {
-            fill: rgba(255,255,255,0.85);
-            font-size: 11px;
-            font-family: "Inter", system-ui, sans-serif;
-            pointer-events: none;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.55);
-        }
+	        .flow-connector-line {
+	            stroke: rgba(255,255,255,0.65);
+	            stroke-width: 1.6;
+	            fill: none;
+	            marker-end: url(#arrowHead);
+	        }
+
+	        .flow-connector-line.replay-future {
+	            stroke: rgba(255,255,255,0.18);
+	            stroke-dasharray: 6 6;
+	        }
+
+	        .flow-connector-line.replay-done {
+	            stroke: rgba(255,255,255,0.55);
+	        }
+
+	        .flow-connector-line.replay-now {
+	            stroke: rgba(255,215,155,0.9);
+	            stroke-width: 2.6;
+	        }
+
+	        .flow-connector-line.replay-outside {
+	            opacity: 0.18;
+	        }
+
+	        .flow-connector-label {
+	            fill: rgba(255,255,255,0.85);
+	            font-size: 11px;
+	            font-family: "Inter", system-ui, sans-serif;
+	            pointer-events: none;
+	            text-shadow: 0 1px 4px rgba(0,0,0,0.55);
+	        }
+
+	        #flujo.replay-mode .flow-connections {
+	            pointer-events: auto;
+	        }
+
+	        #flujo.replay-mode .flow-connector-line {
+	            pointer-events: stroke;
+	            cursor: help;
+	        }
+
+	        #flujo.replay-mode .flow-connector-label {
+	            opacity: 0.16;
+	        }
+
+	        #flujo.replay-mode .flow-node {
+	            cursor: default;
+	        }
+
+	        #flujo.replay-mode .flow-node.dragging {
+	            cursor: default;
+	        }
+
+	        #flujo.replay-mode .flow-node .flow-node-controls button {
+	            pointer-events: none;
+	            opacity: 0.35;
+	        }
+
+	        #flujo.replay-mode .flow-node.replay-inactive {
+	            opacity: 0.18;
+	            filter: grayscale(0.35) saturate(0.85);
+	        }
+
+	        #flujo.replay-mode .flow-node.replay-outside {
+	            opacity: 0.12;
+	            filter: grayscale(0.45) saturate(0.75);
+	        }
+
+	        #flujo.replay-mode .flow-node.replay-current {
+	            box-shadow: 0 0 0 2px rgba(255,215,155,0.35), 0 18px 35px rgba(0,0,0,0.35);
+	            border-color: rgba(255,215,155,0.28);
+	        }
 
         .flow-node-info {
             margin-top: 16px;
@@ -1502,65 +1631,333 @@ label {
             min-width: 280px;
         }
 
-        .plano-wrapper {
-            display: flex;
-            justify-content: center;
-            width: 100%;
+        .plano-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 360px;
+            gap: 18px;
+            margin-top: 14px;
+            align-items: start;
         }
 
-	        .plano-canvas {
-	            flex: 2.6;
-	            min-width: 460px;
-	            height: 620px;
-	            position: relative;
-	            border: 1px solid rgba(255,255,255,0.4);
-	            border-radius: 24px;
-	            background-image:
-	                linear-gradient(0deg, rgba(255,255,255,0.16) 1px, transparent 1px),
-	                linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px),
-	                linear-gradient(0deg, rgba(95,44,130,0.06) 1px, transparent 1px),
-	                linear-gradient(90deg, rgba(95,44,130,0.06) 1px, transparent 1px),
-	                radial-gradient(circle at 18% 22%, rgba(243,120,156,0.12), transparent 55%),
-	                radial-gradient(circle at 82% 70%, rgba(195,169,255,0.10), transparent 60%);
-	            background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px, auto, auto;
-	            background-color: rgba(12,6,22,0.62);
-	            box-shadow: inset 0 0 32px rgba(0,0,0,0.28);
-	            overflow: hidden;
-	            backdrop-filter: blur(6px);
-	        }
+        .plano-editor {
+            position: relative;
+            border: 1px solid rgba(255,255,255,0.16);
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(8,4,15,0.62), rgba(8,4,15,0.48));
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06),
+                        inset 0 0 50px rgba(0,0,0,0.35);
+            height: 80vh;
+            min-height: 640px;
+            overflow: auto;
+        }
+
+        .plano-editor.pan-activo {
+            cursor: grab;
+        }
+
+        .plano-editor.pan-activo.panning {
+            cursor: grabbing;
+        }
+
+        .plano-stage {
+            position: relative;
+            width: 2800px;
+            height: 1600px;
+            overflow: hidden;
+        }
+
+        .plano-canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2800px;
+            height: 1600px;
+            transform-origin: 0 0;
+            transform: scale(1);
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 24px;
+            background-image:
+                linear-gradient(0deg, rgba(255,255,255,0.16) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(95,44,130,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(95,44,130,0.06) 1px, transparent 1px),
+                radial-gradient(circle at 18% 22%, rgba(243,120,156,0.12), transparent 55%),
+                radial-gradient(circle at 82% 70%, rgba(195,169,255,0.10), transparent 60%);
+            background-size: 24px 24px, 24px 24px, 120px 120px, 120px 120px, auto, auto;
+            background-color: rgba(12,6,22,0.62);
+            box-shadow: inset 0 0 32px rgba(0,0,0,0.28);
+            backdrop-filter: blur(6px);
+        }
+
+        .plano-zoom-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 12px 0 8px;
+        }
+
+        .plano-zoom-controls .plano-zoom-btn,
+        .plano-zoom-controls .plano-zoom-label {
+            border-radius: 12px;
+            min-height: 38px;
+        }
+
+        .plano-zoom-controls .plano-zoom-btn {
+            width: 40px;
+            padding: 0;
+            font-weight: 900;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .plano-zoom-controls .plano-zoom-label {
+            flex: 1;
+            font-weight: 850;
+            text-align: center;
+            padding: 9px 12px;
+        }
+
+        .plano-zoom-range {
+            width: 100%;
+            margin: 0 0 12px;
+        }
+
+        .plano-inspector-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .plano-inspector-actions .btnSecundario,
+        .plano-inspector-actions .btnPrimario {
+            padding: 9px 12px;
+            border-radius: 14px;
+            font-size: 12px;
+        }
+
+        .plano-item.seleccionado {
+            box-shadow:
+                0 26px 70px rgba(0,0,0,0.40),
+                0 0 0 5px rgba(243,120,156,0.16),
+                0 26px 92px var(--plano-card-glow, rgba(195,169,255,0.16));
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.78);
+        }
+
+        .plano-minimap-world {
+            position: relative;
+            width: 100%;
+            height: 170px;
+            border-radius: 18px;
+            border: 1px solid rgba(0,0,0,0.08);
+            background:
+                radial-gradient(circle at 14% 18%, rgba(243,120,156,0.12), transparent 55%),
+                radial-gradient(circle at 80% 72%, rgba(195,169,255,0.10), transparent 60%),
+                rgba(255,255,255,0.70);
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+        }
+
+        .plano-minimap-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(0deg, rgba(47,31,59,0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(47,31,59,0.12) 1px, transparent 1px);
+            background-size: 18px 18px;
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .plano-minimap-dots {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .plano-minimap-dot {
+            position: absolute;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.20);
+            border: 1px solid rgba(255,255,255,0.9);
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .plano-minimap-dot.deposito { background: rgba(79, 88, 104, 0.85); }
+        .plano-minimap-dot.mastelone { background: rgba(139, 27, 43, 0.85); }
+        .plano-minimap-dot.barrica { background: rgba(196, 138, 27, 0.90); }
+
+        .plano-minimap-dot.seleccionado {
+            width: 10px;
+            height: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.24), 0 0 0 6px rgba(243,120,156,0.14);
+        }
+
+        .plano-minimap-viewport {
+            position: absolute;
+            z-index: 2;
+            border: 2px solid rgba(47,31,59,0.55);
+            background: rgba(47,31,59,0.08);
+            border-radius: 14px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+            cursor: grab;
+        }
+
+        .plano-minimap-viewport:active {
+            cursor: grabbing;
+        }
+
+        .plano-minimap-hint {
+            margin-top: 8px;
+            font-size: 12px;
+            color: rgba(47,31,59,0.70);
+        }
+
+        .flow-minimap-world {
+            position: relative;
+            width: 100%;
+            height: 170px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.14);
+            background:
+                radial-gradient(circle at 14% 18%, rgba(176,123,255,0.18), transparent 55%),
+                radial-gradient(circle at 80% 72%, rgba(255,142,199,0.16), transparent 60%),
+                rgba(12,7,20,0.72);
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.30);
+            touch-action: none;
+        }
+
+        .flow-minimap-grid {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(0deg, rgba(255,255,255,0.10) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.10) 1px, transparent 1px);
+            background-size: 18px 18px;
+            opacity: 0.28;
+            pointer-events: none;
+        }
+
+        .flow-minimap-dots {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .flow-minimap-dot {
+            position: absolute;
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.30);
+            border: 1px solid rgba(255,255,255,0.75);
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .flow-minimap-dot.entrada { background: var(--flow-accent-entrada); }
+        .flow-minimap-dot.fermentacion { background: var(--flow-accent-estilo); }
+        .flow-minimap-dot.estilo { background: var(--flow-accent-estilo); }
+        .flow-minimap-dot.deposito { background: var(--flow-accent-deposito); }
+        .flow-minimap-dot.coupage { background: var(--flow-accent-coupage); }
+        .flow-minimap-dot.barrica { background: var(--flow-accent-barrica); }
+        .flow-minimap-dot.embotellado { background: var(--flow-accent-embotellado); }
+        .flow-minimap-dot.almacen { background: var(--flow-accent-almacen); }
+        .flow-minimap-dot.salida { background: var(--flow-accent-salida); }
+        .flow-minimap-dot.prensado { background: var(--flow-accent-estilo); }
+
+        .flow-minimap-dot.seleccionado {
+            width: 10px;
+            height: 10px;
+            box-shadow: 0 12px 22px rgba(0,0,0,0.36), 0 0 0 6px rgba(243,120,156,0.16);
+        }
+
+        .flow-minimap-viewport {
+            position: absolute;
+            z-index: 2;
+            border: 2px solid rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.06);
+            border-radius: 14px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.30);
+            cursor: grab;
+        }
+
+        .flow-minimap-viewport:active {
+            cursor: grabbing;
+        }
+
+        .flow-minimap-hint {
+            margin-top: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.68);
+        }
+
+        @media (max-width: 980px) {
+            .plano-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .flow-inspector.plano-inspector {
+                position: relative;
+                top: auto;
+                max-height: none;
+            }
+        }
 
 .plano-item {
 	    position: absolute;
-	    width: 90px;
-	    min-height: 96px;
-	    padding: 6px;
-	    padding-right: 22px;
+	    width: 148px;
+	    height: 176px;
+	    padding: 10px 10px 10px 12px;
+	    padding-right: 30px;
 	    border-radius: 14px;
 	    color: var(--texto);
-	    font-size: 11px;
+	    font-size: 12px;
 	    cursor: grab;
 	    user-select: none;
-	    box-shadow: 0 22px 52px rgba(6,2,10,0.38);
-	    transition: box-shadow 0.2s, transform 0.2s;
+	    box-shadow:
+	      0 18px 44px rgba(6,2,10,0.26),
+	      0 22px 72px var(--plano-card-glow, rgba(195,169,255,0.12));
+	    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 	    display: flex;
 	    flex-direction: column;
-	    gap: 5px;
-	    background: rgba(255,255,255,0.97);
-	    border: 1px solid rgba(255,255,255,0.6);
-	    backdrop-filter: blur(6px);
-	    align-items: center;
+	    gap: 8px;
+	    background: var(--plano-card-bg,
+	      radial-gradient(circle at 22% 14%, rgba(243,120,156,0.06), transparent 55%),
+	      radial-gradient(circle at 82% 78%, rgba(195,169,255,0.06), transparent 60%),
+	      linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.86)));
+	    border: 1px solid rgba(255,255,255,0.62);
+	    backdrop-filter: blur(10px) saturate(1.08);
+	    align-items: stretch;
+	    overflow: hidden;
+	    --plano-accent: rgba(143,151,168,0.95);
 }
 
-.plano-item.deposito {
-    border-top: 4px solid #8f97a8;
+.plano-item::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.55),
+      inset 0 0 0 1px rgba(0,0,0,0.06);
+    opacity: 0.9;
 }
 
-.plano-item.mastelone {
-    border-top: 4px solid #8b1b2b;
-}
-
-.plano-item.barrica {
-    border-top: 4px solid #c48a1b;
+.plano-item:not(.arrastrando):hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 26px 70px rgba(0,0,0,0.32),
+      0 26px 92px var(--plano-card-glow, rgba(195,169,255,0.16));
+    border-color: rgba(255,255,255,0.72);
 }
 
 .plano-item.arrastrando {
@@ -1572,37 +1969,68 @@ label {
 .plano-card-header {
 	    display: flex;
 	    flex-direction: column;
-	    align-items: center;
-	    font-size: 10px;
-	    text-transform: uppercase;
-	    letter-spacing: 0.05em;
-	    font-weight: 700;
+	    align-items: flex-start;
+	    font-size: 12px;
+	    text-transform: none;
+	    letter-spacing: 0.02em;
+	    font-weight: 850;
 	    color: var(--vino-oscuro);
-	    text-align: center;
-	    gap: 2px;
+	    text-align: left;
+	    gap: 6px;
 	    width: 100%;
 	    word-break: break-word;
 	    position: relative;
-	    padding-top: 2px;
+	    padding-top: 0;
+	    padding-right: 40px;
+}
+
+.plano-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+}
+
+.plano-card-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--plano-accent);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+      flex: 0 0 auto;
+}
+
+.plano-card-code {
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      color: rgba(18, 12, 28, 0.92);
 }
 
 .plano-card-header small {
-	    font-size: 8px;
-	    color: rgba(47,31,59,0.55);
+	    font-size: 9px;
+	    color: rgba(47,31,59,0.72);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.62);
+      border: 1px solid rgba(0,0,0,0.06);
+      white-space: nowrap;
 }
 
 .plano-card-body {
 	    display: flex;
 	    flex-direction: column;
-	    gap: 5px;
-	    align-items: center;
+	    gap: 10px;
 	    width: 100%;
 }
 
 .plano-card-barrel {
-	    width: 30px;
-	    height: 40px;
-	    border-radius: 22px / 16px;
+	    width: 40px;
+	    height: 52px;
+	    border-radius: 26px / 18px;
 	    border: 2px solid rgba(139,92,64,0.4);
 	    position: relative;
 	    display: flex;
@@ -1614,8 +2042,8 @@ label {
 }
 
 .plano-card-barrel span {
-	    font-size: 10px;
-	    letter-spacing: 0.05em;
+	    font-size: 11px;
+	    letter-spacing: 0.06em;
 }
 
 .plano-card-barrel.deposito {
@@ -1657,64 +2085,104 @@ label {
 
 .plano-card-info {
     display: grid;
-    gap: 2px;
+    grid-template-columns: 1fr;
+    gap: 8px;
     flex: 1;
-    text-align: center;
+    text-align: left;
     width: 100%;
 }
 
 .plano-card-info small {
-    font-size: 8px;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: rgba(47,31,59,0.6);
 }
 
 .plano-card-info strong {
-	    font-size: 10px;
+	    font-size: 12px;
+	    font-variant-numeric: tabular-nums;
 	    display: block;
 	    color: var(--vino-oscuro);
 }
 
 .plano-card-extra {
-	    font-size: 7.5px;
-	    color: rgba(47,31,59,0.75);
-	    text-align: center;
+	    font-size: 9px;
+	    color: rgba(47,31,59,0.78);
+	    text-align: left;
 	    width: 100%;
-	    overflow: hidden;
-	    text-overflow: ellipsis;
-	    white-space: nowrap;
+      display: grid;
+      gap: 2px;
+}
+
+.plano-card-extra-line {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+}
+
+.plano-card-extra-line.primary {
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+}
+
+.plano-card-anada {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,0.06);
+      background: rgba(255,255,255,0.72);
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: 0.02em;
+      color: rgba(47,31,59,0.82);
+      width: fit-content;
+}
+
+.plano-card-uvas {
+      font-size: 10px;
+      font-weight: 800;
+      color: rgba(32,22,46,0.86);
+      white-space: pre-line;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 4;
+      overflow: hidden;
+      line-height: 1.15;
 }
 
 .plano-card-progress {
 	    position: absolute;
-	    top: 7px;
-	    right: 5px;
-	    width: 10px;
-	    height: calc(100% - 14px);
-	    background: rgba(47,31,59,0.12);
-	    border-radius: 12px;
+	    top: 10px;
+	    right: 8px;
+	    width: 12px;
+	    height: calc(100% - 20px);
+	    background: rgba(47,31,59,0.08);
+	    border-radius: 999px;
 	    overflow: hidden;
 	    display: flex;
 	    align-items: flex-end;
 	    justify-content: center;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.70);
 }
 
 .plano-card-progress-bar {
     width: 100%;
-    border-radius: 12px;
+    border-radius: 999px;
     transition: height 0.3s ease;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.22),
+      inset 0 -10px 18px rgba(0,0,0,0.10);
 }
 
 .plano-card-progress span {
-	    position: absolute;
-	    top: -16px;
-	    left: 50%;
-	    transform: translateX(-50%);
-	    font-size: 9px;
-	    font-weight: 700;
-	    color: var(--vino-oscuro);
-	    white-space: nowrap;
+      display: none;
 }
 
         #planoMensaje {
@@ -2397,14 +2865,14 @@ label {
         </section>
         <!-- SECCIÓN FLUJO -->
         <section id="flujo" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🗺</span>Mapa de nodos de vinificación</h1>
-            <p>Diseña visualmente el recorrido de cada partida: arrastra nodos, conéctalos y edita la información con doble clic.</p>
-	            <div class="flow-toolbar">
+	            <h1><span class="h1-emoji">🗺</span>Mapa de nodos de vinificación</h1>
+	            <p>Diseña visualmente el recorrido de cada partida: arrastra nodos, conéctalos y edita la información con doble clic.</p>
+		            <div class="flow-toolbar">
+		                <div class="flow-toolbar-group">
+		                    <button class="btnSecundario" type="button" onclick="sembrarNodosDesdeDatos()">Sembrar nodos desde datos</button>
+		                </div>
 	                <div class="flow-toolbar-group">
-	                    <button class="btnSecundario" type="button" onclick="sembrarNodosDesdeDatos()">Sembrar nodos desde datos</button>
-	                </div>
-                <div class="flow-toolbar-group">
-                    <button class="btnPrimario" type="button" onclick="crearNodoManual('entrada')">🍇 Entrada de uva</button>
+	                    <button class="btnPrimario" type="button" onclick="crearNodoManual('entrada')">🍇 Entrada de uva</button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('estilo')">⚗️ Elaboración</button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('deposito')">🛢 Depósito</button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('coupage')">🧪 Coupage / Blend</button>
@@ -2418,23 +2886,45 @@ label {
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('almacen')">📦 Almacén</button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('salida')">🚛 Salida</button>
                 </div>
-                <div class="flow-toolbar-group">
-                    <button class="btnSecundario" type="button" onclick="resetMapaFlujoLocal()">Limpiar mapa</button>
-                </div>
 	                <div class="flow-toolbar-group">
-	                    <button class="btnSecundario" type="button" onclick="exportarNodosComoImagen()">Exportar imagen</button>
+	                    <button class="btnSecundario" type="button" onclick="resetMapaFlujoLocal()">Limpiar mapa</button>
 	                </div>
-	                <div class="flow-toolbar-group flow-zoom-controls">
-	                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(-1)" title="Alejar" aria-label="Alejar">−</button>
-	                    <button class="btnSecundario flow-zoom-label" id="flowZoomLabel" type="button" onclick="resetZoomMapaFlujo()" title="Reset zoom" aria-label="Reset zoom">100%</button>
-	                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(1)" title="Acercar" aria-label="Acercar">+</button>
-	                </div>
-	            </div>
-	            <div class="flow-layout">
-	                <div class="flow-editor" id="flowEditor">
-	                    <div class="flow-stage" id="flowStage">
-	                        <div class="flow-world" id="flowWorld">
-	                            <svg id="flowConnections" class="flow-connections">
+		                <div class="flow-toolbar-group">
+		                    <button class="btnSecundario" type="button" onclick="exportarNodosComoImagen()">Exportar imagen</button>
+		                </div>
+		                <div class="flow-toolbar-group">
+		                    <button id="flowReplayToggleBtn" class="btnSecundario" type="button" onclick="toggleReplayFlujo()">🎞 Replay</button>
+		                </div>
+		                <div class="flow-toolbar-group flow-zoom-controls">
+		                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(-1)" title="Alejar" aria-label="Alejar">−</button>
+		                    <button class="btnSecundario flow-zoom-label" id="flowZoomLabel" type="button" onclick="resetZoomMapaFlujo()" title="Reset zoom" aria-label="Reset zoom">100%</button>
+		                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(1)" title="Acercar" aria-label="Acercar">+</button>
+		                </div>
+		            </div>
+		            <div id="flowReplayBar" class="flow-replay-bar" aria-label="Replay de movimientos" role="region">
+		                <div class="flow-replay-top">
+		                    <div>
+		                        <div class="flow-replay-title">🎞 Replay</div>
+		                        <div class="flow-replay-sub" id="flowReplaySub">Selecciona una entrada (o cualquier nodo de su recorrido) y pulsa “Replay” para recorrer el historial por fechas.</div>
+		                    </div>
+		                    <div class="flow-replay-top-actions">
+		                        <button class="btnSecundario" type="button" onclick="salirReplayFlujo()">Salir</button>
+		                    </div>
+		                </div>
+		                <div class="flow-replay-controls">
+		                    <button class="btnSecundario" type="button" onclick="replayPasoFlujo(-1)" title="Anterior">⏮</button>
+		                    <button id="flowReplayPlayBtn" class="btnPrimario" type="button" onclick="togglePlayReplayFlujo()" title="Reproducir / Pausar">⏵</button>
+		                    <button class="btnSecundario" type="button" onclick="replayPasoFlujo(1)" title="Siguiente">⏭</button>
+		                    <input id="flowReplayRange" class="flow-replay-range" type="range" min="0" max="0" step="1" value="0" oninput="onReplayRangeInput(this.value)" aria-label="Línea de tiempo" />
+		                    <div class="flow-replay-date" id="flowReplayDate">—</div>
+		                </div>
+		                <div class="flow-replay-hint" id="flowReplayHint">Hover en una conexión para ver litros y fecha. Las conexiones futuras se muestran punteadas.</div>
+		            </div>
+		            <div class="flow-layout">
+		                <div class="flow-editor" id="flowEditor">
+		                    <div class="flow-stage" id="flowStage">
+		                        <div class="flow-world" id="flowWorld">
+		                            <svg id="flowConnections" class="flow-connections">
 	                                <defs>
 	                                    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
 	                                        <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.7)" />
@@ -2791,12 +3281,17 @@ label {
         <!-- SECCIÓN PLANO BODEGA -->
         <section id="plano" class="card" style="display:none;">
             <h1><span class="h1-emoji">🗺</span>Plano de la bodega</h1>
-            <p>Arrastra los depósitos, mastelones y barricas sobre la cuadrícula para ubicarlos en el espacio.</p>
+            <p>Arrastra para colocar, haz clic para ver el desglose, y usa el zoom para navegar por toda la bodega.</p>
 
-            <div class="plano-wrapper">
-                <div class="plano-canvas" id="planoCanvas">
-                    <div class="plano-placeholder">Añade depósitos, mastelones o barricas para empezar</div>
+            <div class="plano-layout">
+                <div class="plano-editor" id="planoEditor" aria-label="Plano de la bodega (lienzo)">
+                    <div class="plano-stage" id="planoStage">
+                        <div class="plano-canvas" id="planoCanvas">
+                            <div class="plano-placeholder">Añade depósitos, mastelones o barricas para empezar</div>
+                        </div>
+                    </div>
                 </div>
+                <aside id="planoInfo" class="flow-inspector plano-inspector">Cargando inspector…</aside>
             </div>
             <p id="planoMensaje">Añade depósitos, mastelones o barricas para empezar.</p>
         </section>
@@ -3158,12 +3653,28 @@ label {
   <script>
 // ---- Mostrar secciones del menú lateral ---
 function mostrarSeccion(id) {
+  if (id !== "flujo" && flowReplay?.playing) {
+    togglePlayReplayFlujo(false);
+  }
   const secciones = document.querySelectorAll("section.card");
   secciones.forEach(sec => {
     const esObjetivo = sec.id === id;
     if (esObjetivo) {
       sec.style.display = "block";
       requestAnimationFrame(() => sec.classList.add("visible"));
+      if (id === "plano") {
+        requestAnimationFrame(() => {
+          inicializarPlanoBodegaUI();
+          renderPlano();
+        });
+      }
+      if (id === "flujo") {
+        requestAnimationFrame(() => {
+          aplicarLayoutFlow({ mantenerCentro: true });
+          renderFlowConnections();
+          programarActualizacionMinimapFlow();
+        });
+      }
     } else if (sec.classList.contains("visible")) {
       sec.classList.remove("visible");
       setTimeout(() => {
@@ -3197,6 +3708,15 @@ const TITULOS_DINAMICOS = {
     const fase = nodo?.datos?.fase;
     // Mostramos la fase en el badge coloreado, no en el título, para evitar duplicados.
     return nombre;
+  },
+  barrica: nodo => {
+    const datos = nodo?.datos || {};
+    const tipoCont = claveContenedor(datos.contenedor_tipo) || "barrica";
+    const id = datos.contenedor_id || datos.id_ref;
+    const info = id ? obtenerInfoContenedor(tipoCont, id) : null;
+    const codigo = (info?.codigo || datos.codigo || "").toString().trim();
+    if (!codigo) return null;
+    return `${codigo} CRIANZA`;
   },
 };
 const CAMPOS_PRIORITARIOS_MODAL = ["fecha", "fecha_operacion"];
@@ -3639,11 +4159,11 @@ function normalizarTextoUva(str) {
     .toLowerCase();
 }
 
-function esVariedadBlanca(textoNormalizado) {
-  if (!textoNormalizado) return false;
-  if (textoNormalizado.includes("blanc") || textoNormalizado.includes("white") || textoNormalizado.includes("bianco")) {
-    return true;
-  }
+	function esVariedadBlanca(textoNormalizado) {
+	  if (!textoNormalizado) return false;
+	  if (textoNormalizado.includes("blanc") || textoNormalizado.includes("white") || textoNormalizado.includes("bianco")) {
+	    return true;
+	  }
   if (!VARIEDADES_BLANCAS_SET) {
     VARIEDADES_BLANCAS_SET = new Set(
       VARIEDADES_BLANCAS.map(nombre => normalizarTextoUva(nombre))
@@ -3652,23 +4172,27 @@ function esVariedadBlanca(textoNormalizado) {
   const tokens = textoNormalizado.split(/[^a-z]+/).filter(Boolean);
   if (tokens.some(tok => VARIEDADES_BLANCAS_SET.has(tok))) return true;
   return Array.from(VARIEDADES_BLANCAS_SET).some(nombre => textoNormalizado.includes(nombre));
-}
+	}
 
-function calcularOcupacionNodo(nodo) {
-  if (!nodo) return null;
-  const datos = nodo.datos || {};
-  const capacidad =
-    normalizarNumero(datos.capacidad) ??
-    normalizarNumero(datos.capacidad_l) ??
-    (datos.capacidad_hl != null ? normalizarNumero(datos.capacidad_hl * 100) : null);
-  const volumen =
-    normalizarNumero(datos.volumen) ??
-    normalizarNumero(datos.litros_directos) ??
-    normalizarNumero(datos.litros) ??
-    normalizarNumero(datos.kilos);
-  if (!capacidad || !volumen) return null;
-  return Math.max(0, Math.min(1, volumen / capacidad));
-}
+	function calcularOcupacionNodo(nodo) {
+	  if (!nodo) return null;
+	  const datos = nodo.datos || {};
+	  const capacidad =
+	    normalizarNumero(datos.capacidad) ??
+	    normalizarNumero(datos.capacidad_l) ??
+	    (datos.capacidad_hl != null ? normalizarNumero(datos.capacidad_hl * 100) : null);
+	  if (capacidad == null || !(capacidad > 0)) return null;
+	  const volumenVisual = obtenerVolumenVisualNodo ? obtenerVolumenVisualNodo(nodo) : null;
+	  const volumenBase =
+	    volumenVisual != null
+	      ? volumenVisual
+	      : normalizarNumero(datos.volumen) ??
+	        normalizarNumero(datos.litros_directos) ??
+	        normalizarNumero(datos.litros) ??
+	        normalizarNumero(datos.kilos);
+	  if (volumenBase == null) return null;
+	  return Math.max(0, Math.min(1, volumenBase / capacidad));
+	}
 
 function rellenarDatosEntradaDesdeCache(nodo) {
   if (!nodo || nodo.tipo !== "entrada") return;
@@ -3908,12 +4432,18 @@ function obtenerVariedadVisibleNodo(nodo) {
   if (!nodo) return "";
   const compArray = nodo.datos?.composicionVariedades;
   if (Array.isArray(compArray) && compArray.length) {
-    return compArray.map(c => `${formatearPctVariedad(c.porcentaje)} ${c.nombre}`).join("\n");
+    return compArray
+      .filter(c => c?.nombre && !esVariedadGenerica(c.nombre))
+      .map(c => `${formatearPctVariedad(c.porcentaje)} ${c.nombre}`)
+      .join("\n");
   }
   const comp = calcularComposicionVariedades(nodo);
   const calculada = guardarComposicionEnNodo(nodo, comp.mix, comp.total);
   if (calculada.length) {
-    return calculada.map(c => `${formatearPctVariedad(c.porcentaje)} ${c.nombre}`).join("\n");
+    return calculada
+      .filter(c => c?.nombre && !esVariedadGenerica(c.nombre))
+      .map(c => `${formatearPctVariedad(c.porcentaje)} ${c.nombre}`)
+      .join("\n");
   }
   const textoBase = nodo.datos?.variedad || nodo.datos?.variedadBase || nodo.datos?.vino || "";
   if (!textoBase) return "";
@@ -3921,6 +4451,7 @@ function obtenerVariedadVisibleNodo(nodo) {
     .split(/[/·]/)
     .map(t => t.trim())
     .filter(Boolean)
+    .filter(t => !esVariedadGenerica(t))
     .join("\n");
 }
 
@@ -3953,7 +4484,7 @@ function agregarVariedadAPeso(mix, texto, peso) {
   if (conPct.length) {
     conPct.forEach(i => {
       const nombre = limpiarTextoVariedad(i.nombre);
-      if (!nombre) return;
+      if (!nombre || esVariedadGenerica(nombre)) return;
       const aporte = pesoBase * (i.pct / 100);
       mix.set(nombre, (mix.get(nombre) || 0) + aporte);
     });
@@ -3962,7 +4493,7 @@ function agregarVariedadAPeso(mix, texto, peso) {
   const reparto = pesoBase / items.length;
   items.forEach(i => {
     const nombre = limpiarTextoVariedad(i.nombre);
-    if (!nombre) return;
+    if (!nombre || esVariedadGenerica(nombre)) return;
     mix.set(nombre, (mix.get(nombre) || 0) + reparto);
   });
 }
@@ -4167,6 +4698,7 @@ function obtenerTextoVolumenNodo(nodo) {
   if (!nodo) return "";
   const unidad = obtenerUnidadVisual(nodo);
   const unidadLabel = unidad === "L" ? "L" : "kg";
+  const valorVisual = obtenerVolumenVisualNodo(nodo);
   const esDepositoOCoupage = nodo.tipo === "deposito" || nodo.tipo === "coupage";
   const valLitros = esDepositoOCoupage
     ? normalizarNumero(nodo.datos?.volumen) ??
@@ -4177,7 +4709,9 @@ function obtenerTextoVolumenNodo(nodo) {
       normalizarNumero(nodo.datos?.volumen);
   const valKilos = normalizarNumero(nodo.datos?.kilos);
   const valor =
-    unidad === "L"
+    valorVisual != null
+      ? valorVisual
+      : unidad === "L"
       ? valLitros != null
         ? valLitros
         : valKilos
@@ -4226,7 +4760,13 @@ function describirNodoOrigen(origen) {
     const info =
       origen.tipo === "deposito"
         ? buscarDepositoPorId(origen.datos?.id_ref)
-        : buscarBarricaPorId(origen.datos?.id_ref);
+        : (() => {
+            const datos = origen.datos || {};
+            const tipoCont = claveContenedor(datos.contenedor_tipo) || "barrica";
+            const id = datos.contenedor_id || datos.id_ref;
+            if (!id) return null;
+            return tipoCont === "barrica" ? buscarBarricaPorId(id) : buscarDepositoPorId(id);
+          })();
     const nombre = info?.codigo || origen.datos?.codigo || origen.titulo || base;
     const varTexto =
       info?.vino_tipo ||
@@ -4305,11 +4845,22 @@ function nombreOrigenBlend(origen) {
     );
   }
   if (origen.tipo === "barrica") {
-    const info = datos.contenedor_id ? buscarBarricaPorId(datos.contenedor_id) : null;
+    const tipoCont = claveContenedor(datos.contenedor_tipo) || "barrica";
+    const info = datos.contenedor_id
+      ? tipoCont === "barrica"
+        ? buscarBarricaPorId(datos.contenedor_id)
+        : buscarDepositoPorId(datos.contenedor_id)
+      : null;
+    const etiquetaFallback = datos.contenedor_id
+      ? `${tipoCont === "barrica" ? "Barrica" : "Depósito"} ${datos.contenedor_id}`
+      : "";
     return (
       info?.codigo ||
+      datos.codigo ||
+      origen.titulo ||
       datos.tipo ||
-      (datos.contenedor_id ? `Barrica ${datos.contenedor_id}` : origen.titulo || "Barrica")
+      etiquetaFallback ||
+      "Crianza"
     );
   }
   if (origen.tipo === "entrada") {
@@ -4434,6 +4985,7 @@ function rellenarDatosCrianzaDesdeCache(nodo) {
       ? buscarBarricaPorId(id) || buscarBarricaPorCodigo(nodo.datos?.codigo || nodo.titulo)
       : buscarDepositoPorId(id) || buscarDepositoPorCodigo(nodo.datos?.codigo || nodo.titulo);
   if (!info) return;
+  nodo.datos.codigo = nodo.datos.codigo || info.codigo || nodo.datos.codigo;
   const capInfo =
     info.capacidad_l ??
     (info.capacidad_hl != null ? info.capacidad_hl * 100 : null) ??
@@ -4455,9 +5007,12 @@ function rellenarDatosCrianzaDesdeCache(nodo) {
     nodo.datos.variedad = nodo.datos.variedadBase;
   }
   // Texto descriptivo del contenedor elegido para mostrar en modal/nodo.
-  if (!nodo.datos.tipo) {
-    const descripcion = describirContenedor(info, nodo.datos.contenedor_tipo || (tipoCont === "barrica" ? "Barrica" : "Depósito"));
-    nodo.datos.tipo = descripcion || nodo.datos.contenedor_tipo || "";
+  const tipoLabel = nodo.datos.contenedor_tipo || (tipoCont === "barrica" ? "Barrica" : "Depósito");
+  const descripcion = describirContenedor(info, tipoLabel);
+  if (descripcion) {
+    nodo.datos.tipo = descripcion;
+  } else if (tipoLabel) {
+    nodo.datos.tipo = tipoLabel;
   }
 }
 
@@ -4508,7 +5063,7 @@ function getNombreNodoDestino(idNodoDestino, nodosPorId, mapaDepRef) {
 
     case "barrica":
       // Crianza / Barrica 500L Francés, etc.
-      return datos.tipo || nodo.titulo || "Crianza";
+      return nodo.titulo || datos.tipo || "Crianza";
 
     case "entrada":
       // Solo por si algún día enlazas a otra entrada
@@ -4552,11 +5107,23 @@ function etiquetarDestinoFlow(dest) {
   }
 
   if (dest.tipo === "barrica") {
-    const info = datos.contenedor_id ? buscarBarricaPorId(datos.contenedor_id) : null;
+    const tipoCont = claveContenedor(datos.contenedor_tipo) || "barrica";
+    const info = datos.contenedor_id
+      ? tipoCont === "barrica"
+        ? buscarBarricaPorId(datos.contenedor_id)
+        : buscarDepositoPorId(datos.contenedor_id)
+      : null;
+    const etiquetaFallback =
+      datos.contenedor_id
+        ? `${tipoCont === "barrica" ? "Barrica" : "Depósito"} ${datos.contenedor_id}`
+        : "";
     const nombre =
-      datos.tipo ||
       info?.codigo ||
-      (datos.contenedor_id ? `Barrica ${datos.contenedor_id}` : dest.titulo || "Barrica");
+      dest.titulo ||
+      datos.codigo ||
+      datos.tipo ||
+      etiquetaFallback ||
+      "Crianza";
     const variedad = info?.vino_tipo || datos.vino_tipo || datos.variedad || "";
     return variedad ? `${nombre} (${variedad})` : nombre;
   }
@@ -4670,6 +5237,19 @@ function obtenerLimiteNodo(nodo) {
   return fallback != null ? fallback : null;
 }
 
+function obtenerVolumenRestanteNodo(nodo) {
+  if (!nodo) return null;
+  const limite = obtenerLimiteNodo(nodo);
+  if (limite == null) return null;
+  // La entrada de uva es una referencia: sus kilos no se descuentan visualmente.
+  if (nodo.tipo === "entrada") return limite;
+  const consumo = sumarConsumoDesdeNodo(nodo);
+  const consumoSeguro = Number.isFinite(consumo) ? consumo : 0;
+  const restante = Number(limite) - consumoSeguro;
+  if (!Number.isFinite(restante)) return null;
+  return Math.max(0, restante);
+}
+
 function validarLimitesFlujo() {
   for (const nodo of flujoNodos) {
     const limite = obtenerLimiteNodo(nodo);
@@ -4687,6 +5267,382 @@ function validarLimitesFlujo() {
     }
   }
   return { ok: true };
+}
+
+function obtenerFechaNodoParaReplay(nodo) {
+  if (!nodo) return null;
+  const datos = nodo.datos || {};
+  const raw = datos.fecha_operacion || datos.fecha || datos.fecha_hora || "";
+  const fecha = parsearFechaValor(String(raw || ""));
+  return fecha ? fecha.getTime() : null;
+}
+
+function obtenerLitrosTransferenciaEntreNodos(origen, destino) {
+  if (!origen || !destino) return 0;
+  const key = normalizarIdNodo(origen);
+  const datos = destino.datos || {};
+  const regAsig = datos.asignaciones?.[key] || datos.asignaciones?.[String(origen.id)];
+  if (regAsig) {
+    const litros = normalizarNumero(regAsig.litros);
+    if (litros != null) return litros > 0 ? litros : 0;
+  }
+  const aporte = datos.aportes?.[key] || datos.aportes?.[String(origen.id)];
+  if (aporte) {
+    const litros = normalizarNumero(aporte.litros_directos ?? aporte.litros);
+    if (litros != null) return litros > 0 ? litros : 0;
+  }
+  return 0;
+}
+
+function construirModeloReplayFlujo(rootId) {
+  const root = obtenerNodoPorId(rootId);
+  if (!root) return null;
+
+  const rootNorm = normalizarIdNodo(root);
+  const nodesSet = new Set();
+  const stack = [rootNorm];
+  while (stack.length) {
+    const id = stack.pop();
+    if (!id || nodesSet.has(id)) continue;
+    nodesSet.add(id);
+    const nodo = obtenerNodoPorId(id);
+    if (!nodo) continue;
+    (nodo.targets || []).forEach(t => {
+      const tid = normalizarIdNodo(t);
+      if (tid && !nodesSet.has(tid)) stack.push(tid);
+    });
+  }
+
+  const nodes = new Map();
+  nodesSet.forEach(id => {
+    const nodo = obtenerNodoPorId(id);
+    if (nodo) nodes.set(id, nodo);
+  });
+
+  const nodeTs = new Map();
+  let sinFecha = 0;
+  nodes.forEach((nodo, id) => {
+    const ts = obtenerFechaNodoParaReplay(nodo);
+    if (ts == null) sinFecha += 1;
+    else nodeTs.set(id, ts);
+  });
+
+  const rootTs = nodeTs.get(rootNorm) ?? null;
+  const pasosOrdenados = Array.from(new Set(Array.from(nodeTs.values()))).sort((a, b) => a - b);
+  const pasos = rootTs != null ? pasosOrdenados.filter(ts => ts >= rootTs) : pasosOrdenados;
+
+  const edges = [];
+  const inCount = new Map();
+  nodes.forEach((origen, origenId) => {
+    (origen.targets || []).forEach(destIdRaw => {
+      const destId = normalizarIdNodo(destIdRaw);
+      if (!destId || !nodes.has(destId)) return;
+      const destino = nodes.get(destId);
+      const litros = obtenerLitrosTransferenciaEntreNodos(origen, destino);
+      const ts = nodeTs.get(destId) ?? null;
+      edges.push({ origenId, destId, litros, ts });
+      inCount.set(destId, (inCount.get(destId) || 0) + 1);
+    });
+  });
+
+  const baseLitros = new Map();
+  nodes.forEach((nodo, id) => {
+    const tieneEntradas = (inCount.get(id) || 0) > 0;
+    if (tieneEntradas) {
+      baseLitros.set(id, 0);
+      return;
+    }
+    const datos = nodo.datos || {};
+    const baseRaw =
+      normalizarNumero(datos.litros_directos) ??
+      normalizarNumero(datos.litros) ??
+      normalizarNumero(datos.volumen) ??
+      0;
+    const base = Number.isFinite(baseRaw) && baseRaw > 0 ? baseRaw : 0;
+    baseLitros.set(id, base);
+  });
+
+  return {
+    rootId: rootNorm,
+    nodesSet,
+    nodes,
+    nodeTs,
+    pasos,
+    edges,
+    baseLitros,
+    sinFecha,
+  };
+}
+
+function calcularEstadoReplayFlujo(model, timeMs) {
+  const activeNodes = new Set();
+  model.nodes.forEach((nodo, id) => {
+    const ts = model.nodeTs.get(id);
+    if (ts == null || ts <= timeMs) activeNodes.add(id);
+  });
+
+  const inflow = new Map();
+  const outflow = new Map();
+  const currentEdges = new Set();
+
+  model.edges.forEach(edge => {
+    if (!activeNodes.has(edge.destId) || !activeNodes.has(edge.origenId)) return;
+    if (edge.ts != null && edge.ts === timeMs) {
+      currentEdges.add(`${edge.origenId}→${edge.destId}`);
+    }
+    const litros = normalizarNumero(edge.litros) || 0;
+    if (!(litros > 0)) return;
+    inflow.set(edge.destId, (inflow.get(edge.destId) || 0) + litros);
+    outflow.set(edge.origenId, (outflow.get(edge.origenId) || 0) + litros);
+  });
+
+  const stockLitros = new Map();
+  model.nodes.forEach((nodo, id) => {
+    if (!FLOW_REPLAY_TIPOS_LITROS.has(nodo.tipo)) return;
+    const base = model.baseLitros.get(id) || 0;
+    const inL = inflow.get(id) || 0;
+    const outL = outflow.get(id) || 0;
+    const v = base + inL - outL;
+    stockLitros.set(id, Math.max(0, Number(v.toFixed(4))));
+  });
+
+  return { activeNodes, inflow, outflow, stockLitros, currentEdges };
+}
+
+function obtenerVolumenVisualNodo(nodo) {
+  if (!nodo) return null;
+  const nodoId = normalizarIdNodo(nodo);
+  if (flowReplay?.activo && flowReplay.model && flowReplay.state && flowReplay.model.nodesSet?.has(nodoId)) {
+    if (nodo.tipo === "entrada") {
+      const limite = obtenerLimiteNodo(nodo);
+      return limite != null ? limite : null;
+    }
+    if (FLOW_REPLAY_TIPOS_LITROS.has(nodo.tipo)) {
+      const activo = flowReplay.state.activeNodes?.has(nodoId);
+      if (!activo) return 0;
+      const v = flowReplay.state.stockLitros?.get(nodoId);
+      return v != null ? v : 0;
+    }
+  }
+  return obtenerVolumenRestanteNodo(nodo);
+}
+
+function formatearFechaReplay(ms) {
+  if (ms == null) return "—";
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("es-ES");
+}
+
+function actualizarUIReplayFlujo() {
+  const section = document.getElementById("flujo");
+  const bar = document.getElementById("flowReplayBar");
+  const toggleBtn = document.getElementById("flowReplayToggleBtn");
+  const range = document.getElementById("flowReplayRange");
+  const dateEl = document.getElementById("flowReplayDate");
+  const sub = document.getElementById("flowReplaySub");
+  const hint = document.getElementById("flowReplayHint");
+  const playBtn = document.getElementById("flowReplayPlayBtn");
+
+  const activo = Boolean(flowReplay?.activo && flowReplay.model);
+  if (section) section.classList.toggle("replay-mode", activo);
+  if (bar) bar.classList.toggle("visible", activo);
+  if (toggleBtn) toggleBtn.textContent = activo ? "Salir replay" : "🎞 Replay";
+
+  if (!activo) {
+    if (playBtn) playBtn.textContent = "⏵";
+    return;
+  }
+
+  const pasos = flowReplay.model.pasos || [];
+  const max = Math.max(0, pasos.length - 1);
+  if (range) {
+    range.min = "0";
+    range.max = String(max);
+    range.step = "1";
+    range.value = String(Math.min(flowReplay.idx || 0, max));
+    range.disabled = max <= 0;
+  }
+
+  if (dateEl) {
+    dateEl.textContent = pasos.length ? formatearFechaReplay(flowReplay.timeMs) : "Sin fechas";
+  }
+
+  if (sub) {
+    const root = obtenerNodoPorId(flowReplay.rootId);
+    const rootLabel = root ? root.titulo || root.tipo || "Nodo" : "Nodo";
+    const sinFecha = flowReplay.model.sinFecha || 0;
+    const extra = sinFecha ? ` · ${sinFecha} nodo(s) sin fecha` : "";
+    sub.textContent = `Replay de: ${rootLabel}${extra}`;
+  }
+
+  if (hint) {
+    hint.textContent = pasos.length
+      ? "Hover en una conexión para ver litros y fecha. Las conexiones futuras se muestran punteadas."
+      : "No hay fechas en este recorrido. Añade “Fecha operación” en los nodos para usar Replay.";
+  }
+
+  if (playBtn) {
+    playBtn.textContent = flowReplay.playing ? "⏸" : "⏵";
+  }
+}
+
+function obtenerEntradasAncestroParaReplay(nodoId) {
+  const start = obtenerNodoPorId(nodoId);
+  if (!start) return [];
+  const visitados = new Set();
+  const entradas = new Map();
+  const stack = [normalizarIdNodo(start)];
+  while (stack.length) {
+    const actualId = stack.pop();
+    if (!actualId || visitados.has(actualId)) continue;
+    visitados.add(actualId);
+    const nodo = obtenerNodoPorId(actualId);
+    if (!nodo) continue;
+    if (nodo.tipo === "entrada") {
+      entradas.set(actualId, nodo);
+      continue;
+    }
+    const padres = obtenerPredecesores(actualId);
+    padres.forEach(pre => {
+      const pid = normalizarIdNodo(pre);
+      if (pid && !visitados.has(pid)) stack.push(pid);
+    });
+  }
+  return Array.from(entradas.values());
+}
+
+function iniciarReplayFlujo() {
+  if (!nodoSeleccionadoId) {
+    mostrarAviso("Selecciona una entrada (o un nodo de su recorrido) para iniciar el replay.", "info");
+    return;
+  }
+  const seleccionado = obtenerNodoPorId(nodoSeleccionadoId);
+  if (!seleccionado) {
+    mostrarAviso("No se encontró el nodo seleccionado.", "error");
+    return;
+  }
+  let entradaRoot = null;
+  if (seleccionado.tipo === "entrada") {
+    entradaRoot = seleccionado;
+  } else {
+    const entradas = obtenerEntradasAncestroParaReplay(seleccionado.id);
+    if (!entradas.length) {
+      mostrarAviso("Este nodo no tiene una entrada de uva asociada aguas arriba.", "error");
+      return;
+    }
+    if (entradas.length > 1) {
+      const etiquetas = entradas
+        .slice(0, 6)
+        .map(e => (e.datos?.id_ref ? `Entrada #${e.datos.id_ref}` : e.titulo || "Entrada"))
+        .join(", ");
+      mostrarAviso(
+        `Hay varias entradas posibles (${etiquetas}${entradas.length > 6 ? ", …" : ""}). Selecciona una entrada y vuelve a pulsar Replay.`,
+        "info"
+      );
+      return;
+    }
+    entradaRoot = entradas[0];
+    nodoSeleccionadoId = entradaRoot.id;
+  }
+
+  const model = construirModeloReplayFlujo(entradaRoot.id);
+  if (!model) {
+    mostrarAviso("No se pudo construir el replay para este nodo.", "error");
+    return;
+  }
+  flowReplay.activo = true;
+  flowReplay.playing = false;
+  flowReplay.rootId = model.rootId;
+  flowReplay.model = model;
+  flowReplay.idx = 0;
+  flowReplay.timeMs = model.pasos.length ? model.pasos[0] : Date.now();
+  flowReplay.state = calcularEstadoReplayFlujo(model, flowReplay.timeMs);
+  actualizarUIReplayFlujo();
+  renderFlowNodes();
+}
+
+function salirReplayFlujo() {
+  if (flowReplay.timer) {
+    clearInterval(flowReplay.timer);
+    flowReplay.timer = null;
+  }
+  flowReplay.playing = false;
+  flowReplay.activo = false;
+  flowReplay.rootId = null;
+  flowReplay.model = null;
+  flowReplay.state = null;
+  flowReplay.idx = 0;
+  flowReplay.timeMs = null;
+  actualizarUIReplayFlujo();
+  renderFlowNodes();
+}
+
+function toggleReplayFlujo() {
+  if (flowReplay?.activo) {
+    salirReplayFlujo();
+    return;
+  }
+  iniciarReplayFlujo();
+}
+
+function onReplayRangeInput(valor) {
+  if (!flowReplay?.activo || !flowReplay.model) return;
+  const pasos = flowReplay.model.pasos || [];
+  if (!pasos.length) return;
+  const idx = Math.max(0, Math.min(Number(valor) || 0, pasos.length - 1));
+  flowReplay.idx = idx;
+  flowReplay.timeMs = pasos[idx];
+  flowReplay.state = calcularEstadoReplayFlujo(flowReplay.model, flowReplay.timeMs);
+  if (flowReplay.playing && idx >= pasos.length - 1) {
+    togglePlayReplayFlujo(false);
+  }
+  actualizarUIReplayFlujo();
+  renderFlowNodes();
+}
+
+function replayPasoFlujo(delta) {
+  if (!flowReplay?.activo || !flowReplay.model) return;
+  const pasos = flowReplay.model.pasos || [];
+  if (!pasos.length) return;
+  const max = pasos.length - 1;
+  const next = Math.max(0, Math.min(max, (flowReplay.idx || 0) + (delta || 0)));
+  const range = document.getElementById("flowReplayRange");
+  flowReplay.idx = next;
+  flowReplay.timeMs = pasos[next];
+  flowReplay.state = calcularEstadoReplayFlujo(flowReplay.model, flowReplay.timeMs);
+  if (range) range.value = String(next);
+  actualizarUIReplayFlujo();
+  renderFlowNodes();
+}
+
+function togglePlayReplayFlujo(force) {
+  if (!flowReplay?.activo || !flowReplay.model) return;
+  const pasos = flowReplay.model.pasos || [];
+  const max = pasos.length - 1;
+  const shouldPlay = force == null ? !flowReplay.playing : Boolean(force);
+
+  if (!shouldPlay || max <= 0) {
+    if (flowReplay.timer) clearInterval(flowReplay.timer);
+    flowReplay.timer = null;
+    flowReplay.playing = false;
+    actualizarUIReplayFlujo();
+    return;
+  }
+
+  if (flowReplay.timer) clearInterval(flowReplay.timer);
+  flowReplay.playing = true;
+  flowReplay.timer = setInterval(() => {
+    const pasosLocal = flowReplay.model?.pasos || [];
+    const maxLocal = pasosLocal.length - 1;
+    if (!pasosLocal.length || flowReplay.idx >= maxLocal) {
+      togglePlayReplayFlujo(false);
+      return;
+    }
+    replayPasoFlujo(1);
+  }, FLOW_REPLAY_INTERVAL_MS);
+
+  actualizarUIReplayFlujo();
 }
 
 function crearTablaControlFermentacion(nodo) {
@@ -5219,14 +6175,7 @@ function obtenerEstadoDepositoDesdeNodo(idDeposito) {
   );
   if (nodoDeposito) {
     try {
-      const comp = calcularComposicionVariedades(nodoDeposito);
-      if (comp.mix.size) {
-        guardarComposicionEnNodo(nodoDeposito, comp.mix, comp.total);
-        variedadTexto = formatearComposicionVariedades(comp.mix, comp.total);
-      }
-      if (!variedadTexto) {
-        variedadTexto = nodoDeposito.datos?.variedad || nodoDeposito.datos?.variedadBase || "";
-      }
+      variedadTexto = obtenerVariedadVisibleNodo(nodoDeposito) || "";
     } catch (e) {
       console.warn("No se pudo calcular mezcla del depósito en mapa:", e);
     }
@@ -5380,7 +6329,7 @@ const FLOW_NODE_TYPES = {
         opciones: [],
         placeholder: "Selecciona contenedor",
       },
-      { id: "tipo", label: "Tipo de contenedor", tipo: "text", placeholder: "Roble francés 225L o Depósito mixto" },
+      { id: "tipo", label: "Tipo de contenedor", tipo: "info" },
       { id: "tiempo", label: "Fin previsto de la crianza", tipo: "date", placeholder: "" },
       { id: "tiempo_estimado", label: "Duración estimada", tipo: "info" },
       { id: "notas", label: "Notas", tipo: "textarea", placeholder: "Batonnage mensual" },
@@ -5514,17 +6463,31 @@ Object.keys(FLOW_NODE_TYPES).forEach(key => {
   }
 });
 	let datosEtapasFlujo = {};
-	let flujoNodos = [];
-	let nodoConectandoOrigen = null;
-		let nodoSeleccionadoId = null;
-		let nodoEnEdicion = null;
-		let dragEstado = null;
-		let ultimoNodoManual = null;
-		let flowZoom = 1;
-		const FLOW_ZOOM_MIN = 0.3;
-		const FLOW_ZOOM_MAX = 2;
-		const FLOW_ZOOM_STEP = 0.1;
-		const FLOW_WORLD_BASE = { width: 5000, height: 3000 };
+		let flujoNodos = [];
+		let nodoConectandoOrigen = null;
+			let nodoSeleccionadoId = null;
+			let nodoEnEdicion = null;
+			let dragEstado = null;
+			let ultimoNodoManual = null;
+			let flowZoom = 1;
+      let flowMinimapDrag = null;
+      let flowMinimapRaf = null;
+	  let flowReplay = {
+	    activo: false,
+	    playing: false,
+	    rootId: null,
+	    model: null,
+	    state: null,
+	    idx: 0,
+	    timeMs: null,
+	    timer: null,
+	  };
+	  const FLOW_REPLAY_INTERVAL_MS = 900;
+	  const FLOW_REPLAY_TIPOS_LITROS = new Set(["deposito", "coupage", "barrica", "almacen", "embotellado", "salida"]);
+			const FLOW_ZOOM_MIN = 0.3;
+			const FLOW_ZOOM_MAX = 2;
+			const FLOW_ZOOM_STEP = 0.1;
+			const FLOW_WORLD_BASE = { width: 5000, height: 3000 };
 	let filtrosMovimientos = {
   tipo: "",
   desde: "",
@@ -5795,6 +6758,7 @@ function aplicarLayoutFlow({ mantenerCentro = false } = {}) {
   }
 
   actualizarEtiquetaZoomFlow();
+  programarActualizacionMinimapFlow();
 }
 
 function aplicarZoomMapaFlujo(nuevoZoom, { mantenerCentro = true } = {}) {
@@ -5816,6 +6780,152 @@ function zoomMapaFlujo(direccion) {
 
 function resetZoomMapaFlujo() {
   aplicarZoomMapaFlujo(1);
+}
+
+function programarActualizacionMinimapFlow() {
+  if (flowMinimapRaf) return;
+  flowMinimapRaf = requestAnimationFrame(() => {
+    flowMinimapRaf = null;
+    actualizarMinimapFlow();
+  });
+}
+
+function inicializarMinimapFlow() {
+  const world = document.getElementById("flowMinimapWorld");
+  const viewport = document.getElementById("flowMinimapViewport");
+  if (!world || !viewport) return;
+  const editor = document.getElementById("flowEditor");
+  if (!editor) return;
+
+  const iniciar = ev => {
+    if (ev.button != null && ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    try {
+      world.setPointerCapture(ev.pointerId);
+    } catch (e) {
+      // noop
+    }
+    flowMinimapDrag = { pointerId: ev.pointerId, world, editor };
+    moverDesdeMinimapFlow(ev);
+    world.addEventListener("pointermove", moverDesdeMinimapFlow);
+    world.addEventListener("pointerup", finalizarMinimapFlow);
+    world.addEventListener("pointercancel", finalizarMinimapFlow);
+  };
+
+  world.onpointerdown = iniciar;
+  viewport.onpointerdown = ev => {
+    ev.stopPropagation();
+    iniciar(ev);
+  };
+}
+
+function moverDesdeMinimapFlow(ev) {
+  if (!flowMinimapDrag || ev.pointerId !== flowMinimapDrag.pointerId) return;
+  const { world, editor } = flowMinimapDrag;
+  const rect = world.getBoundingClientRect();
+  const relX = Math.max(0, Math.min(rect.width, ev.clientX - rect.left));
+  const relY = Math.max(0, Math.min(rect.height, ev.clientY - rect.top));
+  const worldX = (relX / (rect.width || 1)) * (FLOW_WORLD_BASE.width || 1);
+  const worldY = (relY / (rect.height || 1)) * (FLOW_WORLD_BASE.height || 1);
+  const zoom = flowZoom || 1;
+  editor.scrollLeft = Math.max(0, worldX * zoom - editor.clientWidth / 2);
+  editor.scrollTop = Math.max(0, worldY * zoom - editor.clientHeight / 2);
+  programarActualizacionMinimapFlow();
+}
+
+function finalizarMinimapFlow(ev) {
+  if (!flowMinimapDrag || ev.pointerId !== flowMinimapDrag.pointerId) return;
+  const { world, pointerId } = flowMinimapDrag;
+  try {
+    world.releasePointerCapture(pointerId);
+  } catch (e) {
+    // noop
+  }
+  world.removeEventListener("pointermove", moverDesdeMinimapFlow);
+  world.removeEventListener("pointerup", finalizarMinimapFlow);
+  world.removeEventListener("pointercancel", finalizarMinimapFlow);
+  flowMinimapDrag = null;
+}
+
+function centrarNodoFlowEnVista(nodo) {
+  if (!nodo) return;
+  const editor = document.getElementById("flowEditor");
+  const canvas = document.getElementById("flowCanvas");
+  if (!editor || !canvas) return;
+  const el = Array.from(canvas.querySelectorAll(".flow-node")).find(n => n.dataset.id === nodo.id);
+  const w = el ? el.offsetWidth : 160;
+  const h = el ? el.offsetHeight : 110;
+  const centerX = (Number(nodo.x) || 0) + w / 2;
+  const centerY = (Number(nodo.y) || 0) + h / 2;
+  const zoom = flowZoom || 1;
+  editor.scrollLeft = Math.max(0, centerX * zoom - editor.clientWidth / 2);
+  editor.scrollTop = Math.max(0, centerY * zoom - editor.clientHeight / 2);
+  programarActualizacionMinimapFlow();
+}
+
+function actualizarMinimapFlow() {
+  const world = document.getElementById("flowMinimapWorld");
+  const dotsHost = document.getElementById("flowMinimapDots");
+  const viewport = document.getElementById("flowMinimapViewport");
+  const editor = document.getElementById("flowEditor");
+  const canvas = document.getElementById("flowCanvas");
+  if (!world || !dotsHost || !viewport || !editor || !canvas) return;
+
+  const baseW = FLOW_WORLD_BASE.width || 1;
+  const baseH = FLOW_WORLD_BASE.height || 1;
+  const aspect = baseH / baseW;
+  const targetH = Math.round(world.clientWidth * aspect);
+  world.style.height = `${Math.max(120, Math.min(220, targetH))}px`;
+
+  const mmRect = world.getBoundingClientRect();
+  const mmW = mmRect.width || 1;
+  const mmH = mmRect.height || 1;
+  const zoom = flowZoom || 1;
+
+  const viewX = editor.scrollLeft / zoom;
+  const viewY = editor.scrollTop / zoom;
+  const viewW = editor.clientWidth / zoom;
+  const viewH = editor.clientHeight / zoom;
+
+  viewport.style.left = `${(viewX / baseW) * mmW}px`;
+  viewport.style.top = `${(viewY / baseH) * mmH}px`;
+  viewport.style.width = `${(viewW / baseW) * mmW}px`;
+  viewport.style.height = `${(viewH / baseH) * mmH}px`;
+
+  const nodeEls = Array.from(canvas.querySelectorAll(".flow-node"));
+  dotsHost.innerHTML = "";
+  nodeEls.forEach(nodeEl => {
+    const id = nodeEl.dataset.id || "";
+    const tipo = nodeEl.dataset.tipo || "";
+    const x = parseFloat(nodeEl.style.left || "") || 0;
+    const y = parseFloat(nodeEl.style.top || "") || 0;
+    const cx = x + nodeEl.offsetWidth / 2;
+    const cy = y + nodeEl.offsetHeight / 2;
+    const px = (cx / baseW) * mmW;
+    const py = (cy / baseH) * mmH;
+    const dot = document.createElement("div");
+    dot.className = `flow-minimap-dot ${tipo || ""}`;
+    if (id && nodoSeleccionadoId && String(nodoSeleccionadoId) === String(id)) {
+      dot.classList.add("seleccionado");
+    }
+    dot.style.left = `${px}px`;
+    dot.style.top = `${py}px`;
+    const nodo = id ? obtenerNodoPorId(id) : null;
+    dot.title = nodo?.titulo ? nodo.titulo : tipo ? tipo : "Nodo";
+    dot.addEventListener("pointerdown", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (!id) return;
+      const nodoClick = obtenerNodoPorId(id);
+      if (!nodoClick) return;
+      nodoSeleccionadoId = nodoClick.id;
+      renderFlowNodes();
+      mostrarInfoNodo(nodoClick.id);
+      requestAnimationFrame(() => centrarNodoFlowEnVista(nodoClick));
+    });
+    dotsHost.appendChild(dot);
+  });
 }
 
 function exportarNodosComoImagen() {
@@ -5868,12 +6978,16 @@ function exportarNodosComoImagen() {
 	  flowZoom = limitarZoomFlow(flowZoom);
 	  aplicarLayoutFlow();
 	  renderFlowNodes();
+	  const editor = document.getElementById("flowEditor");
+	  if (editor) {
+	    editor.addEventListener("scroll", programarActualizacionMinimapFlow, { passive: true });
+	  }
 	  const canvas = document.getElementById("flowCanvas");
-	  if (canvas) {
-	    canvas.addEventListener("click", e => {
-	      if (!e.target.closest(".flow-node")) {
-	        ocultarFlowTooltip();
-	        nodoSeleccionadoId = null;
+		  if (canvas) {
+		    canvas.addEventListener("click", e => {
+		      if (!e.target.closest(".flow-node")) {
+		        ocultarFlowTooltip();
+		        nodoSeleccionadoId = null;
 	        try {
 	          mostrarInfoNodo(null);
 	        } catch (err) {
@@ -5883,11 +6997,19 @@ function exportarNodosComoImagen() {
 	          .querySelectorAll(".flow-node.is-selected")
 	          .forEach(el => el.classList.remove("is-selected"));
 	      }
-	      cancelarConexionEnCurso();
-	    });
-	  }
-	  window.addEventListener("resize", renderFlowConnections);
-	}
+		      cancelarConexionEnCurso();
+		    });
+		  }
+		  window.addEventListener("resize", renderFlowConnections);
+		  window.addEventListener("resize", programarActualizacionMinimapFlow);
+		  try {
+		    mostrarInfoNodo(null);
+		  } catch (err) {
+		    // noop
+		  }
+		  programarActualizacionMinimapFlow();
+		  actualizarUIReplayFlujo();
+		}
 
 function generarIdNodo() {
   if (window.crypto && crypto.randomUUID) {
@@ -5974,18 +7096,21 @@ async function sembrarNodosDesdeDatos() {
 }
 
 // Override renderFlowNodes with a clean version (prev block had duplicated closures)
-	function renderFlowNodes() {
-	  const canvas = document.getElementById("flowCanvas");
-	  if (!canvas) return;
-	  aplicarLayoutFlow();
-	  canvas.innerHTML = "";
-	  canvas.dataset.mode = nodoConectandoOrigen ? "connecting" : "default";
+		function renderFlowNodes() {
+		  const canvas = document.getElementById("flowCanvas");
+		  if (!canvas) return;
+		  aplicarLayoutFlow();
+		  canvas.innerHTML = "";
+		  canvas.dataset.mode = nodoConectandoOrigen ? "connecting" : "default";
 	
 	  flujoNodos.forEach(nodo => {
 	    if (nodo.tipo === "entrada") {
 	      rellenarDatosEntradaDesdeCache(nodo);
     } else if (nodo.tipo === "deposito") {
       rellenarDatosDepositoDesdeCache(nodo);
+      actualizarTituloNodo(nodo);
+    } else if (nodo.tipo === "barrica") {
+      rellenarDatosCrianzaDesdeCache(nodo);
       actualizarTituloNodo(nodo);
     }
 	    // Recalcular mezcla visible por si el nodo recibe varias variedades
@@ -5997,15 +7122,28 @@ async function sembrarNodosDesdeDatos() {
 	      actualizarVolumenDesdeAsignaciones(nodo);
 	    }
 
-	    const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo" };
-	    const div = document.createElement("div");
-	    div.className = "flow-node";
-	    div.dataset.tipo = nodo.tipo;
-	    if (nodo.tipo === "barrica") {
-	      const tooltip = obtenerTooltipCrianza(nodo);
-	      if (tooltip) div.title = tooltip;
-	      div.addEventListener("pointerenter", e => {
-	        if (e.pointerType !== "mouse") return;
+		    const config = FLOW_NODE_TYPES[nodo.tipo] || { label: nodo.titulo || "Nodo" };
+		    const div = document.createElement("div");
+		    div.className = "flow-node";
+		    div.dataset.tipo = nodo.tipo;
+		    if (flowReplay?.activo && flowReplay.model) {
+		      const nodoId = normalizarIdNodo(nodo);
+		      if (!flowReplay.model.nodesSet?.has(nodoId)) {
+		        div.classList.add("replay-outside");
+		      } else if (!flowReplay.state?.activeNodes?.has(nodoId)) {
+		        div.classList.add("replay-inactive");
+		      } else {
+		        const ts = flowReplay.model.nodeTs?.get(nodoId);
+		        if (ts != null && flowReplay.timeMs != null && ts === flowReplay.timeMs) {
+		          div.classList.add("replay-current");
+		        }
+		      }
+		    }
+		    if (nodo.tipo === "barrica") {
+		      const tooltip = obtenerTooltipCrianza(nodo);
+		      if (tooltip) div.title = tooltip;
+		      div.addEventListener("pointerenter", e => {
+		        if (e.pointerType !== "mouse") return;
 	        ocultarFlowTooltip();
 	        mostrarFlowTooltip(tooltip, e.clientX, e.clientY);
 	      });
@@ -6028,9 +7166,6 @@ async function sembrarNodosDesdeDatos() {
 	    const colorVino = obtenerColorVino(nodo);
 	    div.dataset.vino = colorVino === "white" ? "white" : "red";
 	    fill.classList.add(colorVino === "white" ? "white" : "red");
-	    if (nodo.tipo === "barrica") {
-	      rellenarDatosCrianzaDesdeCache(nodo);
-	    }
     const ocupacion = calcularOcupacionNodo(nodo);
     if (ocupacion != null) {
       fill.style.height = `${(ocupacion * 100).toFixed(1)}%`;
@@ -6218,6 +7353,7 @@ async function sembrarNodosDesdeDatos() {
   });
 
   renderFlowConnections();
+  programarActualizacionMinimapFlow();
 }
 
 function resumenNodo(nodo) {
@@ -6231,11 +7367,11 @@ function resumenNodo(nodo) {
     .join(" · ");
 }
 
-function renderFlowConnections() {
-  const svg = document.getElementById("flowConnections");
-  const canvas = document.getElementById("flowCanvas");
-  const layer = document.getElementById("flowConnectionsLayer");
-  if (!svg || !canvas) return;
+	function renderFlowConnections() {
+	  const svg = document.getElementById("flowConnections");
+	  const canvas = document.getElementById("flowCanvas");
+	  const layer = document.getElementById("flowConnectionsLayer");
+	  if (!svg || !canvas) return;
   const width = canvas.offsetWidth;
   const height = canvas.offsetHeight;
   svg.setAttribute("width", width);
@@ -6251,10 +7387,10 @@ function renderFlowConnections() {
     nodosDom.set(nodeEl.dataset.id, nodeEl);
   });
 
-  flujoNodos.forEach(nodo => {
-    try {
-      const origenEl = nodosDom.get(nodo.id);
-      if (!origenEl) return;
+	  flujoNodos.forEach(nodo => {
+	    try {
+	      const origenEl = nodosDom.get(nodo.id);
+	      if (!origenEl) return;
       const x1 = nodo.x + origenEl.offsetWidth / 2;
       const y1 = nodo.y + origenEl.offsetHeight / 2;
       (nodo.targets || []).forEach(targetId => {
@@ -6270,16 +7406,55 @@ function renderFlowConnections() {
 	        curva.setAttribute("d", d);
 	        const tipoLinea = String(nodo.tipo || "").toLowerCase();
 	        const seleccion = nodoSeleccionadoId && (nodoSeleccionadoId === nodo.id || nodoSeleccionadoId === targetId);
+	        const replayActivo = Boolean(flowReplay?.activo && flowReplay.model && flowReplay.state);
+	        const origenIdNorm = normalizarIdNodo(nodo);
+	        const destinoIdNorm = normalizarIdNodo(destinoNodo);
+	        const enReplay =
+	          replayActivo &&
+	          flowReplay.model.nodesSet?.has(origenIdNorm) &&
+	          flowReplay.model.nodesSet?.has(destinoIdNorm);
+	        const edgeKey = `${origenIdNorm}→${destinoIdNorm}`;
+	        const futuro = enReplay && !flowReplay.state.activeNodes?.has(destinoIdNorm);
+	        const current = enReplay && flowReplay.state.currentEdges?.has(edgeKey);
 	        curva.setAttribute(
 	          "class",
-	          `flow-connector-line${tipoLinea ? " type-" + tipoLinea : ""}${seleccion ? " is-highlight" : ""}`
+	          `flow-connector-line${tipoLinea ? " type-" + tipoLinea : ""}${seleccion ? " is-highlight" : ""}${
+	            replayActivo
+	              ? enReplay
+	                ? current
+	                  ? " replay-now"
+	                  : futuro
+	                  ? " replay-future"
+	                  : " replay-done"
+	                : " replay-outside"
+	              : ""
+	          }`
 	        );
 	        (layer || svg).appendChild(curva);
 
-        // Etiqueta de composición de variedades en la mitad del conector
-        try {
-          const comp = calcularComposicionVariedades(nodo);
-          const textoComp = formatearComposicionVariedades(comp.mix, comp.total);
+	        if (replayActivo && enReplay) {
+	          const litros = obtenerLitrosTransferenciaEntreNodos(nodo, destinoNodo);
+	          const ts = flowReplay.model.nodeTs?.get(destinoIdNorm) ?? null;
+	          const fechaTxt = ts != null ? formatearFechaReplay(ts) : "Sin fecha";
+	          const litrosTxt = litros > 0 ? formatearLitrosPlano(litros) : "—";
+	          const estadoTxt = futuro ? "Pendiente" : "Hecho";
+	          const tooltip = `${nodo.titulo || nodo.tipo || "Origen"} → ${destinoNodo.titulo || destinoNodo.tipo || "Destino"}\nFecha: ${fechaTxt}\nLitros: ${litrosTxt}\nEstado: ${estadoTxt}`;
+	          curva.addEventListener("pointerenter", e => {
+	            if (e.pointerType !== "mouse") return;
+	            mostrarFlowTooltip(tooltip, e.clientX, e.clientY);
+	          });
+	          curva.addEventListener("pointermove", e => {
+	            if (e.pointerType !== "mouse") return;
+	            posicionarFlowTooltip(e.clientX, e.clientY);
+	          });
+	          curva.addEventListener("pointerleave", () => ocultarFlowTooltip());
+	          curva.addEventListener("pointerdown", () => ocultarFlowTooltip());
+	        }
+
+	        // Etiqueta de composición de variedades en la mitad del conector
+	        try {
+	          const comp = calcularComposicionVariedades(nodo);
+	          const textoComp = formatearComposicionVariedades(comp.mix, comp.total);
           if (textoComp) {
             const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
             const midX = (x1 + x2) / 2;
@@ -6301,11 +7476,12 @@ function renderFlowConnections() {
   });
 }
 
-function iniciarArrastreNodo(ev, nodoId) {
-  const nodo = flujoNodos.find(n => n.id === nodoId);
-  if (!nodo) return;
-  const editor = document.getElementById("flowEditor");
-  const canvas = document.getElementById("flowCanvas");
+	function iniciarArrastreNodo(ev, nodoId) {
+	  if (flowReplay?.activo) return;
+	  const nodo = flujoNodos.find(n => n.id === nodoId);
+	  if (!nodo) return;
+	  const editor = document.getElementById("flowEditor");
+	  const canvas = document.getElementById("flowCanvas");
   const editorRect = editor.getBoundingClientRect();
   const zoom = flowZoom || 1;
   const posX = (ev.clientX - editorRect.left + editor.scrollLeft) / zoom;
@@ -6356,6 +7532,7 @@ function moverNodoArrastre(ev) {
     dragEstado.elemento.style.top = `${nodo.y}px`;
   }
   renderFlowConnections();
+  programarActualizacionMinimapFlow();
 }
 
 function finalizarArrastreNodo(ev) {
@@ -6371,11 +7548,15 @@ function finalizarArrastreNodo(ev) {
   dragEstado = null;
 }
 
-function prepararConexion(id) {
-  if (nodoConectandoOrigen === id) {
-    nodoConectandoOrigen = null;
-  } else if (!nodoConectandoOrigen) {
-    nodoConectandoOrigen = id;
+	function prepararConexion(id) {
+	  if (flowReplay?.activo) {
+	    mostrarAviso("Sal del replay para conectar nodos.", "info");
+	    return;
+	  }
+	  if (nodoConectandoOrigen === id) {
+	    nodoConectandoOrigen = null;
+	  } else if (!nodoConectandoOrigen) {
+	    nodoConectandoOrigen = id;
   } else {
     conectarNodos(nodoConectandoOrigen, id);
     nodoConectandoOrigen = null;
@@ -7334,6 +8515,15 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
 	      .replace(/\"/g, "&quot;")
 	      .replace(/'/g, "&#39;");
 
+	  const minimapHtml = `
+	    <div class="flow-minimap-world" id="flowMinimapWorld" aria-label="Minimapa del mapa de nodos" role="img">
+	      <div class="flow-minimap-grid"></div>
+	      <div class="flow-minimap-dots" id="flowMinimapDots"></div>
+	      <div class="flow-minimap-viewport" id="flowMinimapViewport"></div>
+	    </div>
+	    <div class="flow-minimap-hint">Minimapa: clic o arrastra para moverte · Zoom: botones ±</div>
+	  `;
+
 	  const renderEmpty = () => {
 	    panel.innerHTML = `
 	      <div class="flow-inspector-header">
@@ -7343,6 +8533,7 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
 	          <div class="flow-inspector-sub">Selecciona un nodo en el mapa para ver detalles.</div>
 	        </div>
 	      </div>
+	      ${minimapHtml}
 	      <div class="flow-inspector-tags">
 	        <span class="flow-tag">Doble clic: editar</span>
 	        <span class="flow-tag">Conectar: origen → destino</span>
@@ -7353,6 +8544,8 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
 	        <div class="flow-field"><dt>Consejo</dt><dd>Usa “Exportar imagen” para compartir el flujo.</dd></div>
 	      </dl>
 	    `;
+	    inicializarMinimapFlow();
+	    programarActualizacionMinimapFlow();
 	  };
 
 	  const nodo = flujoNodos.find(n => n.id === id);
@@ -7407,18 +8600,25 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
 	        <div class="flow-inspector-sub">${escapeHtml(textoVolumen || "")}</div>
 	      </div>
 	    </div>
+	    ${minimapHtml}
 	    <div class="flow-inspector-tags">${tags
 	      .map(t => `<span class="flow-tag">${escapeHtml(t)}</span>`)
 	      .join("")}</div>
 	    ${detalles}
 	  `;
+	  inicializarMinimapFlow();
+	  programarActualizacionMinimapFlow();
 	}
 
-function abrirFlowModal(id) {
-  const nodo = flujoNodos.find(n => n.id === id);
-  if (!nodo) return;
-  // Asegurar que la mezcla/variedad esté recalculada antes de pintar el formulario (modal).
-  try {
+	function abrirFlowModal(id) {
+	  if (flowReplay?.activo) {
+	    mostrarAviso("Sal del replay para editar nodos.", "info");
+	    return;
+	  }
+	  const nodo = flujoNodos.find(n => n.id === id);
+	  if (!nodo) return;
+	  // Asegurar que la mezcla/variedad esté recalculada antes de pintar el formulario (modal).
+	  try {
     const comp = calcularComposicionVariedades(nodo);
     if (comp.mix && comp.mix.size) {
       guardarComposicionEnNodo(nodo, comp.mix, comp.total);
@@ -8175,11 +9375,6 @@ function obtenerInicialesUsuario(usuario) {
   ).toUpperCase();
 }
 
-function obtenerNodoPorId(idBuscado) {
-  const idNorm = normalizarIdNodo(idBuscado);
-  return flujoNodos.find(n => normalizarIdNodo(n.id) === idNorm) || null;
-}
-
 function obtenerVolumenFinalNodoContenedor(tipo, idRef) {
   if (!idRef || !Array.isArray(flujoNodos)) return null;
   const idStr = String(idRef);
@@ -8204,6 +9399,8 @@ function obtenerVolumenFinalNodoContenedor(tipo, idRef) {
   const finales = candidatos.filter(esFinal);
   const elegidos = finales.length ? finales : candidatos;
   const ultimo = elegidos[elegidos.length - 1];
+  const restante = obtenerVolumenRestanteNodo(ultimo);
+  if (restante != null) return restante;
   const volumen = Number(ultimo?.datos?.volumen ?? ultimo?.datos?.litros);
   return Number.isFinite(volumen) ? volumen : null;
 }
@@ -8211,9 +9408,6 @@ function obtenerVolumenFinalNodoContenedor(tipo, idRef) {
 function obtenerEstadoBarricaDesdeNodo(idBarrica) {
   if (!idBarrica || !Array.isArray(flujoNodos)) return null;
   const volumenNodo = obtenerVolumenFinalNodoContenedor("barrica", idBarrica);
-  if (Number.isFinite(volumenNodo)) {
-    return { volumen: volumenNodo, enMapa: true };
-  }
   const idStr = String(idBarrica);
   const nodo = flujoNodos.find(
     n =>
@@ -8224,9 +9418,20 @@ function obtenerEstadoBarricaDesdeNodo(idBarrica) {
         String(n.datos.codigo || "") === idStr ||
         String(n.id || "") === idStr)
   );
+  let variedadTexto = "";
+  if (nodo) {
+    try {
+      variedadTexto = obtenerVariedadVisibleNodo(nodo) || "";
+    } catch (e) {
+      // noop
+    }
+  }
+  if (Number.isFinite(volumenNodo)) {
+    return { volumen: volumenNodo, variedad: variedadTexto, enMapa: true };
+  }
   if (!nodo) return null;
   const volumen = nodo.datos?.volumen != null ? Number(nodo.datos.volumen) : null;
-  return volumen != null ? { volumen, enMapa: true } : null;
+  return volumen != null ? { volumen, variedad: variedadTexto, enMapa: true } : null;
 }
 
 async function cargarUsuarioActivo() {
@@ -8301,6 +9506,22 @@ document.addEventListener("DOMContentLoaded", () => {
   cargarUsuarioActivo();
 });
 let planoDrag = null;
+let planoSeleccion = null;
+let planoSeleccionItemActual = null;
+let planoZoom = 1;
+let planoWorldBase = { width: 2800, height: 1600 };
+let planoUIInicializada = false;
+let planoPanBloqueado = false;
+let planoPanSpace = false;
+let planoPanDrag = null;
+let planoMinimapDrag = null;
+let planoMinimapRaf = null;
+const PLANO_ZOOM_MIN = 0.2;
+const PLANO_ZOOM_MAX = 2.5;
+const PLANO_ZOOM_STEP = 0.1;
+const PLANO_DRAG_THRESHOLD_PX = 4;
+const PLANO_CARD_WIDTH = 148;
+const PLANO_CARD_HEIGHT = 176;
 let mapaDepositosPorId = new Map();
 let mapaBarricasPorId = new Map();
 let mapaMastelonesPorId = new Map();
@@ -8617,6 +9838,610 @@ function actualizarAprovechamientoAnual() {
   });
 }
 
+function limitarZoomPlanoBodega(valor) {
+  const z = Number(valor);
+  if (!Number.isFinite(z)) return 1;
+  return Math.max(PLANO_ZOOM_MIN, Math.min(PLANO_ZOOM_MAX, z));
+}
+
+function actualizarZoomPlanoBodegaUI() {
+  const label = document.getElementById("planoZoomLabel");
+  if (label) {
+    label.textContent = `${Math.round((planoZoom || 1) * 100)}%`;
+  }
+  const range = document.getElementById("planoZoomRange");
+  if (range) {
+    range.value = String(Math.round((planoZoom || 1) * 100));
+  }
+}
+
+function aplicarZoomPlanoBodega(nuevoZoom, opciones = {}) {
+  const editor = document.getElementById("planoEditor");
+  const stage = document.getElementById("planoStage");
+  const canvas = document.getElementById("planoCanvas");
+  if (!editor || !stage || !canvas) return;
+
+  const prevZoom = planoZoom || 1;
+  const centroWorld = opciones.centroWorld || {
+    x: (editor.scrollLeft + editor.clientWidth / 2) / prevZoom,
+    y: (editor.scrollTop + editor.clientHeight / 2) / prevZoom,
+  };
+
+  planoZoom = limitarZoomPlanoBodega(nuevoZoom);
+  try {
+    localStorage.setItem("planoZoom", String(planoZoom));
+  } catch (e) {
+    // noop
+  }
+
+  canvas.style.width = `${planoWorldBase.width}px`;
+  canvas.style.height = `${planoWorldBase.height}px`;
+  canvas.style.transform = `scale(${planoZoom})`;
+  stage.style.width = `${planoWorldBase.width * planoZoom}px`;
+  stage.style.height = `${planoWorldBase.height * planoZoom}px`;
+
+  editor.scrollLeft = Math.max(0, centroWorld.x * planoZoom - editor.clientWidth / 2);
+  editor.scrollTop = Math.max(0, centroWorld.y * planoZoom - editor.clientHeight / 2);
+
+  actualizarZoomPlanoBodegaUI();
+  actualizarModoManoPlanoBodegaUI();
+  programarActualizacionMinimapPlanoBodega();
+}
+
+function zoomPlanoBodega(direccion) {
+  const signo = direccion < 0 ? -1 : 1;
+  aplicarZoomPlanoBodega((planoZoom || 1) + signo * PLANO_ZOOM_STEP);
+}
+
+function resetZoomPlanoBodega() {
+  aplicarZoomPlanoBodega(1);
+}
+
+function setZoomPlanoBodega(valorPorcentaje) {
+  const pct = Number(valorPorcentaje);
+  if (!Number.isFinite(pct)) return;
+  aplicarZoomPlanoBodega(pct / 100);
+}
+
+function esSeccionPlanoActiva() {
+  const sec = document.getElementById("plano");
+  return Boolean(sec && sec.classList.contains("visible"));
+}
+
+function actualizarModoManoPlanoBodegaUI() {
+  const editor = document.getElementById("planoEditor");
+  if (!editor) return;
+  const activo = Boolean(planoPanBloqueado || planoPanSpace);
+  editor.classList.toggle("pan-activo", activo);
+}
+
+function toggleModoManoPlanoBodega() {
+  planoPanBloqueado = !planoPanBloqueado;
+  actualizarModoManoPlanoBodegaUI();
+  renderInspectorPlanoBodega(planoSeleccionItemActual);
+}
+
+function iniciarPanPlanoBodega(ev, editor) {
+  if (!editor) return;
+  if (planoPanDrag) return;
+  ev.preventDefault();
+  planoPanDrag = {
+    editor,
+    pointerId: ev.pointerId,
+    startX: ev.clientX,
+    startY: ev.clientY,
+    startScrollLeft: editor.scrollLeft,
+    startScrollTop: editor.scrollTop,
+  };
+  editor.classList.add("panning");
+  try {
+    editor.setPointerCapture(ev.pointerId);
+  } catch (e) {
+    // noop
+  }
+  editor.addEventListener("pointermove", moverPanPlanoBodega);
+  editor.addEventListener("pointerup", finalizarPanPlanoBodega);
+  editor.addEventListener("pointercancel", finalizarPanPlanoBodega);
+}
+
+function moverPanPlanoBodega(ev) {
+  if (!planoPanDrag || ev.pointerId !== planoPanDrag.pointerId) return;
+  const { editor, startX, startY, startScrollLeft, startScrollTop } = planoPanDrag;
+  const dx = ev.clientX - startX;
+  const dy = ev.clientY - startY;
+  editor.scrollLeft = startScrollLeft - dx;
+  editor.scrollTop = startScrollTop - dy;
+  programarActualizacionMinimapPlanoBodega();
+}
+
+function finalizarPanPlanoBodega(ev) {
+  if (!planoPanDrag || ev.pointerId !== planoPanDrag.pointerId) return;
+  const { editor, pointerId } = planoPanDrag;
+  try {
+    editor.releasePointerCapture(pointerId);
+  } catch (e) {
+    // noop
+  }
+  editor.classList.remove("panning");
+  editor.removeEventListener("pointermove", moverPanPlanoBodega);
+  editor.removeEventListener("pointerup", finalizarPanPlanoBodega);
+  editor.removeEventListener("pointercancel", finalizarPanPlanoBodega);
+  planoPanDrag = null;
+}
+
+function manejarPointerDownPlanoEditor(ev) {
+  if (!esSeccionPlanoActiva()) return;
+  const editor = document.getElementById("planoEditor");
+  if (!editor) return;
+  const target = ev.target;
+  if (target && target.closest && target.closest(".plano-item")) return;
+
+  const boton = ev.button ?? 0;
+  const esPan = Boolean(planoPanBloqueado || planoPanSpace || boton === 1);
+  if (esPan) {
+    iniciarPanPlanoBodega(ev, editor);
+    return;
+  }
+
+  limpiarSeleccionPlanoBodega();
+}
+
+function manejarWheelPlanoEditor(ev) {
+  if (!esSeccionPlanoActiva()) return;
+  if (!(ev.ctrlKey || ev.metaKey)) return;
+  const editor = document.getElementById("planoEditor");
+  if (!editor) return;
+
+  ev.preventDefault();
+  const signo = ev.deltaY < 0 ? 1 : -1;
+  const nuevoZoom = (planoZoom || 1) + signo * PLANO_ZOOM_STEP;
+  const rect = editor.getBoundingClientRect();
+  const pointerX = ev.clientX - rect.left;
+  const pointerY = ev.clientY - rect.top;
+  const centroWorld = {
+    x: (editor.scrollLeft + pointerX) / (planoZoom || 1),
+    y: (editor.scrollTop + pointerY) / (planoZoom || 1),
+  };
+  aplicarZoomPlanoBodega(nuevoZoom, { centroWorld });
+}
+
+function onPlanoKeyDown(ev) {
+  if (!esSeccionPlanoActiva()) return;
+  if (ev.code !== "Space") return;
+  const target = ev.target;
+  if (
+    target &&
+    (target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable)
+  ) {
+    return;
+  }
+  if (planoPanSpace) return;
+  planoPanSpace = true;
+  actualizarModoManoPlanoBodegaUI();
+  renderInspectorPlanoBodega(planoSeleccionItemActual);
+  ev.preventDefault();
+}
+
+function onPlanoKeyUp(ev) {
+  if (ev.code !== "Space") return;
+  if (!planoPanSpace) return;
+  planoPanSpace = false;
+  actualizarModoManoPlanoBodegaUI();
+  renderInspectorPlanoBodega(planoSeleccionItemActual);
+  ev.preventDefault();
+}
+
+function programarActualizacionMinimapPlanoBodega() {
+  if (planoMinimapRaf) return;
+  planoMinimapRaf = requestAnimationFrame(() => {
+    planoMinimapRaf = null;
+    actualizarMinimapPlanoBodega();
+  });
+}
+
+function seleccionarPlanoBodegaPorClave(tipo, id, opciones = {}) {
+  if (!tipo || id == null) return;
+  planoSeleccion = { tipo, id };
+  renderPlano();
+  if (opciones.centrar) {
+    requestAnimationFrame(() => centrarSeleccionPlanoBodega());
+  }
+}
+
+function inicializarMinimapPlanoBodega() {
+  const world = document.getElementById("planoMinimapWorld");
+  const viewport = document.getElementById("planoMinimapViewport");
+  if (!world || !viewport) return;
+  const editor = document.getElementById("planoEditor");
+  if (!editor) return;
+
+  const iniciar = ev => {
+    if (ev.button != null && ev.button !== 0) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    try {
+      world.setPointerCapture(ev.pointerId);
+    } catch (e) {
+      // noop
+    }
+    planoMinimapDrag = { pointerId: ev.pointerId, world, editor };
+    moverDesdeMinimapPlanoBodega(ev);
+    world.addEventListener("pointermove", moverDesdeMinimapPlanoBodega);
+    world.addEventListener("pointerup", finalizarMinimapPlanoBodega);
+    world.addEventListener("pointercancel", finalizarMinimapPlanoBodega);
+  };
+
+  world.onpointerdown = iniciar;
+  viewport.onpointerdown = ev => {
+    ev.stopPropagation();
+    iniciar(ev);
+  };
+}
+
+function moverDesdeMinimapPlanoBodega(ev) {
+  if (!planoMinimapDrag || ev.pointerId !== planoMinimapDrag.pointerId) return;
+  const { world, editor } = planoMinimapDrag;
+  const rect = world.getBoundingClientRect();
+  const relX = Math.max(0, Math.min(rect.width, ev.clientX - rect.left));
+  const relY = Math.max(0, Math.min(rect.height, ev.clientY - rect.top));
+  const worldX = (relX / rect.width) * (planoWorldBase.width || 1);
+  const worldY = (relY / rect.height) * (planoWorldBase.height || 1);
+  editor.scrollLeft = Math.max(0, worldX * (planoZoom || 1) - editor.clientWidth / 2);
+  editor.scrollTop = Math.max(0, worldY * (planoZoom || 1) - editor.clientHeight / 2);
+  programarActualizacionMinimapPlanoBodega();
+}
+
+function finalizarMinimapPlanoBodega(ev) {
+  if (!planoMinimapDrag || ev.pointerId !== planoMinimapDrag.pointerId) return;
+  const { world, pointerId } = planoMinimapDrag;
+  try {
+    world.releasePointerCapture(pointerId);
+  } catch (e) {
+    // noop
+  }
+  world.removeEventListener("pointermove", moverDesdeMinimapPlanoBodega);
+  world.removeEventListener("pointerup", finalizarMinimapPlanoBodega);
+  world.removeEventListener("pointercancel", finalizarMinimapPlanoBodega);
+  planoMinimapDrag = null;
+}
+
+function actualizarMinimapPlanoBodega() {
+  const world = document.getElementById("planoMinimapWorld");
+  const dotsHost = document.getElementById("planoMinimapDots");
+  const viewport = document.getElementById("planoMinimapViewport");
+  const editor = document.getElementById("planoEditor");
+  const canvas = document.getElementById("planoCanvas");
+  if (!world || !dotsHost || !viewport || !editor || !canvas) return;
+
+  const aspect = (planoWorldBase.height || 1) / (planoWorldBase.width || 1);
+  const targetH = Math.round(world.clientWidth * aspect);
+  world.style.height = `${Math.max(120, Math.min(220, targetH))}px`;
+
+  const mmRect = world.getBoundingClientRect();
+  const mmW = mmRect.width || 1;
+  const mmH = mmRect.height || 1;
+  const zoom = planoZoom || 1;
+  const worldW = planoWorldBase.width || 1;
+  const worldH = planoWorldBase.height || 1;
+
+  const viewX = editor.scrollLeft / zoom;
+  const viewY = editor.scrollTop / zoom;
+  const viewW = editor.clientWidth / zoom;
+  const viewH = editor.clientHeight / zoom;
+
+  viewport.style.left = `${(viewX / worldW) * mmW}px`;
+  viewport.style.top = `${(viewY / worldH) * mmH}px`;
+  viewport.style.width = `${(viewW / worldW) * mmW}px`;
+  viewport.style.height = `${(viewH / worldH) * mmH}px`;
+
+  const cardWidth = PLANO_CARD_WIDTH;
+  const cardHeight = PLANO_CARD_HEIGHT;
+  const itemEls = Array.from(canvas.querySelectorAll(".plano-item"));
+  dotsHost.innerHTML = "";
+  itemEls.forEach(el => {
+    const tipo = el.dataset.tipo || "";
+    const id = el.dataset.id || "";
+    const codigo = el.dataset.codigo || "";
+    const xPct = parseFloat(el.dataset.posx || "") || 0;
+    const yPct = parseFloat(el.dataset.posy || "") || 0;
+    const worldX = (xPct / 100) * worldW + cardWidth / 2;
+    const worldY = (yPct / 100) * worldH + cardHeight / 2;
+    const x = (worldX / worldW) * mmW;
+    const y = (worldY / worldH) * mmH;
+    const dot = document.createElement("div");
+    dot.className = `plano-minimap-dot ${tipo}`;
+    if (el.classList.contains("seleccionado")) dot.classList.add("seleccionado");
+    dot.style.left = `${x}px`;
+    dot.style.top = `${y}px`;
+    dot.title = tipo ? `${tipo} ${codigo || `#${id}`}` : "Contenedor";
+    dot.addEventListener("pointerdown", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      seleccionarPlanoBodegaPorClave(tipo, id, { centrar: true });
+    });
+    dotsHost.appendChild(dot);
+  });
+}
+
+function limpiarSeleccionPlanoBodega() {
+  planoSeleccion = null;
+  planoSeleccionItemActual = null;
+  const canvas = document.getElementById("planoCanvas");
+  if (canvas) {
+    canvas.querySelectorAll(".plano-item.seleccionado").forEach(el => el.classList.remove("seleccionado"));
+  }
+  renderInspectorPlanoBodega(null);
+}
+
+function seleccionarPlanoBodega(item, elemento) {
+  if (!item || !item.tipo || item.id == null) return;
+  planoSeleccion = { tipo: item.tipo, id: item.id };
+  planoSeleccionItemActual = item;
+  const canvas = document.getElementById("planoCanvas");
+  if (canvas) {
+    canvas.querySelectorAll(".plano-item.seleccionado").forEach(el => el.classList.remove("seleccionado"));
+  }
+  if (elemento) elemento.classList.add("seleccionado");
+  renderInspectorPlanoBodega(item);
+}
+
+function abrirSeleccionPlanoBodega() {
+  if (!planoSeleccionItemActual) return;
+  irAlContenedor(planoSeleccionItemActual);
+}
+
+function centrarSeleccionPlanoBodega() {
+  if (!planoSeleccion) return;
+  const editor = document.getElementById("planoEditor");
+  const canvas = document.getElementById("planoCanvas");
+  if (!editor || !canvas) return;
+  const selector = `.plano-item[data-tipo="${planoSeleccion.tipo}"][data-id="${planoSeleccion.id}"]`;
+  const el = canvas.querySelector(selector);
+  if (!el) return;
+
+  const xPct = parseFloat(el.dataset.posx || "") || 0;
+  const yPct = parseFloat(el.dataset.posy || "") || 0;
+  const centerX = (xPct / 100) * planoWorldBase.width + el.offsetWidth / 2;
+  const centerY = (yPct / 100) * planoWorldBase.height + el.offsetHeight / 2;
+  editor.scrollLeft = Math.max(0, centerX * (planoZoom || 1) - editor.clientWidth / 2);
+  editor.scrollTop = Math.max(0, centerY * (planoZoom || 1) - editor.clientHeight / 2);
+}
+
+function ajustarVistaPlanoBodega() {
+  const editor = document.getElementById("planoEditor");
+  const canvas = document.getElementById("planoCanvas");
+  if (!editor || !canvas) return;
+  const items = Array.from(canvas.querySelectorAll(".plano-item"));
+  if (!items.length) {
+    resetZoomPlanoBodega();
+    editor.scrollLeft = 0;
+    editor.scrollTop = 0;
+    return;
+  }
+
+  const baseW = planoWorldBase.width || canvas.clientWidth || 1200;
+  const baseH = planoWorldBase.height || canvas.clientHeight || 620;
+  const cardWidth = PLANO_CARD_WIDTH;
+  const cardHeight = PLANO_CARD_HEIGHT;
+  const cardWPercent = (cardWidth / baseW) * 100;
+  const cardHPercent = (cardHeight / baseH) * 100;
+
+  let minX = 100;
+  let minY = 100;
+  let maxX = 0;
+  let maxY = 0;
+  items.forEach(el => {
+    const x = parseFloat(el.dataset.posx || "") || 0;
+    const y = parseFloat(el.dataset.posy || "") || 0;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + cardWPercent);
+    maxY = Math.max(maxY, y + cardHPercent);
+  });
+
+  const bboxW = ((maxX - minX) / 100) * baseW;
+  const bboxH = ((maxY - minY) / 100) * baseH;
+  if (!(bboxW > 0 && bboxH > 0)) return;
+
+  const padding = 0.92;
+  const zoom = padding * Math.min(editor.clientWidth / bboxW, editor.clientHeight / bboxH);
+  const centerX = (((minX + maxX) / 2) / 100) * baseW;
+  const centerY = (((minY + maxY) / 2) / 100) * baseH;
+  aplicarZoomPlanoBodega(zoom, { centroWorld: { x: centerX, y: centerY } });
+}
+
+function inicializarPlanoBodegaUI() {
+  const editor = document.getElementById("planoEditor");
+  const stage = document.getElementById("planoStage");
+  const canvas = document.getElementById("planoCanvas");
+  if (!editor || !stage || !canvas) return;
+
+  const baseW = parseFloat(canvas.style.width) || canvas.clientWidth || canvas.offsetWidth || 2800;
+  const baseH = parseFloat(canvas.style.height) || canvas.clientHeight || canvas.offsetHeight || 1600;
+  planoWorldBase = {
+    width: Math.max(600, Math.round(baseW)),
+    height: Math.max(520, Math.round(baseH)),
+  };
+
+  canvas.style.width = `${planoWorldBase.width}px`;
+  canvas.style.height = `${planoWorldBase.height}px`;
+
+  if (!planoUIInicializada) {
+    editor.addEventListener("pointerdown", manejarPointerDownPlanoEditor);
+    editor.addEventListener("wheel", manejarWheelPlanoEditor, { passive: false });
+    editor.addEventListener("scroll", programarActualizacionMinimapPlanoBodega, { passive: true });
+    window.addEventListener("keydown", onPlanoKeyDown);
+    window.addEventListener("keyup", onPlanoKeyUp);
+    window.addEventListener("resize", programarActualizacionMinimapPlanoBodega);
+    planoUIInicializada = true;
+  }
+
+  let initZoom = 1;
+  try {
+    const saved = Number(localStorage.getItem("planoZoom"));
+    if (Number.isFinite(saved) && saved > 0) {
+      initZoom = saved;
+    } else {
+      const fit = Math.min(
+        1,
+        (editor.clientWidth || planoWorldBase.width) / planoWorldBase.width,
+        (editor.clientHeight || planoWorldBase.height) / planoWorldBase.height
+      );
+      initZoom = fit;
+    }
+  } catch (e) {
+    // noop
+  }
+  aplicarZoomPlanoBodega(initZoom);
+  renderInspectorPlanoBodega(planoSeleccionItemActual);
+  actualizarModoManoPlanoBodegaUI();
+  programarActualizacionMinimapPlanoBodega();
+}
+
+function renderInspectorPlanoBodega(item) {
+  const panel = document.getElementById("planoInfo");
+  if (!panel) return;
+  const escapeHtml = value =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+  const zoomPct = Math.round((planoZoom || 1) * 100);
+  const zoomMin = Math.round(PLANO_ZOOM_MIN * 100);
+  const zoomMax = Math.round(PLANO_ZOOM_MAX * 100);
+  const modoManoActivo = Boolean(planoPanBloqueado);
+  const modoManoBtnClass = modoManoActivo ? "btnPrimario" : "btnSecundario";
+  const modoManoBtnLabel = modoManoActivo ? "🖐 Mano: ON" : "🖐 Mano";
+
+  const zoomHtml = `
+    <div class="plano-zoom-controls">
+      <button class="btnSecundario plano-zoom-btn" type="button" onclick="zoomPlanoBodega(-1)" title="Alejar" aria-label="Alejar">−</button>
+      <button class="btnSecundario plano-zoom-label" id="planoZoomLabel" type="button" onclick="resetZoomPlanoBodega()" title="Reset zoom" aria-label="Reset zoom">${zoomPct}%</button>
+      <button class="btnSecundario plano-zoom-btn" type="button" onclick="zoomPlanoBodega(1)" title="Acercar" aria-label="Acercar">+</button>
+    </div>
+    <input class="plano-zoom-range" id="planoZoomRange" type="range" min="${zoomMin}" max="${zoomMax}" step="5" value="${zoomPct}" oninput="setZoomPlanoBodega(this.value)" aria-label="Zoom del plano" />
+  `;
+
+  const minimapHtml = `
+    <div class="plano-minimap-world" id="planoMinimapWorld" aria-label="Minimapa del plano" role="img">
+      <div class="plano-minimap-grid"></div>
+      <div class="plano-minimap-dots" id="planoMinimapDots"></div>
+      <div class="plano-minimap-viewport" id="planoMinimapViewport"></div>
+    </div>
+    <div class="plano-minimap-hint">Minimapa: clic o arrastra para moverte · Space o “Mano” para arrastrar el lienzo</div>
+  `;
+
+  const baseHeader = `
+    <div class="flow-inspector-header">
+      <div class="flow-inspector-icon">🛢</div>
+      <div>
+        <div class="flow-inspector-title">Inspector del plano</div>
+        <div class="flow-inspector-sub">Selecciona un depósito, mastelone o barrica para ver el desglose.</div>
+      </div>
+    </div>
+    ${zoomHtml}
+    <div class="plano-inspector-actions">
+      <button class="${modoManoBtnClass}" type="button" onclick="toggleModoManoPlanoBodega()">${modoManoBtnLabel}</button>
+      <button class="btnSecundario" type="button" onclick="ajustarVistaPlanoBodega()">Ajustar vista</button>
+      <button class="btnSecundario" type="button" onclick="limpiarSeleccionPlanoBodega()">Limpiar</button>
+    </div>
+    ${minimapHtml}
+  `;
+
+  if (!item) {
+    panel.innerHTML = `
+      ${baseHeader}
+      <div class="flow-inspector-tags">
+        <span class="flow-tag">Click: seleccionar</span>
+        <span class="flow-tag">Arrastrar: mover</span>
+        <span class="flow-tag">Doble clic: abrir ficha</span>
+        <span class="flow-tag">Space/Mano: pan</span>
+        <span class="flow-tag">Click fuera: limpiar</span>
+      </div>
+      <dl class="flow-inspector-fields">
+        <div class="flow-field"><dt>Consejo</dt><dd>Usa “Ajustar vista” para ver todos los contenedores.</dd></div>
+      </dl>
+    `;
+    inicializarMinimapPlanoBodega();
+    programarActualizacionMinimapPlanoBodega();
+    actualizarModoManoPlanoBodegaUI();
+    return;
+  }
+
+  const etiquetaBase = item.tipo === "deposito" ? "Dep" : item.tipo === "mastelone" ? "Mas" : "Bar";
+  const etiqueta = item.codigo ? `${etiquetaBase} ${item.codigo}` : `${etiquetaBase} #${item.id}`;
+  const subtitulo = item.tipo === "deposito" ? "Depósito" : item.tipo === "mastelone" ? "Mastelone" : "Barrica";
+  const capacidad = item.capacidad != null ? Number(item.capacidad) : null;
+  const volumen = item.volumen != null ? Number(item.volumen) : 0;
+  const libre = capacidad && capacidad > 0 ? Math.max(capacidad - volumen, 0) : null;
+  const porcentaje =
+    capacidad && capacidad > 0 ? Math.min(100, Math.round((volumen / capacidad) * 100)) : 0;
+
+  const estadoTexto =
+    item.tipo === "deposito" || item.tipo === "mastelone"
+      ? obtenerInfoEstadoDeposito(item.estado)?.descripcion || ""
+      : "";
+  const vinoTipo = item.variedadNodo || item.vino_tipo || "";
+  const vinoAnio = item.vino_anio || "";
+
+  const tags = [
+    `Tipo: ${subtitulo}`,
+    capacidad && capacidad > 0 ? `Llenado: ${porcentaje}%` : "Sin capacidad",
+    item.enMapa ? "Fuente: mapa de nodos" : "Fuente: ficha",
+  ];
+
+  const filas = [
+    { label: "Código", value: etiqueta },
+    { label: "Capacidad", value: capacidad != null ? formatearLitrosPlano(capacidad) : "—" },
+    { label: "Contenido", value: formatearLitrosPlano(volumen) },
+    { label: "Libre", value: libre != null ? formatearLitrosPlano(libre) : "—" },
+    vinoTipo ? { label: "Vino", value: vinoTipo } : null,
+    vinoAnio ? { label: "Añada", value: vinoAnio } : null,
+    estadoTexto ? { label: "Estado", value: estadoTexto } : null,
+    item.tipo !== "barrica" && item.contenido ? { label: "Material", value: item.contenido } : null,
+    item.tipo !== "barrica" && item.elaboracion ? { label: "Elaboración", value: item.elaboracion } : null,
+    item.tipo === "barrica" && item.detalle ? { label: "Roble / tostado", value: item.detalle } : null,
+    item.tipo === "barrica" && item.marca ? { label: "Marca", value: item.marca } : null,
+    item.tipo === "barrica" && item.anio ? { label: "Año barrica", value: item.anio } : null,
+    item.tipo !== "barrica" && item.detalle ? { label: "Notas", value: item.detalle } : null,
+  ].filter(Boolean);
+
+  panel.innerHTML = `
+    <div class="flow-inspector-header">
+      <div class="flow-inspector-icon">🧭</div>
+      <div>
+        <div class="flow-inspector-title">${escapeHtml(etiqueta)}</div>
+        <div class="flow-inspector-sub">${escapeHtml(subtitulo)}</div>
+      </div>
+    </div>
+    ${zoomHtml}
+    <div class="plano-inspector-actions">
+      <button class="${modoManoBtnClass}" type="button" onclick="toggleModoManoPlanoBodega()">${modoManoBtnLabel}</button>
+      <button class="btnSecundario" type="button" onclick="ajustarVistaPlanoBodega()">Ajustar vista</button>
+      <button class="btnSecundario" type="button" onclick="centrarSeleccionPlanoBodega()">Centrar</button>
+      <button class="btnPrimario" type="button" onclick="abrirSeleccionPlanoBodega()">Abrir ficha</button>
+      <button class="btnSecundario" type="button" onclick="limpiarSeleccionPlanoBodega()">Limpiar</button>
+    </div>
+    ${minimapHtml}
+    <div class="flow-inspector-tags">${tags.map(t => `<span class="flow-tag">${escapeHtml(t)}</span>`).join("")}</div>
+    <dl class="flow-inspector-fields">${filas
+      .map(
+        item =>
+          `<div class="flow-field"><dt>${escapeHtml(item.label)}</dt><dd>${escapeHtml(item.value)}</dd></div>`
+      )
+      .join("")}</dl>
+  `;
+  inicializarMinimapPlanoBodega();
+  programarActualizacionMinimapPlanoBodega();
+  actualizarModoManoPlanoBodegaUI();
+}
+
 function renderPlano() {
   const canvas = document.getElementById("planoCanvas");
   const mensaje = document.getElementById("planoMensaje");
@@ -8624,74 +10449,98 @@ function renderPlano() {
 
   const canvasWidth = canvas.clientWidth || canvas.offsetWidth || 600;
   const canvasHeight = canvas.clientHeight || canvas.offsetHeight || 400;
-  const cardWidth = 90;
-  const cardHeight = 96;
+  const cardWidth = PLANO_CARD_WIDTH;
+  const cardHeight = PLANO_CARD_HEIGHT;
   const offsetXPercent = (cardWidth / canvasWidth) * 100;
   const offsetYPercent = (cardHeight / canvasHeight) * 100;
 
   canvas.innerHTML = "";
   const elementos = [
-    ...cacheDepositos.map(d => ({
-      tipo: "deposito",
-      id: d.id,
-      codigo: d.codigo,
-      pos_x: d.pos_x,
-      pos_y: d.pos_y,
-      capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
-      volumen: (() => {
-        const estado = obtenerEstadoDepositoDesdeNodo(d.id);
-        if (estado && estado.enMapa && estado.volumen != null) return Number(estado.volumen);
-        return d.litros_actuales ?? 0;
-      })(),
-      detalle: d.material || d.contenido || d.elaboracion || "",
-      vino_tipo: d.vino_tipo || "",
-      contenido: d.material || d.contenido || "",
-      elaboracion: d.elaboracion || "",
-      estado: d.estado || "vacio",
-      colorReferencia: d.vino_tipo || d.material || d.contenido || d.elaboracion || "",
-    })),
-    ...cacheMastelones.map(d => ({
-      tipo: "mastelone",
-      id: d.id,
-      codigo: d.codigo,
-      pos_x: d.pos_x,
-      pos_y: d.pos_y,
-      capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
-      volumen: (() => {
-        const estado = obtenerEstadoDepositoDesdeNodo(d.id);
-        if (estado && estado.enMapa && estado.volumen != null) return Number(estado.volumen);
-        return d.litros_actuales ?? 0;
-      })(),
-      detalle: d.material || d.contenido || d.elaboracion || "",
-      vino_tipo: d.vino_tipo || "",
-      contenido: d.material || d.contenido || "",
-      elaboracion: d.elaboracion || "",
-      estado: d.estado || "vacio",
-      colorReferencia: d.vino_tipo || d.material || d.contenido || d.elaboracion || "",
-    })),
-    ...cacheBarricas.map(b => ({
-      tipo: "barrica",
-      id: b.id,
-      codigo: b.codigo,
-      pos_x: b.pos_x,
-      pos_y: b.pos_y,
-      capacidad: b.capacidad_l ?? null,
-      volumen: (() => {
-        const estado = obtenerEstadoBarricaDesdeNodo(b.id);
-        if (estado && estado.enMapa && estado.volumen != null) return Number(estado.volumen);
-        return b.litros_actuales ?? 0;
-      })(),
-      detalle: [b.tipo_roble, b.tostado].filter(Boolean).join(" · "),
-      vino_tipo: b.vino_tipo || "",
-      vino_anio: b.vino_anio || "",
-      marca: b.marca || "",
-      anio: b.anio || "",
-      colorReferencia: b.vino_tipo || "",
-    })),
+    ...cacheDepositos.map(d => {
+      const estadoNodo = obtenerEstadoDepositoDesdeNodo(d.id);
+      const volumenNodo =
+        estadoNodo && estadoNodo.enMapa && estadoNodo.volumen != null ? Number(estadoNodo.volumen) : null;
+      const variedades =
+        filtrarVariedadesMultilinea(estadoNodo?.variedad || "") ||
+        formatearVariedadesMultilinea(d.composicionVariedades || d.composicion_variedades) ||
+        (esVariedadGenerica(d.vino_tipo) ? "" : (d.vino_tipo || ""));
+      return {
+        tipo: "deposito",
+        id: d.id,
+        codigo: d.codigo,
+        pos_x: d.pos_x,
+        pos_y: d.pos_y,
+        capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
+        volumen: volumenNodo != null ? volumenNodo : d.litros_actuales ?? 0,
+        enMapa: Boolean(estadoNodo && estadoNodo.enMapa),
+        variedadNodo: variedades,
+        detalle: d.material || d.contenido || d.elaboracion || "",
+        vino_tipo: d.vino_tipo || "",
+        vino_anio: d.vino_anio || "",
+        contenido: d.material || d.contenido || "",
+        elaboracion: d.elaboracion || "",
+        estado: d.estado || "vacio",
+        colorReferencia: d.vino_tipo || d.material || d.contenido || d.elaboracion || "",
+      };
+    }),
+    ...cacheMastelones.map(d => {
+      const estadoNodo = obtenerEstadoDepositoDesdeNodo(d.id);
+      const volumenNodo =
+        estadoNodo && estadoNodo.enMapa && estadoNodo.volumen != null ? Number(estadoNodo.volumen) : null;
+      const variedades =
+        filtrarVariedadesMultilinea(estadoNodo?.variedad || "") ||
+        formatearVariedadesMultilinea(d.composicionVariedades || d.composicion_variedades) ||
+        (esVariedadGenerica(d.vino_tipo) ? "" : (d.vino_tipo || ""));
+      return {
+        tipo: "mastelone",
+        id: d.id,
+        codigo: d.codigo,
+        pos_x: d.pos_x,
+        pos_y: d.pos_y,
+        capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
+        volumen: volumenNodo != null ? volumenNodo : d.litros_actuales ?? 0,
+        enMapa: Boolean(estadoNodo && estadoNodo.enMapa),
+        variedadNodo: variedades,
+        detalle: d.material || d.contenido || d.elaboracion || "",
+        vino_tipo: d.vino_tipo || "",
+        vino_anio: d.vino_anio || "",
+        contenido: d.material || d.contenido || "",
+        elaboracion: d.elaboracion || "",
+        estado: d.estado || "vacio",
+        colorReferencia: d.vino_tipo || d.material || d.contenido || d.elaboracion || "",
+      };
+    }),
+    ...cacheBarricas.map(b => {
+      const estadoNodo = obtenerEstadoBarricaDesdeNodo(b.id);
+      const volumenNodo =
+        estadoNodo && estadoNodo.enMapa && estadoNodo.volumen != null ? Number(estadoNodo.volumen) : null;
+      const variedades =
+        filtrarVariedadesMultilinea(estadoNodo?.variedad || "") ||
+        formatearVariedadesMultilinea(b.composicionVariedades || b.composicion_variedades) ||
+        (esVariedadGenerica(b.vino_tipo) ? "" : (b.vino_tipo || ""));
+      return {
+        tipo: "barrica",
+        id: b.id,
+        codigo: b.codigo,
+        pos_x: b.pos_x,
+        pos_y: b.pos_y,
+        capacidad: b.capacidad_l ?? null,
+        volumen: volumenNodo != null ? volumenNodo : b.litros_actuales ?? 0,
+        enMapa: Boolean(estadoNodo && estadoNodo.enMapa),
+        variedadNodo: variedades,
+        detalle: [b.tipo_roble, b.tostado].filter(Boolean).join(" · "),
+        vino_tipo: b.vino_tipo || "",
+        vino_anio: b.vino_anio || "",
+        marca: b.marca || "",
+        anio: b.anio || "",
+        colorReferencia: b.vino_tipo || "",
+      };
+    }),
   ];
 
   if (!elementos.length) {
     mensaje.textContent = "Añade depósitos, mastelones o barricas para empezar.";
+    limpiarSeleccionPlanoBodega();
     const placeholder = document.createElement("div");
     placeholder.className = "plano-placeholder";
     placeholder.textContent = "Sin elementos todavía";
@@ -8700,12 +10549,19 @@ function renderPlano() {
   }
 
   mensaje.textContent = "Arrastra las tarjetas para guardar su posición.";
+  let seleccionEncontrada = false;
   elementos.forEach((item, idx) => {
     const bloque = document.createElement("div");
     bloque.className = `plano-item ${item.tipo}`;
-    const etiquetaBase =
-      item.tipo === "deposito" ? "Dep" : item.tipo === "mastelone" ? "Mas" : "Bar";
-    const etiqueta = item.codigo ? `${etiquetaBase} ${item.codigo}` : `${etiquetaBase} ${item.id}`;
+    bloque.dataset.id = String(item.id);
+    bloque.dataset.tipo = item.tipo;
+    if (item.codigo != null) bloque.dataset.codigo = String(item.codigo);
+    if (planoSeleccion && planoSeleccion.tipo === item.tipo && String(planoSeleccion.id) === String(item.id)) {
+      bloque.classList.add("seleccionado");
+      seleccionEncontrada = true;
+      planoSeleccionItemActual = item;
+    }
+    const etiqueta = item.codigo ? String(item.codigo) : String(item.id);
     const capacidad = item.capacidad != null ? Number(item.capacidad) : null;
     const volumen = item.volumen != null ? Number(item.volumen) : 0;
     const porcentaje =
@@ -8713,34 +10569,35 @@ function renderPlano() {
 
     const header = document.createElement("div");
     header.className = "plano-card-header";
-    const estadoInfo = obtenerInfoEstadoDeposito(item.estado);
     const subtitulo =
       item.tipo === "deposito"
         ? "Depósito"
         : item.tipo === "mastelone"
         ? "Mastelone"
         : "Barrica";
-    header.innerHTML = `<span>${etiqueta}</span><small>${subtitulo}</small>`;
-    const estadoBadge = document.createElement("span");
-    estadoBadge.className = `estado-pill mini estado-${estadoInfo.id}`;
-    estadoBadge.textContent = estadoInfo.label;
-    header.appendChild(estadoBadge);
+    header.innerHTML = `
+      <div class="plano-card-title-row">
+        <span class="plano-card-dot" aria-hidden="true"></span>
+        <span class="plano-card-code">${etiqueta}</span>
+      </div>
+      <small>${subtitulo}</small>
+    `;
+    const estaVacio = !Number.isFinite(volumen) || volumen <= 0;
+    if (estaVacio) {
+      const estadoInfo = obtenerInfoEstadoDeposito("vacio");
+      const estadoBadge = document.createElement("span");
+      estadoBadge.className = `estado-pill mini estado-${estadoInfo.id}`;
+      estadoBadge.textContent = estadoInfo.label;
+      header.appendChild(estadoBadge);
+    }
     bloque.appendChild(header);
 
     const body = document.createElement("div");
     body.className = "plano-card-body";
-    const icono = document.createElement("div");
-    icono.className = `plano-card-barrel ${item.tipo}`;
-    icono.innerHTML = `<span>${(porcentaje || 0).toString()}%</span>`;
     const materialColor = obtenerColorMaterialContenedor(
       item.tipo === "barrica" ? "Madera" : item.contenido || item.detalle || "",
       item.tipo
     );
-    bloque.style.borderTop = `4px solid ${materialColor}`;
-    icono.style.background = materialColor;
-    icono.style.borderColor = materialColor;
-    icono.style.color = materialColor === "#4a4f59" || materialColor === "#7b1b47" ? "#fff" : "#1a1a1a";
-    body.appendChild(icono);
 
     const info = document.createElement("div");
     info.className = "plano-card-info";
@@ -8757,16 +10614,28 @@ function renderPlano() {
     body.appendChild(info);
 
     const colorVino =
-      obtenerColorMaterialContenedor(
-        item.tipo === "barrica" ? "Madera" : item.contenido || item.detalle || "",
-        item.tipo
-      ) ||
-      obtenerColorVinoReferencia(item.colorReferencia) ||
+      obtenerColorVinoReferencia(item.variedadNodo || item.vino_tipo || item.colorReferencia) ||
+      materialColor ||
       (item.tipo === "barrica"
         ? "#c48a1b"
         : item.tipo === "mastelone"
         ? "#8b1b2b"
         : "#8f97a8");
+    try {
+      const acento = (colorVino || materialColor || "#8f97a8").toString();
+      bloque.style.setProperty("--plano-accent", acento);
+      const pastel = mezclarHexConBlanco(acento, 0.86, 0.18);
+      const glow = mezclarHexConBlanco(acento, 0.8, 0.14);
+      bloque.style.setProperty(
+        "--plano-card-bg",
+        `radial-gradient(circle at 16% 16%, ${pastel} 0%, rgba(255,255,255,0) 58%),` +
+          `radial-gradient(circle at 84% 78%, ${pastel} 0%, rgba(255,255,255,0) 62%),` +
+          `linear-gradient(180deg, rgba(255,255,255,0.94), rgba(255,255,255,0.86))`
+      );
+      bloque.style.setProperty("--plano-card-glow", glow);
+    } catch (e) {
+      // noop
+    }
     const progress = document.createElement("div");
     progress.className = "plano-card-progress";
     const barra = document.createElement("div");
@@ -8784,24 +10653,22 @@ function renderPlano() {
 
     const extra = document.createElement("div");
     extra.className = "plano-card-extra";
-    const principalDeposito = [
-      item.vino_tipo,
-      item.vino_anio,
-      item.contenido || item.elaboracion || "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    const detallePrincipal =
-      item.tipo === "deposito" || item.tipo === "mastelone"
-        ? principalDeposito || "Sin contenido"
-        : [item.vino_tipo, item.vino_anio].filter(Boolean).join(" · ") ||
-          item.detalle ||
-          "Sin notas";
-    const detalleSecundario =
-      item.tipo === "deposito" || item.tipo === "mastelone"
-        ? ""
-        : [item.marca, item.anio || null].filter(Boolean).join(" · ");
-    extra.textContent = [detallePrincipal, detalleSecundario].filter(Boolean).join(" · ");
+    const uvasTexto = (item.variedadNodo || item.vino_tipo || "").toString();
+    const anioTxt = (item.vino_anio || "").toString().trim();
+
+    if (anioTxt) {
+      const anada = document.createElement("div");
+      anada.className = "plano-card-anada";
+      anada.textContent = anioTxt;
+      anada.title = "Añada";
+      extra.appendChild(anada);
+    }
+
+    const uvas = document.createElement("div");
+    uvas.className = "plano-card-uvas";
+    uvas.textContent = uvasTexto ? uvasTexto : "Sin uva";
+    uvas.title = uvasTexto || "";
+    extra.appendChild(uvas);
     bloque.appendChild(extra);
 
   const defaultX = 6 + (idx * 13) % 80;
@@ -8820,12 +10687,29 @@ function renderPlano() {
   bloque.addEventListener("pointerdown", ev => iniciarArrastrePlano(ev, item, bloque));
   canvas.appendChild(bloque);
 });
+
+  if (planoSeleccion && !seleccionEncontrada) {
+    planoSeleccion = null;
+    planoSeleccionItemActual = null;
+  }
+  renderInspectorPlanoBodega(planoSeleccionItemActual);
 }
 
 function iniciarArrastrePlano(ev, item, elemento) {
+  const editor = document.getElementById("planoEditor");
+  const boton = ev.button ?? 0;
+  const esPan = Boolean(planoPanBloqueado || planoPanSpace || boton === 1);
+  if (esPan && editor) {
+    ev.stopPropagation();
+    iniciarPanPlanoBodega(ev, editor);
+    return;
+  }
+
+  ev.stopPropagation();
   ev.preventDefault();
   const canvas = document.getElementById("planoCanvas");
   if (!canvas) return;
+  seleccionarPlanoBodega(item, elemento);
   const rect = elemento.getBoundingClientRect();
 
   planoDrag = {
@@ -8835,13 +10719,24 @@ function iniciarArrastrePlano(ev, item, elemento) {
     canvas,
     offsetX: ev.clientX - rect.left,
     offsetY: ev.clientY - rect.top,
+    startClientX: ev.clientX,
+    startClientY: ev.clientY,
+    moved: false,
+    startPos: {
+      x: parseFloat(elemento.dataset.posx) || 0,
+      y: parseFloat(elemento.dataset.posy) || 0,
+    },
     current: {
       x: parseFloat(elemento.dataset.posx) || 0,
       y: parseFloat(elemento.dataset.posy) || 0,
     },
   };
 
-  elemento.classList.add("arrastrando");
+  try {
+    elemento.setPointerCapture(ev.pointerId);
+  } catch (e) {
+    // noop
+  }
   window.addEventListener("pointermove", moverElementoPlano);
   window.addEventListener("pointerup", soltarElementoPlano);
   window.addEventListener("pointercancel", cancelarArrastrePlano);
@@ -8851,12 +10746,21 @@ function moverElementoPlano(ev) {
   if (!planoDrag || ev.pointerId !== planoDrag.pointerId) return;
   const { canvas, elemento, offsetX, offsetY } = planoDrag;
   const rect = canvas.getBoundingClientRect();
+  const elRect = elemento.getBoundingClientRect();
+
+  if (!planoDrag.moved) {
+    const dx = ev.clientX - (planoDrag.startClientX || 0);
+    const dy = ev.clientY - (planoDrag.startClientY || 0);
+    if (Math.hypot(dx, dy) < PLANO_DRAG_THRESHOLD_PX) return;
+    planoDrag.moved = true;
+    elemento.classList.add("arrastrando");
+  }
 
   let px = ev.clientX - rect.left - offsetX;
   let py = ev.clientY - rect.top - offsetY;
 
-  const maxX = rect.width - elemento.offsetWidth;
-  const maxY = rect.height - elemento.offsetHeight;
+  const maxX = rect.width - elRect.width;
+  const maxY = rect.height - elRect.height;
 
   px = Math.max(0, Math.min(maxX, px));
   py = Math.max(0, Math.min(maxY, py));
@@ -8887,7 +10791,17 @@ function finalizarArrastrePlano(guardar) {
   window.removeEventListener("pointercancel", cancelarArrastrePlano);
 
   if (planoDrag.elemento) {
+    try {
+      planoDrag.elemento.releasePointerCapture(planoDrag.pointerId);
+    } catch (e) {
+      // noop
+    }
     planoDrag.elemento.classList.remove("arrastrando");
+  }
+
+  if (!planoDrag.moved) {
+    planoDrag = null;
+    return;
   }
 
   if (guardar && planoDrag.current) {
@@ -9812,6 +11726,80 @@ function obtenerColorMaterialContenedor(material, tipo = "") {
   // fallback por tipo
   if (tipo === "barrica") return "#c69c6d";
   return "#8f97a8";
+}
+
+function esColorOscuroHex(hex) {
+  const match = (hex || "").toString().trim().match(/^#?([0-9a-f]{6})$/i);
+  if (!match) return false;
+  const valor = match[1];
+  const r = parseInt(valor.slice(0, 2), 16);
+  const g = parseInt(valor.slice(2, 4), 16);
+  const b = parseInt(valor.slice(4, 6), 16);
+  const luminancia = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminancia < 0.55;
+}
+
+function mezclarHexConBlanco(hex, factorBlanco = 0.75, alpha = 0.32) {
+  const match = (hex || "").toString().trim().match(/^#?([0-9a-f]{6})$/i);
+  const f = Number(factorBlanco);
+  const factor = Number.isFinite(f) ? Math.max(0, Math.min(1, f)) : 0.75;
+  const a = Number(alpha);
+  const opacidad = Number.isFinite(a) ? Math.max(0, Math.min(1, a)) : 0.32;
+  if (!match) return `rgba(255,255,255,${opacidad})`;
+  const valor = match[1];
+  const r = parseInt(valor.slice(0, 2), 16);
+  const g = parseInt(valor.slice(2, 4), 16);
+  const b = parseInt(valor.slice(4, 6), 16);
+  const rr = Math.round(r + (255 - r) * factor);
+  const gg = Math.round(g + (255 - g) * factor);
+  const bb = Math.round(b + (255 - b) * factor);
+  return `rgba(${rr},${gg},${bb},${opacidad})`;
+}
+
+function esVariedadGenerica(texto) {
+  if (!texto) return false;
+  const t = texto
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (!t) return false;
+  if (t === "tinto" || t === "vino tinto") return true;
+  if (t === "blanco" || t === "vino blanco") return true;
+  if (t === "rosado" || t === "vino rosado") return true;
+  if (t === "clarete" || t === "vino clarete") return true;
+  if (t.includes("vino rosado") && t.includes("clarete")) return true;
+  if (t === "vino rosado / clarete") return true;
+  return false;
+}
+
+function filtrarVariedadesMultilinea(texto) {
+  if (!texto) return "";
+  const lineas = texto
+    .toString()
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean)
+    .filter(l => {
+      const sinPct = l.replace(/^\d+(?:[.,]\d+)?%\s*/g, "").trim();
+      return !esVariedadGenerica(sinPct);
+    });
+  return lineas.join("\n");
+}
+
+function formatearVariedadesMultilinea(lista) {
+  if (!Array.isArray(lista) || !lista.length) return "";
+  return lista
+    .map(item => {
+      const nombre = (item?.nombre || item?.variedad || "").toString().trim();
+      if (!nombre || esVariedadGenerica(nombre)) return "";
+      const porcentaje = Number.isFinite(item?.porcentaje) ? item.porcentaje : Number(item?.pct);
+      const pct = formatearPctVariedad(Number(porcentaje));
+      return pct && pct !== "0%" ? `${pct} ${nombre}` : nombre;
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function normalizarTipoVino(entrada, actual = "") {
