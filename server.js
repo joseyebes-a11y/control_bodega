@@ -142,6 +142,21 @@ async function ensureTables() {
     "contenedor_id",
     "fecha_hora",
   ]);
+  await assertColumns("catas", [
+    "user_id",
+    "bodega_id",
+    "contenedor_tipo",
+    "contenedor_id",
+    "fecha",
+    "vista",
+    "nariz",
+    "boca",
+    "equilibrio",
+    "defectos",
+    "intensidad",
+    "nota",
+    "created_at",
+  ]);
   await assertColumns("analisis_laboratorio", [
     "user_id",
     "bodega_id",
@@ -150,6 +165,7 @@ async function ensureTables() {
     "archivo_fichero",
   ]);
   await assertColumns("movimientos_vino", ["user_id", "bodega_id", "fecha", "tipo", "litros"]);
+  await ensureColumn("embotellados", "formatos", "TEXT");
   await assertColumns("embotellados", [
     "user_id",
     "bodega_id",
@@ -157,6 +173,7 @@ async function ensureTables() {
     "contenedor_tipo",
     "contenedor_id",
     "litros",
+    "formatos",
     "movimiento_id",
   ]);
   await assertColumns("productos_limpieza", ["user_id", "bodega_id", "nombre", "lote"]);
@@ -1106,6 +1123,7 @@ app.post("/api/embotellados", async (req, res) => {
     botellas,
     lote,
     nota,
+    formatos,
   } = req.body;
 
   const litrosNum = Number(litros);
@@ -1115,6 +1133,12 @@ app.post("/api/embotellados", async (req, res) => {
   }
 
   try {
+    let formatosJson = null;
+    if (Array.isArray(formatos)) {
+      formatosJson = JSON.stringify(formatos);
+    } else if (typeof formatos === "string" && formatos.trim()) {
+      formatosJson = formatos.trim();
+    }
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
     const { movimientoId, fecha: fechaMovimiento } = await registrarMovimientoEmbotellado(
@@ -1128,8 +1152,8 @@ app.post("/api/embotellados", async (req, res) => {
 
     await db.run(
       `INSERT INTO embotellados
-        (fecha, contenedor_tipo, contenedor_id, litros, botellas, lote, nota, movimiento_id, bodega_id, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (fecha, contenedor_tipo, contenedor_id, litros, botellas, lote, nota, formatos, movimiento_id, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       fecha || fechaMovimiento,
       contenedor_tipo,
       contenedorIdNum,
@@ -1137,6 +1161,7 @@ app.post("/api/embotellados", async (req, res) => {
       botellas || null,
       lote || null,
       nota || null,
+      formatosJson,
       movimientoId,
       bodegaId,
       userId
@@ -1382,6 +1407,88 @@ app.post("/api/registros", async (req, res) => {
   } catch (err) {
     console.error("Error al crear registro analítico:", err);
     res.status(500).json({ error: "Error al crear registro analítico" });
+  }
+});
+
+// ===================================================
+//  CATAS SENSORIALES
+// ===================================================
+app.get("/api/catas", async (req, res) => {
+  try {
+    const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
+    const { contenedor_tipo, contenedor_id } = req.query;
+    const condiciones = ["bodega_id = ?", "user_id = ?"];
+    const params = [bodegaId, userId];
+    const tipo = normalizarTipoContenedor(contenedor_tipo, null);
+    if (tipo) {
+      condiciones.push("contenedor_tipo = ?");
+      params.push(tipo);
+    }
+    if (contenedor_id) {
+      const idNum = Number(contenedor_id);
+      if (Number.isFinite(idNum)) {
+        condiciones.push("contenedor_id = ?");
+        params.push(idNum);
+      }
+    }
+    let query = "SELECT * FROM catas";
+    if (condiciones.length) {
+      query += " WHERE " + condiciones.join(" AND ");
+    }
+    query += " ORDER BY fecha DESC, id DESC";
+    const filas = await db.all(query, ...params);
+    res.json(filas);
+  } catch (err) {
+    console.error("Error al listar catas:", err);
+    res.status(500).json({ error: "Error al listar catas" });
+  }
+});
+
+app.post("/api/catas", async (req, res) => {
+  const {
+    contenedor_tipo,
+    contenedor_id,
+    fecha,
+    vista,
+    nariz,
+    boca,
+    equilibrio,
+    defectos,
+    intensidad,
+    nota,
+  } = req.body;
+
+  const tipo = normalizarTipoContenedor(contenedor_tipo, null);
+  const idNum = Number(contenedor_id);
+  if (!tipo || !Number.isFinite(idNum) || idNum <= 0 || !fecha) {
+    return res.status(400).json({ error: "Faltan datos de cata." });
+  }
+
+  try {
+    const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
+    await db.run(
+      `INSERT INTO catas
+       (contenedor_tipo, contenedor_id, fecha, vista, nariz, boca, equilibrio, defectos, intensidad, nota, bodega_id, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      tipo,
+      idNum,
+      fecha,
+      vista || null,
+      nariz || null,
+      boca || null,
+      equilibrio || null,
+      defectos || null,
+      intensidad || null,
+      nota || null,
+      bodegaId,
+      userId
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error al crear cata:", err);
+    res.status(500).json({ error: "Error al crear la cata" });
   }
 });
 

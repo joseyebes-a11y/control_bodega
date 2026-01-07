@@ -125,6 +125,25 @@ CREATE TABLE IF NOT EXISTS registros_analiticos (
   FOREIGN KEY (user_id) REFERENCES usuarios(id)
 );
 
+CREATE TABLE IF NOT EXISTS catas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  contenedor_tipo TEXT NOT NULL,
+  contenedor_id INTEGER NOT NULL,
+  fecha TEXT NOT NULL,
+  vista TEXT,
+  nariz TEXT,
+  boca TEXT,
+  equilibrio TEXT,
+  defectos TEXT,
+  intensidad TEXT,
+  nota TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
 CREATE TABLE IF NOT EXISTS analisis_laboratorio (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
@@ -171,6 +190,7 @@ CREATE TABLE IF NOT EXISTS embotellados (
   botellas INTEGER,
   lote TEXT,
   nota TEXT,
+  formatos TEXT,
   movimiento_id INTEGER,
   FOREIGN KEY (movimiento_id) REFERENCES movimientos_vino(id),
   FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
