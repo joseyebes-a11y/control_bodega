@@ -71,10 +71,22 @@ CREATE TABLE IF NOT EXISTS entradas_uva (
   fecha TEXT NOT NULL,
   anada TEXT,
   variedad TEXT NOT NULL,
-  kilos REAL NOT NULL,
+  kilos REAL,
+  cajas REAL,
+  cajas_total REAL,
+  mixto INTEGER DEFAULT 0,
+  modo_kilos TEXT DEFAULT 'total',
   viticultor TEXT,
+  viticultor_nif TEXT,
+  viticultor_contacto TEXT,
   tipo_suelo TEXT,
   parcela TEXT,
+  catastro_rc TEXT,
+  catastro_provincia TEXT,
+  catastro_municipio TEXT,
+  catastro_poligono TEXT,
+  catastro_parcela TEXT,
+  catastro_recinto TEXT,
   anos_vid TEXT,
   proveedor TEXT,
   grado_potencial REAL,
@@ -84,6 +96,24 @@ CREATE TABLE IF NOT EXISTS entradas_uva (
   FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
   FOREIGN KEY (user_id) REFERENCES usuarios(id)
 );
+
+CREATE TABLE IF NOT EXISTS entradas_uva_lineas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  entrada_id INTEGER NOT NULL,
+  variedad TEXT NOT NULL,
+  kilos REAL,
+  cajas INTEGER NOT NULL,
+  tipo_caja TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (entrada_id) REFERENCES entradas_uva(id) ON DELETE CASCADE,
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_entradas_uva_lineas_entrada
+  ON entradas_uva_lineas(user_id, bodega_id, entrada_id);
 
 CREATE TABLE IF NOT EXISTS entradas_destinos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -257,6 +287,159 @@ CREATE TABLE IF NOT EXISTS consumos_enologicos (
   destino_id INTEGER,
   nota TEXT,
   FOREIGN KEY (producto_id) REFERENCES productos_enologicos(id),
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+-- EVENTOS UNIFICADOS
+CREATE TABLE IF NOT EXISTS eventos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  timestamp TEXT NOT NULL,
+  tipo TEXT NOT NULL,
+  resumen TEXT,
+  payload TEXT,
+  referencia_tabla TEXT,
+  referencia_id INTEGER,
+  contenedor_tipo TEXT,
+  contenedor_id INTEGER,
+  creado_en TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+-- EVENTOS BODEGA (EXPRESS)
+CREATE TABLE IF NOT EXISTS eventos_bodega (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  fecha_hora TEXT NOT NULL,
+  tipo TEXT NOT NULL,
+  entidad_tipo TEXT,
+  entidad_id INTEGER,
+  payload_json TEXT,
+  resumen TEXT,
+  creado_en TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+-- EVENTOS CONTENEDOR (BITÁCORA)
+CREATE TABLE IF NOT EXISTS eventos_contenedor (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  contenedor_tipo TEXT NOT NULL,
+  contenedor_id INTEGER NOT NULL,
+  fecha_hora TEXT NOT NULL DEFAULT (datetime('now')),
+  tipo TEXT NOT NULL,
+  origen TEXT DEFAULT 'app',
+  resumen TEXT,
+  detalle TEXT,
+  meta_json TEXT,
+  resuelto INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_eventos_contenedor_ref
+  ON eventos_contenedor(user_id, bodega_id, contenedor_tipo, contenedor_id, fecha_hora);
+
+CREATE INDEX IF NOT EXISTS idx_eventos_contenedor_tipo
+  ON eventos_contenedor(user_id, bodega_id, tipo, fecha_hora);
+
+-- BITÁCORA INDÓMITA
+CREATE TABLE IF NOT EXISTS bitacora_entries (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_by TEXT NOT NULL,
+  text TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  deleted_at TEXT,
+  deposito_id TEXT,
+  madera_id TEXT,
+  linea_id TEXT,
+  variedades TEXT,
+  note_type TEXT,
+  origin TEXT NOT NULL,
+  edited_at TEXT,
+  edited_by TEXT,
+  edit_count INTEGER DEFAULT 0,
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bitacora_entries_user
+  ON bitacora_entries(user_id, bodega_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_bitacora_entries_scope
+  ON bitacora_entries(user_id, bodega_id, scope);
+
+CREATE INDEX IF NOT EXISTS idx_bitacora_entries_deposito
+  ON bitacora_entries(user_id, bodega_id, deposito_id);
+
+CREATE INDEX IF NOT EXISTS idx_bitacora_entries_madera
+  ON bitacora_entries(user_id, bodega_id, madera_id);
+
+CREATE INDEX IF NOT EXISTS idx_bitacora_entries_linea
+  ON bitacora_entries(user_id, bodega_id, linea_id);
+
+CREATE INDEX IF NOT EXISTS idx_bitacora_entries_variedades
+  ON bitacora_entries(user_id, bodega_id, variedades);
+
+-- ALERTAS
+CREATE TABLE IF NOT EXISTS alertas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  codigo TEXT NOT NULL,
+  nivel TEXT NOT NULL,
+  titulo TEXT NOT NULL,
+  mensaje TEXT,
+  contenedor_tipo TEXT,
+  contenedor_id INTEGER,
+  referencia_tabla TEXT,
+  referencia_id INTEGER,
+  resuelta INTEGER DEFAULT 0,
+  creada_en TEXT DEFAULT (datetime('now')),
+  actualizada_en TEXT DEFAULT (datetime('now')),
+  snooze_until TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(user_id, bodega_id, codigo, contenedor_tipo, contenedor_id, resuelta),
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+-- ADJUNTOS
+CREATE TABLE IF NOT EXISTS adjuntos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  contenedor_tipo TEXT NOT NULL,
+  contenedor_id INTEGER NOT NULL,
+  filename_original TEXT NOT NULL,
+  filename_guardado TEXT NOT NULL,
+  mime TEXT,
+  size INTEGER,
+  created_at TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+-- NOTAS DEL VINO
+CREATE TABLE IF NOT EXISTS notas_vino (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  contenedor_tipo TEXT NOT NULL,
+  contenedor_id INTEGER NOT NULL,
+  fecha TEXT NOT NULL,
+  texto TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
   FOREIGN KEY (user_id) REFERENCES usuarios(id)
 );
