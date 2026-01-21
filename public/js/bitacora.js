@@ -1287,6 +1287,20 @@ function asegurarModalBitacora() {
   btnCerrar.addEventListener("click", () => {
     modal.classList.remove("visible");
   });
+  modal.addEventListener("pointerdown", event => {
+    if (event.target === modal) {
+      modal.classList.remove("visible");
+    }
+  });
+  if (!modal.__escapeHooked) {
+    modal.__escapeHooked = true;
+    window.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
+      if (modal.classList.contains("visible")) {
+        modal.classList.remove("visible");
+      }
+    });
+  }
   acciones.appendChild(btnCerrar);
   content.appendChild(titulo);
   content.appendChild(mensaje);
@@ -1370,6 +1384,20 @@ export function initBitacoraHooks() {
     btnCerrar.addEventListener("click", () => {
       modal.classList.remove("visible");
     });
+    modal.addEventListener("pointerdown", event => {
+      if (event.target === modal) {
+        modal.classList.remove("visible");
+      }
+    });
+    if (!modal.__escapeHooked) {
+      modal.__escapeHooked = true;
+      window.addEventListener("keydown", event => {
+        if (event.key !== "Escape") return;
+        if (modal.classList.contains("visible")) {
+          modal.classList.remove("visible");
+        }
+      });
+    }
     acciones.appendChild(btnCerrar);
     content.appendChild(titulo);
     content.appendChild(acciones);

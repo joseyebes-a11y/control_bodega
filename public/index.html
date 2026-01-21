@@ -917,6 +917,9 @@ body::after {
             margin-top: 1px;
             text-align: right;
         }
+        .flow-node-subtitle.flow-node-metodo {
+            font-weight: 700;
+        }
 
         .flow-node-metrics {
             display: flex;
@@ -4656,6 +4659,10 @@ label {
             line-height: 1.2;
             max-width: 100%;
         }
+        #flujo .flow-node-subtitle.flow-node-metodo {
+            font-weight: 700;
+            font-size: 12px;
+        }
 
         #flujo .flow-node-subtitle.flow-subtitle-variedad {
             display: -webkit-box;
@@ -5107,9 +5114,9 @@ label {
 	                    <img src="/barricas.png" alt="Maderas" class="nav-barricas-icon" />
 	                    Maderas
 	                </a>
-                <a href="#" data-section="bitacora" data-keywords="bitacora cuaderno notas diario vino" onclick="cerrarNavMenu(); mostrarSeccion('bitacora')">📕 Bitácora</a>
                 <a href="#" data-section="plano" data-keywords="plano mapa bodega ubicacion" onclick="cerrarNavMenu(); mostrarSeccion('plano')">🗺 Plano bodega</a>
                 <a href="#" data-section="flujo" data-keywords="flujo nodos mapa nodos replay" onclick="cerrarNavMenu(); mostrarSeccion('flujo')">🔗 Mapa de nodos</a>
+                <a href="#" data-section="bitacora" data-keywords="bitacora cuaderno notas diario vino" onclick="cerrarNavMenu(); mostrarSeccion('bitacora')">📕 Bitácora</a>
                 <a href="#" data-section="embotellado" data-keywords="embotellado botellas botella lote" onclick="cerrarNavMenu(); mostrarSeccion('embotellado')">🍾 Embotellado</a>
                 <a href="#" data-section="enologicos" data-keywords="enologicos aditivos productos sulfuroso" onclick="cerrarNavMenu(); mostrarSeccion('enologicos')">🧪 Productos enológicos</a>
                 <a href="#" data-section="analiticos" data-keywords="analiticos analitica registros" onclick="cerrarNavMenu(); mostrarSeccion('analiticos')">📊 Registros analíticos</a>
@@ -5515,7 +5522,7 @@ label {
 		                    <input id="flowReplayRange" class="flow-replay-range" type="range" min="0" max="0" step="1" value="0" oninput="onReplayRangeInput(this.value)" aria-label="Línea de tiempo" />
 		                    <div class="flow-replay-date" id="flowReplayDate">—</div>
 		                </div>
-		                <div class="flow-replay-hint" id="flowReplayHint">Hover en una conexión para ver litros y fecha. Las conexiones futuras se muestran punteadas.</div>
+		                <div class="flow-replay-hint" id="flowReplayHint">Hover en una conexión para ver volumen y fecha. Las conexiones futuras se muestran punteadas.</div>
 		            </div>
 		            <div class="flow-layout">
 		                <div class="flow-editor" id="flowEditor">
@@ -6446,7 +6453,14 @@ let depositoEditando = null;
 let temporizadorGuardadoFlujo = null;
 const RETARDO_GUARDADO_FLUJO = 600;
 const TITULOS_DINAMICOS = {
-  estilo: () => null,
+  estilo: nodo => {
+    if (!Array.isArray(flujoNodos)) return null;
+    const estilos = flujoNodos.filter(n => n?.tipo === "estilo");
+    const id = normalizarIdNodo(nodo);
+    const idx = estilos.findIndex(n => normalizarIdNodo(n) === id);
+    if (idx >= 0) return `Elaboración ${idx + 1}`;
+    return "Elaboración";
+  },
   deposito: nodo => {
     const nombre = nodo?.datos?.codigo || "Depósito";
     const fase = nodo?.datos?.fase;
@@ -6596,8 +6610,8 @@ function obtenerValorCampoVisual(nodo, campo) {
     const volumenBase = obtenerVolumenActualNodo(nodo);
     const capNum = capacidadBase != null ? Number(capacidadBase) : NaN;
     const volNum = volumenBase != null ? Number(volumenBase) : NaN;
-    const capTxt = Number.isFinite(capNum) ? formatearLitrosPlano(capNum) : "";
-    const volTxt = Number.isFinite(volNum) && volNum > 0 ? formatearLitrosPlano(volNum) : "";
+    const capTxt = Number.isFinite(capNum) ? formatearVolumenPlano(capNum) : "";
+    const volTxt = Number.isFinite(volNum) && volNum > 0 ? formatearVolumenPlano(volNum) : "";
     const partes = [];
     if (capTxt) partes.push(capTxt);
     if (volTxt) partes.push(`Volumen: ${volTxt}`);
@@ -6624,7 +6638,7 @@ function obtenerValorCampoVisual(nodo, campo) {
   }
   if (campo.id === "litros_resultantes" || campo.id === "merma_abs") {
     const num = normalizarNumero(valor);
-    return num != null ? formatearLitrosPlano(num) : "";
+    return num != null ? formatearVolumenPlano(num) : "";
   }
   if (campo.id === "estado_vino") {
     if (String(valor).toLowerCase() === ESTADO_PERSONALIZADO) {
@@ -6676,7 +6690,7 @@ function esNodoConversor(nodo) {
 
 	function obtenerUnidadNodo(nodo, memo = new Map()) {
 	  if (!nodo) return "kilos";
-	  // Los contenedores se gestionan siempre en litros (capacidad/volumen) aunque reciban kilos.
+	  // Los contenedores se gestionan siempre en volumen (capacidad/volumen) aunque reciban kilos.
 	  if (
 	    nodo.tipo === "deposito" ||
 	    nodo.tipo === "barrica" ||
@@ -6716,65 +6730,76 @@ function obtenerUnidadDisponible(origen) {
 }
 
 function obtenerUnidadVisual(nodo) {
-  return obtenerUnidadNodo(nodo) === "litros" ? "L" : "kg";
+  return nodo?.tipo === "entrada" ? "Kg" : "Volumen";
 }
 
-function obtenerCantidadEnUnidad(fuente, unidad) {
-  const datos = fuente || {};
+function getVolumenFromDatos(datos) {
+  if (!datos || typeof datos !== "object") return null;
+  const volumen = normalizarNumero(datos.volumen);
+  if (volumen != null) return volumen;
   const kilos = normalizarNumero(datos.kilos);
   const litros = normalizarNumero(
     datos.litros_directos != null ? datos.litros_directos : datos.litros
   );
-  const volumen = normalizarNumero(datos.volumen);
-  if (unidad === "litros") {
-    if (litros != null && litros > 0) return litros;
-    if (kilos != null && kilos > 0) return kilos;
-    if (volumen != null && volumen > 0) return volumen;
-    if (litros != null) return litros;
-    if (kilos != null) return kilos;
-    if (volumen != null) return volumen;
-    return 0;
-  }
-  if (kilos != null && kilos > 0) return kilos;
-  if (litros != null && litros > 0) return litros;
-  if (volumen != null && volumen > 0) return volumen;
   if (kilos != null) return kilos;
   if (litros != null) return litros;
-  if (volumen != null) return volumen;
-  return 0;
+  return null;
 }
 
-function normalizarCargaSegunUnidad(carga, unidad) {
+function getVolumenFromNodo(nodo) {
+  if (!nodo) return null;
+  return getVolumenFromDatos(nodo.datos || {});
+}
+
+function obtenerCantidadEnUnidad(fuente, _unidad) {
+  const volumen = getVolumenFromDatos(fuente);
+  return Number.isFinite(volumen) ? volumen : 0;
+}
+
+function normalizarCargaSegunUnidad(carga, _unidad) {
   if (!carga) return null;
-  const base = obtenerCantidadEnUnidad(carga, unidad);
-  if (unidad === "litros") {
-    carga.kilos = 0;
-    carga.litros_directos = base;
-    carga.litros = base;
-  } else {
-    carga.kilos = base;
-    carga.litros_directos = 0;
-    carga.litros = 0;
-  }
+  const base = getVolumenFromDatos(carga);
+  carga.volumen = base != null ? Number(base.toFixed(4)) : null;
   return carga;
 }
 
-function asegurarAsignacionRegistro(destino, origenId, kilosPorDefecto = 0, litrosPorDefecto = 0) {
+function setVolumenRegistro(registro, valor) {
+  if (!registro) return;
+  const num = normalizarNumero(valor);
+  if (num == null) {
+    registro.volumen = null;
+    registro.litros = null;
+    registro.kilos = null;
+    return;
+  }
+  const final = Number(num.toFixed(2));
+  registro.volumen = final;
+  registro.litros = final;
+  registro.kilos = null;
+}
+
+function asegurarAsignacionRegistro(destino, origenId, volumenPorDefecto = null) {
   destino.datos = destino.datos || {};
   destino.datos.asignaciones = destino.datos.asignaciones || {};
   const key = origenId.toString();
   const existente = destino.datos.asignaciones[key];
   if (!existente) {
     destino.datos.asignaciones[key] = {
-      kilos: kilosPorDefecto,
-      litros: litrosPorDefecto,
+      volumen: null,
+      litros: null,
+      kilos: null,
       __manual: false,
     };
   } else {
-    if (existente.kilos == null && kilosPorDefecto) existente.kilos = kilosPorDefecto;
-    if (existente.litros == null && litrosPorDefecto) existente.litros = litrosPorDefecto;
+    if (existente.volumen == null && volumenPorDefecto != null) {
+      setVolumenRegistro(existente, volumenPorDefecto);
+    }
   }
-  return destino.datos.asignaciones[key];
+  const registro = destino.datos.asignaciones[key];
+  if (registro.volumen == null && volumenPorDefecto != null) {
+    setVolumenRegistro(registro, volumenPorDefecto);
+  }
+  return registro;
 }
 
 function normalizarIdNodo(nodo) {
@@ -6880,8 +6905,7 @@ function recalcularDatosDesdeAportes(nodo) {
     return;
   }
 
-  let sumK = 0;
-  let sumL = 0;
+  let sumVol = 0;
   let densidadSuma = 0;
   let densidadPeso = 0;
   let densidadPrimera = null;
@@ -6890,13 +6914,10 @@ function recalcularDatosDesdeAportes(nodo) {
   let tempPrimera = null;
 
   aportes.forEach(a => {
-    const k = normalizarNumero(a?.kilos) || 0;
-    const ld = normalizarNumero(a?.litros_directos) || 0;
-    const l = normalizarNumero(a?.litros) || 0;
-    if (k > 0) sumK += k;
-    if (ld > 0) sumL += ld;
-    else if (l > 0) sumL += l;
-    const peso = (ld > 0 ? ld : l > 0 ? l : k > 0 ? k : 0) || 0;
+    const v = getVolumenFromDatos(a);
+    const volumen = Number.isFinite(v) ? v : 0;
+    if (volumen > 0) sumVol += volumen;
+    const peso = volumen;
 
     const dens = normalizarNumero(a?.densidad);
     if (dens != null) {
@@ -6919,16 +6940,16 @@ function recalcularDatosDesdeAportes(nodo) {
   if (nodo.tipo === "barrica") {
     setKilosLitrosNodo(
       nodo,
-      Number(sumK.toFixed(2)),
-      Number(sumL.toFixed(2)),
+      null,
+      Number(sumVol.toFixed(2)),
       "recalcular_barrica"
     );
   } else {
     // Nodos de proceso: consolidamos totales.
     setKilosLitrosNodo(
       nodo,
-      Number(sumK.toFixed(2)),
-      Number(sumL.toFixed(2)),
+      null,
+      Number(sumVol.toFixed(2)),
       "recalcular_proceso"
     );
   }
@@ -7331,12 +7352,8 @@ function construirCargaDesdeDatos(datos = {}) {
   if (datos.anada) carga.anada = datos.anada;
   if (datos.fecha) carga.fecha = datos.fecha;
   if (datos.fecha_operacion) carga.fecha_operacion = datos.fecha_operacion;
-  const kilos = normalizarNumero(datos.kilos);
-  if (kilos != null) carga.kilos = kilos;
-  const litros = normalizarNumero(datos.litros);
-  if (litros != null) carga.litros = litros;
-  const litrosDirectos = normalizarNumero(datos.litros_directos);
-  if (litrosDirectos != null) carga.litros_directos = litrosDirectos;
+  const volumen = getVolumenFromDatos(datos);
+  if (volumen != null) carga.volumen = volumen;
   const densidad = normalizarNumero(datos.densidad);
   if (densidad != null) carga.densidad = densidad;
   const temperatura = normalizarNumero(datos.temperatura);
@@ -7385,12 +7402,7 @@ function sembrarDatosIniciales(origen, destino) {
 function obtenerVariedadVisibleNodo(nodo) {
   if (!nodo) return "";
   if (nodo.tipo === "deposito") {
-    const volumen = normalizarNumero(
-      nodo.datos?.volumen ??
-        nodo.datos?.litros ??
-        nodo.datos?.litros_directos ??
-        nodo.datos?.kilos
-    );
+    const volumen = getVolumenFromNodo(nodo);
     if (volumen != null && volumen <= 0) return "";
   }
   const compArray = nodo.datos?.composicionVariedades;
@@ -7522,8 +7534,6 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
   const key = nodo.id || nodo;
   if (visitados.has(key)) return { total: 0, mix };
   visitados.add(key);
-  const unidadNodo = obtenerUnidadNodo(nodo);
-
   const pesoNumerico = valor => {
     const num = Number(valor);
     return Number.isFinite(num) && num > 0 ? num : 0;
@@ -7538,20 +7548,24 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
   if (nodo.tipo === "entrada") {
     const entrada = nodo.datos?.id_ref ? buscarEntradaPorId(nodo.datos.id_ref) : null;
     const variedad = entrada?.variedad || nodo.datos?.variedad || nodo.datos?.vino || "";
+    const pesoEntrada = getVolumenFromDatos(entrada);
+    const pesoNodo = getVolumenFromNodo(nodo);
     const peso =
-      pesoNumerico(entrada?.kilos ?? nodo.datos?.kilos ?? nodo.datos?.litros ?? nodo.datos?.volumen) ||
-      1;
+      (Number.isFinite(pesoEntrada) && pesoEntrada > 0
+        ? pesoEntrada
+        : Number.isFinite(pesoNodo) && pesoNodo > 0
+        ? pesoNodo
+        : 1);
     agregarVariedadAPeso(mix, variedad, peso);
     return { total: totalizar(), mix };
   }
 
   const tieneAsignaciones = nodo.datos?.asignaciones && Object.keys(nodo.datos.asignaciones).length;
   if (tieneAsignaciones) {
-    const unidadNodo = obtenerUnidadNodo(nodo);
     const permitidos = new Set(obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre)));
     Object.entries(nodo.datos.asignaciones).forEach(([origenId, info]) => {
       if (!permitidos.has(origenId)) return;
-      const cantidad = obtenerCantidadEnUnidad(info, unidadNodo);
+      const cantidad = getVolumenFromDatos(info);
       if (!(cantidad > 0)) return;
       const origen = obtenerNodoPorId(origenId);
       const comp = calcularComposicionVariedades(origen, visitados);
@@ -7581,14 +7595,7 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
       // Si faltan aportes para algún predecesor, preferimos calcular desde los padres.
       if (!(idsPermitidos.size > 1 && entries.length < idsPermitidos.size)) {
         const aportes = entries.map(([, a]) => a);
-        const pesos = aportes.map(a => {
-          const kilos = pesoNumerico(a?.kilos);
-          const litrosDirectos = pesoNumerico(a?.litros_directos);
-          const litros = pesoNumerico(a?.litros);
-          return unidadNodo === "litros"
-            ? litrosDirectos || litros || kilos || 0
-            : kilos || litrosDirectos || litros || 0;
-        });
+        const pesos = aportes.map(a => getVolumenFromDatos(a) || 0);
         const hayPesos = pesos.some(p => p > 0);
         aportes.forEach((a, idx) => {
           if (!a?.variedad) return;
@@ -7612,21 +7619,7 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
   const padres = obtenerPredecesores(nodo.id);
   if (padres.length) {
     padres.forEach(pre => {
-      const unidadPre = obtenerUnidadNodo(pre);
-      const pesoBase =
-        unidadPre === "litros"
-          ? pesoNumerico(
-              pre?.datos?.litros_directos ??
-                pre?.datos?.litros ??
-                pre?.datos?.volumen ??
-                pre?.datos?.kilos
-            ) || 1
-          : pesoNumerico(
-              pre?.datos?.kilos ??
-                pre?.datos?.volumen ??
-                pre?.datos?.litros ??
-                pre?.datos?.litros_directos
-            ) || 1;
+      const pesoBase = getVolumenFromNodo(pre) || 1;
       const comp = calcularComposicionVariedades(pre, visitados);
       if (!comp.mix.size) return;
       const factor = comp.total > 0 ? pesoBase / comp.total : pesoBase;
@@ -7658,8 +7651,7 @@ function calcularComposicionVariedades(nodo, visitados = new Set()) {
   }
 
   const propia = nodo.datos?.variedad || nodo.datos?.variedadBase || nodo.datos?.vino || "";
-  const pesoPropio =
-    pesoNumerico(nodo.datos?.kilos ?? nodo.datos?.litros ?? nodo.datos?.volumen) || 1;
+  const pesoPropio = getVolumenFromNodo(nodo) || 1;
   sumar(propia, pesoPropio);
   return { total: totalizar(), mix };
 }
@@ -7753,10 +7745,31 @@ function obtenerVolumenNumericoNodo(nodo) {
   return Number.isFinite(volumen) ? Number(volumen) : null;
 }
 
+function esNodoProcesoHistorico(nodo) {
+  if (!nodo) return false;
+  return nodo.tipo === "estilo" || nodo.tipo === "prensado" || nodo.tipo === "fermentacion";
+}
+
+function obtenerHistoricoNodo(nodo) {
+  if (!nodo) return 0;
+  if (nodo.tipo === "entrada") {
+    const base = obtenerVolumenBaseNodoParaUI(nodo);
+    return Number.isFinite(base) ? Number(base) : 0;
+  }
+  const padres = obtenerPredecesores(nodo.id);
+  if (!padres.length) return 0;
+  const vistos = new Set();
+  return padres.reduce((total, pre) => {
+    const preId = normalizarIdNodo(pre);
+    if (!preId || vistos.has(preId)) return total;
+    vistos.add(preId);
+    const volumen = obtenerVolumenTransferenciaEntreNodos(pre, nodo);
+    return total + (Number.isFinite(volumen) ? volumen : 0);
+  }, 0);
+}
+
 function obtenerTextoVolumenNodo(nodo) {
   if (!nodo) return "";
-  const unidad = obtenerUnidadVisual(nodo);
-  const unidadLabel = unidad === "L" ? "L" : "kg";
   const valor = obtenerVolumenNumericoNodo(nodo);
 
   if (nodo.tipo === "embotellado") {
@@ -7785,17 +7798,35 @@ function obtenerTextoVolumenNodo(nodo) {
 
   const redondear = v => (Number.isFinite(v) ? Number(v.toFixed(0)) : null);
   const cap = redondear(capBase);
-  const cont = redondear(valor);
+  let cont = redondear(valor);
 
-  if ((nodo.tipo === "deposito" || nodo.tipo === "barrica") && (cap != null || cont != null)) {
-    if (cap != null && cont != null) return `Volumen ${cont}/${cap} ${unidadLabel}`;
-    if (cap != null) return `Volumen ${cap} ${unidadLabel}`;
+  if (nodo.tipo === "entrada") {
+    if (cont != null) return `Kg ${cont}`;
+    return "Pendiente de Kg";
+  }
+
+  if (cont == null && (nodo.tipo === "deposito" || nodo.tipo === "barrica")) {
+    const info = nodo.tipo === "deposito"
+      ? resolverInfoDepositoDesdeNodo(nodo)
+      : resolverInfoBarricaDesdeNodo(nodo);
+    const estado = normalizarNumero(
+      info?.cantidad ??
+        info?.litros_actuales ??
+        nodo.datos?.cantidad ??
+        nodo.datos?.litros_actuales
+    );
+    cont = redondear(estado);
+  }
+
+  if (nodo.tipo === "deposito" || nodo.tipo === "barrica") {
+    if (cont == null) return "Pendiente de volumen";
+    if (cap != null) return `Volumen ${cont}/${cap}`;
+    return `Volumen ${cont}`;
   }
   if (cont != null) {
-    const etiqueta = unidad === "L" ? "Volumen" : "Kilos";
-    return `${etiqueta} ${cont} ${unidadLabel}`;
+    return `Volumen ${cont}`;
   }
-  return "";
+  return "Pendiente de volumen";
 }
 
 function describirNodoOrigen(origen) {
@@ -8140,8 +8171,7 @@ function buildRepartoDestinos(nodoElaboracion) {
     return {
       idNodoDestino,
       nombre: getNombreNodoDestino(idNodoDestino, nodosPorId, mapaDepRef),
-      kilos: (valores && valores.kilos) || 0,
-      litros: (valores && valores.litros) || 0,
+      volumen: getVolumenFromDatos(valores) || 0,
     };
   });
 }
@@ -8212,9 +8242,12 @@ function obtenerEtiquetaNodoLimite(nodo) {
 	function sumarConsumoDesdeNodo(origen) {
 	  if (!origen) return 0;
 	  const origenKey = normalizarIdNodo(origen);
-	  const unidad = obtenerUnidadNodo(origen);
+	  const vistos = new Set();
 	  return (origen.targets || []).reduce((total, targetId) => {
-	    const destino = obtenerNodoPorId(targetId);
+	    const destinoId = normalizarIdNodo(targetId);
+	    if (!destinoId || vistos.has(destinoId)) return total;
+	    vistos.add(destinoId);
+	    const destino = obtenerNodoPorId(destinoId);
 	    if (!destino) return total;
 
 	    const registroAsignacion =
@@ -8222,7 +8255,7 @@ function obtenerEtiquetaNodoLimite(nodo) {
 	      destino.datos?.asignaciones?.[String(origen.id)];
 	    // En contenedores (depósito/coupage), la fuente de verdad para el consumo son las asignaciones (tabla).
 	    if (registroAsignacion && (destino.tipo === "deposito" || destino.tipo === "coupage")) {
-	      const valor = obtenerCantidadEnUnidad(registroAsignacion, unidad);
+	      const valor = getVolumenFromDatos(registroAsignacion);
 	      return total + (Number.isFinite(valor) ? valor : 0);
 	    }
 
@@ -8230,19 +8263,12 @@ function obtenerEtiquetaNodoLimite(nodo) {
 	      destino.datos?.aportes?.[origenKey] ||
 	      destino.datos?.aportes?.[String(origen.id)];
 	    if (aporte) {
-	      const valor = obtenerCantidadEnUnidad(
-	        {
-	          kilos: aporte.kilos,
-	          litros: aporte.litros,
-	          litros_directos: aporte.litros_directos,
-	        },
-	        unidad
-	      );
+	      const valor = getVolumenFromDatos(aporte);
 	      return total + (Number.isFinite(valor) ? valor : 0);
 	    }
 
 	    if (registroAsignacion) {
-	      const valor = obtenerCantidadEnUnidad(registroAsignacion, unidad);
+	      const valor = getVolumenFromDatos(registroAsignacion);
 	      return total + (Number.isFinite(valor) ? valor : 0);
 	    }
 	    return total;
@@ -8253,27 +8279,26 @@ function obtenerLimiteNodo(nodo) {
   if (!nodo) return null;
   // Recalcular/normalizar la carga antes de validar para evitar inconsistencias visual vs. validación.
   const carga = obtenerCargaDesdeNodo(nodo);
-  const unidad = obtenerUnidadNodo(nodo);
-  const total = obtenerCantidadEnUnidad(
-    {
-      kilos: carga?.kilos ?? nodo.datos?.kilos,
-      litros: carga?.litros ?? nodo.datos?.litros,
-      litros_directos: carga?.litros_directos ?? nodo.datos?.litros_directos,
-      volumen: nodo.datos?.volumen,
-    },
-    unidad
-  );
-  const totalNum = Number(Number(total || 0).toFixed(2));
-  if (Number.isFinite(totalNum)) return totalNum;
-  return null;
+  const total = carga ? getVolumenFromDatos(carga) : getVolumenFromNodo(nodo);
+  const totalNum = Number.isFinite(total) ? Number(total.toFixed(2)) : 0;
+  return totalNum;
+}
+
+function obtenerVolumenBaseNodoParaUI(nodo) {
+  if (!nodo) return null;
+  const carga = obtenerCargaDesdeNodo(nodo);
+  const base = carga ? getVolumenFromDatos(carga) : getVolumenFromNodo(nodo);
+  return Number.isFinite(base) ? Number(base.toFixed(2)) : null;
 }
 
 function obtenerVolumenRestanteNodo(nodo) {
   if (!nodo) return null;
-  const limite = obtenerLimiteNodo(nodo);
+  const limite = obtenerVolumenBaseNodoParaUI(nodo);
   if (limite == null) return null;
   // La entrada de uva es una referencia: sus kilos no se descuentan visualmente.
   if (nodo.tipo === "entrada") return limite;
+  // En nodos de proceso mantenemos el volumen 1-1 (solo varía si hay merma).
+  if (esNodoProcesoHistorico(nodo)) return limite;
   const consumo = sumarConsumoDesdeNodo(nodo);
   const consumoSeguro = Number.isFinite(consumo) ? consumo : 0;
   const restante = Number(limite) - consumoSeguro;
@@ -8290,48 +8315,27 @@ function obtenerVolumenRestanteNodo(nodo) {
 	  if (!Number.isFinite(valor) || valor <= 0) return false;
 	  origen.datos = origen.datos || {};
 	  const limite = Number(valor.toFixed(2));
-	  const unidad = obtenerUnidadNodo(origen);
-	  if (unidad === "litros") {
-	    setKilosLitrosNodo(origen, 0, limite, "reparar_limite");
-	  } else {
-	    setKilosLitrosNodo(origen, limite, 0, "reparar_limite");
-	  }
+	  setKilosLitrosNodo(origen, null, limite, "reparar_limite");
 	  return true;
 	}
 
-	function ajustarRegistroAsignacionParaUnidad(registro, unidad, nuevoValor) {
+	function ajustarRegistroAsignacionParaUnidad(registro, _unidad, nuevoValor) {
 	  if (!registro) return;
 	  const objetivo = Math.max(0, Number.isFinite(Number(nuevoValor)) ? Number(nuevoValor) : 0);
-	  if (unidad === "litros") {
-	    registro.litros = Number(objetivo.toFixed(2));
-	    registro.kilos = 0;
-	    return;
-	  }
-	  registro.kilos = Number(objetivo.toFixed(2));
-	  registro.litros = 0;
+	  setVolumenRegistro(registro, objetivo);
 	}
 
-	function ajustarAporteParaUnidad(aporte, unidad, nuevoValor) {
+	function ajustarAporteParaUnidad(aporte, _unidad, nuevoValor) {
 	  if (!aporte) return;
 	  const objetivo = Math.max(0, Number.isFinite(Number(nuevoValor)) ? Number(nuevoValor) : 0);
-	  if (unidad === "litros") {
-	    const litrosNuevo = Number(objetivo.toFixed(2));
-	    aporte.litros_directos = litrosNuevo;
-	    aporte.litros = litrosNuevo;
-	    aporte.kilos = 0;
-	    return;
-	  }
-	  const kilosNuevo = Number(objetivo.toFixed(2));
-	  aporte.kilos = kilosNuevo;
-	  aporte.litros_directos = 0;
-	  aporte.litros = 0;
+	  setVolumenRegistro(aporte, objetivo);
+	  aporte.litros_directos = aporte.volumen != null ? aporte.volumen : null;
 	}
 
 	function recortarConsumoDesdeNodo(origen, limite) {
 	  if (!origen || !Array.isArray(origen.targets) || !origen.targets.length) return false;
 	  const lim = Number(limite);
 	  if (!Number.isFinite(lim)) return false;
-	  const unidad = obtenerUnidadNodo(origen);
 	  const origenKey = normalizarIdNodo(origen);
 	  const edges = (origen.targets || [])
 	    .map(targetId => {
@@ -8342,16 +8346,8 @@ function obtenerVolumenRestanteNodo(nodo) {
 	        datos.asignaciones?.[origenKey] || datos.asignaciones?.[String(origen.id)];
 	      const aporte =
 	        datos.aportes?.[origenKey] || datos.aportes?.[String(origen.id)];
-	      const consumoReg = r => obtenerCantidadEnUnidad(r, unidad);
-	      const consumoAporte = a =>
-	        obtenerCantidadEnUnidad(
-	          {
-	            kilos: a?.kilos,
-	            litros: a?.litros,
-	            litros_directos: a?.litros_directos,
-	          },
-	          unidad
-	        );
+	      const consumoReg = r => getVolumenFromDatos(r);
+	      const consumoAporte = a => getVolumenFromDatos(a);
 	      let valor = 0;
 	      let manual = false;
 	      if (reg) {
@@ -8380,13 +8376,13 @@ function obtenerVolumenRestanteNodo(nodo) {
 	    const delta = Math.min(actual, exceso);
 	    const nuevo = Math.max(0, actual - delta);
 	    if (edge.reg) {
-	      ajustarRegistroAsignacionParaUnidad(edge.reg, unidad, nuevo);
+	      ajustarRegistroAsignacionParaUnidad(edge.reg, null, nuevo);
 	      if (edge.destino.tipo === "deposito" || edge.destino.tipo === "coupage") {
 	        actualizarVolumenDesdeAsignaciones(edge.destino);
 	        actualizarVariedadDesdeAportes(edge.destino);
 	      }
 	    } else if (edge.aporte) {
-	      ajustarAporteParaUnidad(edge.aporte, unidad, nuevo);
+	      ajustarAporteParaUnidad(edge.aporte, null, nuevo);
 	      try {
 	        recalcularDatosDesdeAportes(edge.destino);
 	      } catch (e) {
@@ -8473,47 +8469,25 @@ function obtenerLitrosTransferenciaEntreNodos(origen, destino) {
   const datos = destino.datos || {};
   const regAsig = datos.asignaciones?.[key] || datos.asignaciones?.[String(origen.id)];
   if (regAsig) {
-    const litros = normalizarNumero(regAsig.litros);
-    if (litros != null) return litros > 0 ? litros : 0;
+    const volumen = getVolumenFromDatos(regAsig);
+    if (volumen != null) return volumen > 0 ? volumen : 0;
   }
   const aporte = datos.aportes?.[key] || datos.aportes?.[String(origen.id)];
   if (aporte) {
-    const litros = normalizarNumero(aporte.litros_directos ?? aporte.litros);
-    if (litros != null) return litros > 0 ? litros : 0;
+    const volumen = getVolumenFromDatos(aporte);
+    if (volumen != null) return volumen > 0 ? volumen : 0;
   }
   return 0;
 }
 
 function obtenerKilosTransferenciaEntreNodos(origen, destino) {
   if (!origen || !destino) return 0;
-  const key = normalizarIdNodo(origen);
-  const datos = destino.datos || {};
-  const regAsig = datos.asignaciones?.[key] || datos.asignaciones?.[String(origen.id)];
-  if (regAsig) {
-    const kilos = normalizarNumero(regAsig.kilos);
-    if (kilos != null) return kilos > 0 ? kilos : 0;
-  }
-  const aporte = datos.aportes?.[key] || datos.aportes?.[String(origen.id)];
-  if (aporte) {
-    const kilos = normalizarNumero(aporte.kilos);
-    if (kilos != null) return kilos > 0 ? kilos : 0;
-  }
   return 0;
 }
 
 function obtenerVolumenTransferenciaEntreNodos(origen, destino) {
-  const litros = obtenerLitrosTransferenciaEntreNodos(origen, destino);
-  const kilos = obtenerKilosTransferenciaEntreNodos(origen, destino);
-  const unidad = obtenerUnidadNodo(origen);
-  const valor =
-    unidad === "litros"
-      ? litros > 0
-        ? litros
-        : kilos
-      : kilos > 0
-      ? kilos
-      : litros;
-  return Number.isFinite(valor) && valor > 0 ? valor : 0;
+  const volumen = obtenerLitrosTransferenciaEntreNodos(origen, destino);
+  return Number.isFinite(volumen) && volumen > 0 ? volumen : 0;
 }
 
 function construirModeloReplayFlujo(rootId) {
@@ -8633,7 +8607,7 @@ function obtenerVolumenVisualNodo(nodo) {
   const nodoId = normalizarIdNodo(nodo);
   if (flowReplay?.activo && flowReplay.model && flowReplay.state && flowReplay.model.nodesSet?.has(nodoId)) {
     if (nodo.tipo === "entrada") {
-      const limite = obtenerLimiteNodo(nodo);
+      const limite = obtenerVolumenBaseNodoParaUI(nodo);
       return limite != null ? limite : null;
     }
     if (FLOW_REPLAY_TIPOS_VOLUMEN.has(nodo.tipo)) {
@@ -8644,16 +8618,7 @@ function obtenerVolumenVisualNodo(nodo) {
     }
   }
   const restante = obtenerVolumenRestanteNodo(nodo);
-  if (restante === 0) {
-    const fallback = normalizarNumero(
-      nodo.datos?.volumen ??
-        nodo.datos?.litros ??
-        nodo.datos?.litros_directos ??
-        nodo.datos?.kilos
-    );
-    if (fallback != null && fallback > 0) return fallback;
-  }
-  return restante;
+  return restante != null ? restante : null;
 }
 
 function formatearFechaReplay(ms) {
@@ -9268,8 +9233,8 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
   if (!predecesores.length) {
     const mensaje =
       nodo.tipo === "coupage"
-        ? "Conecta depósitos para seleccionar los litros de cada uno."
-        : "Conecta este depósito para repartir kilos/litros.";
+        ? "Conecta depósitos para seleccionar el volumen de cada uno."
+        : "Conecta este depósito para repartir volumen.";
     wrapper.innerHTML = `<p style='font-size:13px; color:#666;'>${mensaje}</p>`;
     return wrapper;
   }
@@ -9282,7 +9247,7 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
       const info = document.createElement("p");
       info.style.fontSize = "12px";
       info.style.color = "#777";
-      info.textContent = `Destino: capacidad ${infoDest.capTotal.toFixed(2)} L · Libre ${infoDest.libre.toFixed(2)} L`;
+      info.textContent = `Destino: capacidad ${formatearVolumenPlano(infoDest.capTotal)} · Libre ${formatearVolumenPlano(infoDest.libre)}`;
       wrapper.appendChild(info);
     } else {
       const info = document.createElement("p");
@@ -9297,95 +9262,64 @@ function crearTablaAsignacionesDeposito(nodo, soloLectura = false) {
     <thead>
       <tr>
         <th>Origen</th>
-        ${esCoupage ? "" : "<th>Kilos</th>"}
-        <th>Litros</th>
+        <th>Volumen</th>
       </tr>
     </thead>`;
   const tbody = document.createElement("tbody");
   predecesores.forEach(origen => {
     const key = origen.id.toString();
     const cargaOrigen = obtenerCargaDesdeNodo(origen) || {};
-    const kilosPorDefecto = Number(cargaOrigen.kilos || 0);
-    const litrosPorDefecto = Number(cargaOrigen.litros_directos ?? (cargaOrigen.litros || 0));
-    const litrosNodoDisponibles = (() => {
-	      if (!esCoupage) return litrosPorDefecto;
+    const volumenPorDefecto = Number(getVolumenFromDatos(cargaOrigen) || 0);
+    const volumenNodoDisponibles = (() => {
+	      if (!esCoupage) return volumenPorDefecto;
 	      if (origen.tipo === "deposito") {
 	        const idRef = origen.datos?.id_ref || origen.datos?.contenedor_id || origen.datos?.codigo || origen.id;
 	        const vol = obtenerVolumenFinalNodoContenedor("deposito", idRef);
 	        if (Number.isFinite(vol)) return vol;
-	        const fallbackVol =
-	          origen.datos?.volumen ??
-	          origen.datos?.litros ??
-          origen.datos?.litros_directos ??
-          litrosPorDefecto;
+	        const fallbackVol = getVolumenFromNodo(origen) ?? volumenPorDefecto;
         if (Number.isFinite(Number(fallbackVol))) return Number(fallbackVol);
 	      }
 	      if (origen.tipo === "barrica") {
 	        const idRef = origen.datos?.contenedor_id || origen.datos?.id_ref || origen.datos?.codigo || origen.id;
 	        const vol = obtenerVolumenFinalNodoContenedor("barrica", idRef);
 	        if (Number.isFinite(vol)) return vol;
-	        const fallbackVol =
-	          origen.datos?.volumen ??
-	          origen.datos?.litros ??
-          origen.datos?.litros_directos ??
-          litrosPorDefecto;
+	        const fallbackVol = getVolumenFromNodo(origen) ?? volumenPorDefecto;
         if (Number.isFinite(Number(fallbackVol))) return Number(fallbackVol);
       }
-      return litrosPorDefecto;
+      return volumenPorDefecto;
     })();
     const registro = asegurarAsignacionRegistro(
       nodo,
       origen.id,
-      esCoupage ? 0 : (Number.isFinite(kilosPorDefecto) && kilosPorDefecto > 0 ? kilosPorDefecto : 0),
-      esCoupage ? 0 : (Number.isFinite(litrosPorDefecto) && litrosPorDefecto > 0 ? litrosPorDefecto : 0)
+      Number.isFinite(volumenPorDefecto) && volumenPorDefecto > 0 ? volumenPorDefecto : null
     );
     const tr = document.createElement("tr");
     const nombreBase = describirNodoOrigen(origen);
     const nombre = esCoupage
       ? nombreOrigenBlend(origen)
       : nombreBase;
-    const disponibleTexto = esCoupage ? `Disponible: ${Number(litrosNodoDisponibles || 0).toFixed(2)} L` : describirNodoOrigen(origen);
-    const valorKilos = registro.kilos && registro.kilos !== 0 ? registro.kilos : "";
-    const valorLitros = registro.litros && registro.litros !== 0 ? registro.litros : "";
+    const disponibleTexto = esCoupage ? `Disponible: ${Number(volumenNodoDisponibles || 0).toFixed(2)}` : describirNodoOrigen(origen);
+    const valorVolumen = getVolumenFromDatos(registro) || "";
     tr.innerHTML = `
       <td>${nombre}<br><small>${disponibleTexto}</small></td>
-      ${
-        esCoupage
-          ? ""
-          : `<td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorKilos}" data-origen="${key}" data-tipo="kilos"></td>`
-      }
-      <td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorLitros}" data-origen="${key}" data-tipo="litros"${esCoupage && Number.isFinite(litrosNodoDisponibles) ? ` data-max-litros="${Number(litrosNodoDisponibles).toFixed(4)}"` : ""}></td>`;
+      <td><input ${soloLectura ? "readonly" : ""} ${soloLectura ? "disabled" : ""} type="number" step="0.01" min="0" value="${valorVolumen}" data-origen="${key}" data-tipo="volumen"${esCoupage && Number.isFinite(volumenNodoDisponibles) ? ` data-max-volumen="${Number(volumenNodoDisponibles).toFixed(4)}"` : ""}></td>`;
     if (!soloLectura) {
 	      const inputs = tr.querySelectorAll("input");
 	      inputs.forEach(input => {
-		        input.addEventListener("input", () => {
-		          const snapshot = { ...registro };
-		          const valor = Number(input.value);
-		          const tipo = input.dataset.tipo;
-		          registro[tipo] = Number.isFinite(valor) ? valor : "";
-		          registro.__manual = true;
-		          if (esCoupage && tipo === "litros") {
-	            const maxAttr = input.dataset.maxLitros;
+	        input.addEventListener("input", () => {
+	          const snapshot = { ...registro };
+	          const valor = Number(input.value);
+	          const tipo = input.dataset.tipo;
+	          setVolumenRegistro(registro, Number.isFinite(valor) ? valor : null);
+	          registro.__manual = true;
+	          if (esCoupage && tipo === "volumen") {
+	            const maxAttr = input.dataset.maxVolumen;
 	            const max = maxAttr != null ? Number(maxAttr) : null;
 	            if (Number.isFinite(max) && max > 0 && valor > max) {
-              registro.litros = max;
+              setVolumenRegistro(registro, max);
               input.value = max.toFixed(2);
-              mostrarAviso("No puedes usar más litros de los disponibles en el depósito.", "error");
+              mostrarAviso("No puedes usar más volumen del disponible en el depósito.", "error");
             }
-            const capDestino = obtenerCapacidadDisponibleDesdeTargets(nodo);
-            if (capDestino != null) {
-              const totalAsignado = sumarAsignacionesLitros(nodo);
-              if (totalAsignado > capDestino + 0.0001) {
-                const restante = capDestino - (totalAsignado - (registro.litros || 0));
-                const nuevoValor = Math.max(0, restante);
-                registro.litros = nuevoValor;
-                input.value = nuevoValor.toFixed(2);
-                mostrarAviso(
-                  `No caben más de ${capDestino.toFixed(2)} L en el destino del blend.`,
-                  "error"
-                );
-              }
-	            }
 	          }
 	          actualizarVariedadDesdeAportes(nodo);
 	          actualizarVolumenDesdeAsignaciones(nodo);
@@ -9434,41 +9368,27 @@ function ajustarDistribucionEstilo(nodo, cargaBase) {
   if (!distribucion) return;
   const targets = (nodo.targets || []).map(id => String(id));
   if (!targets.length) return;
-  const unidad = obtenerUnidadNodo(nodo);
   let totalAsignado = 0;
   targets.forEach(id => {
     const reg = distribucion[id];
     if (!reg) return;
-    const valor = obtenerCantidadEnUnidad(reg, unidad);
+    const valor = getVolumenFromDatos(reg) || 0;
     if (valor > 0) totalAsignado += valor;
   });
   if (!(totalAsignado > 0)) return;
-  const disponible = Number(
-    obtenerCantidadEnUnidad(
-      {
-        kilos: cargaBase?.kilos,
-        litros: cargaBase?.litros,
-        litros_directos: cargaBase?.litros_directos,
-      },
-      unidad
-    ).toFixed(4)
-  );
-  if (!(disponible >= 0)) return;
+  const disponibleRaw = getVolumenFromDatos(cargaBase);
+  const disponible = Number.isFinite(disponibleRaw) ? Number(disponibleRaw.toFixed(4)) : 0;
   if (totalAsignado <= disponible + 0.0001) return;
   const factor = disponible / totalAsignado;
   targets.forEach(id => {
     const reg = distribucion[id];
     if (!reg) return;
-    const actual = obtenerCantidadEnUnidad(reg, unidad);
+    const actual = getVolumenFromDatos(reg);
     if (!(actual > 0)) return;
     const nuevo = Number((actual * factor).toFixed(2));
-    if (unidad === "litros") {
-      reg.litros = nuevo;
-      reg.kilos = 0;
-    } else {
-      reg.kilos = nuevo;
-      reg.litros = 0;
-    }
+    reg.volumen = nuevo;
+    reg.kilos = null;
+    reg.litros = null;
   });
   if (flowDebugActivo()) {
     console.debug("[flow][estilo] Distribucion ajustada", {
@@ -9486,26 +9406,21 @@ function crearTablaDistribucionEstilo(nodo) {
   const distribucion = nodo.datos?.distribucion || {};
   const entradasDistrib = Object.entries(distribucion);
   if (!entradasDistrib.length) {
-    wrapper.innerHTML = "<p style='font-size:13px; color:#666;'>Conecta este nodo a otro para repartir los kilos/litros.</p>";
+    wrapper.innerHTML = "<p style='font-size:13px; color:#666;'>Conecta este nodo a otro para repartir el volumen.</p>";
     return wrapper;
   }
   const mapaNodos = getNodosPorId();
   const cargaDisponible = obtenerCargaDesdeNodo(nodo) || {};
-  const dispKilos = Number(cargaDisponible.kilos || 0);
-  const dispLitros = Number(
-    cargaDisponible.litros_directos != null
-      ? cargaDisponible.litros_directos
-      : cargaDisponible.litros || 0
-  );
+  const dispVolumen = Number(getVolumenFromDatos(cargaDisponible) || 0);
   const totDestinos = nodo.tipo === "coupage" ? obtenerTotalesDestino(nodo) : null;
   const resumen = document.createElement("p");
   resumen.style.fontSize = "12px";
   resumen.style.color = "#777";
   const infoCap =
     totDestinos
-      ? ` | Destino: ${Number.isFinite(totDestinos.capTotal) ? totDestinos.capTotal.toFixed(2) + " L cap" : "capacidad n/d"} · Libre ${Number.isFinite(totDestinos.libre) ? totDestinos.libre.toFixed(2) + " L" : "—"}`
+      ? ` | Destino: ${Number.isFinite(totDestinos.capTotal) ? formatearVolumenPlano(totDestinos.capTotal) + " cap" : "capacidad n/d"} · Libre ${Number.isFinite(totDestinos.libre) ? formatearVolumenPlano(totDestinos.libre) : "—"}`
       : "";
-  resumen.textContent = `Disponible: ${dispKilos.toFixed(2)} kg · ${dispLitros.toFixed(2)} L${infoCap}`;
+  resumen.textContent = `Disponible: ${dispVolumen.toFixed(2)}${infoCap}`;
   wrapper.appendChild(resumen);
 
   const tabla = document.createElement("table");
@@ -9513,8 +9428,7 @@ function crearTablaDistribucionEstilo(nodo) {
     <thead>
       <tr>
         <th>Destino</th>
-        <th>Kilos</th>
-        <th>Litros</th>
+        <th>Volumen</th>
       </tr>
     </thead>`;
   const tbody = document.createElement("tbody");
@@ -9524,26 +9438,26 @@ function crearTablaDistribucionEstilo(nodo) {
 	    const tr = document.createElement("tr");
 	    tr.innerHTML = `
 	      <td>${dest.nombre}</td>
-	      <td><input type="number" step="0.01" min="0" value="${dest.kilos || ""}" data-destino="${dest.idNodoDestino}" data-tipo="kilos"></td>
-	      <td><input type="number" step="0.01" min="0" value="${dest.litros || ""}" data-destino="${dest.idNodoDestino}" data-tipo="litros"></td>`;
+	      <td><input type="number" step="0.01" min="0" value="${dest.volumen || ""}" data-destino="${dest.idNodoDestino}" data-tipo="volumen"></td>`;
 	    tr.querySelectorAll("input").forEach(input => {
 	      input.addEventListener("input", () => {
 	        const snapshotDistrib = JSON.parse(JSON.stringify(nodo.datos?.distribucion || {}));
 	        const valor = Number(input.value);
 	        const tipo = input.dataset.tipo;
 	        if (!nodo.datos.distribucion[dest.idNodoDestino]) {
-	          nodo.datos.distribucion[dest.idNodoDestino] = { kilos: 0, litros: 0 };
+	          nodo.datos.distribucion[dest.idNodoDestino] = { volumen: 0 };
 	        }
 	        nodo.datos.distribucion[dest.idNodoDestino][tipo] = Number.isFinite(valor) ? valor : "";
+	        nodo.datos.distribucion[dest.idNodoDestino].kilos = null;
+	        nodo.datos.distribucion[dest.idNodoDestino].litros = null;
 
 	        // Limitar por la unidad activa del nodo para evitar sobreasignaciones al vuelo.
 	        const limite = obtenerLimiteNodo(nodo);
 	        if (limite != null) {
 	          const total = destinos.reduce((acc, d) => {
 	            const reg = nodo.datos?.distribucion?.[d.idNodoDestino] || {};
-	            const k = normalizarNumero(reg.kilos) ?? 0;
-	            const l = normalizarNumero(reg.litros) ?? 0;
-	            return acc + k + l;
+	            const v = getVolumenFromDatos(reg) ?? 0;
+	            return acc + v;
 	          }, 0);
 	          if (total > limite + 0.0001) {
 	            const actual = Math.max(0, normalizarNumero(nodo.datos.distribucion[dest.idNodoDestino][tipo]) ?? 0);
@@ -9590,21 +9504,12 @@ function obtenerCargaDistribuida(origen, destinoId, cargaBase) {
   const distribucion = origen.datos?.distribucion || {};
   const registro = distribucion[destinoId != null ? destinoId.toString() : ""];
   if (!registro) return null;
-  const unidad = obtenerUnidadNodo(origen);
-  const valor = obtenerCantidadEnUnidad(registro, unidad);
+  const valor = getVolumenFromDatos(registro);
   // Si no hay valores positivos, tratamos la distribución como "no definida"
   // y dejamos que actúe el reparto automático (o el fallback a un único destino).
   if (!(valor > 0)) return null;
   const carga = { ...cargaBase };
-  if (unidad === "litros") {
-    carga.kilos = 0;
-    carga.litros_directos = valor;
-    carga.litros = valor;
-  } else {
-    carga.kilos = valor;
-    carga.litros_directos = 0;
-    carga.litros = 0;
-  }
+  carga.volumen = valor;
   return carga;
 }
 
@@ -9612,13 +9517,9 @@ function obtenerCargaDistribuidaEntrada(origen, destinoId, cargaBase) {
   if (!origen || origen.tipo !== "entrada" || origen.datos?.reparto_manual !== true) return null;
   const distribucion = origen.datos?.distribucion || {};
   const registro = distribucion[destinoId != null ? destinoId.toString() : ""];
-  const kilos = normalizarNumero(registro?.kilos);
+  const volumen = getVolumenFromDatos(registro);
   const carga = { ...cargaBase, __manual: true };
-  // Entradas de uva trabajan en kg. Ignoramos litros en distribuciones antiguas/sembradas
-  // para evitar dobles pesos (kilos + litros) y % erróneos en mezclas.
-  carga.kilos = Math.max(0, kilos ?? 0);
-  carga.litros_directos = 0;
-  carga.litros = 0;
+  carga.volumen = Math.max(0, volumen ?? 0);
   return carga;
 }
 
@@ -9627,22 +9528,22 @@ function crearTablaDistribucionEntrada(nodo) {
   wrapper.className = "tabla-asignaciones-deposito";
   const targets = (nodo.targets || []).map(id => String(id));
   if (targets.length < 2) {
-    wrapper.innerHTML = "<p style='font-size:13px; color:#666;'>Conecta esta entrada a varios nodos para repartir los kilos.</p>";
+    wrapper.innerHTML = "<p style='font-size:13px; color:#666;'>Conecta esta entrada a varios nodos para repartir el volumen.</p>";
     return wrapper;
   }
 
   const nodosPorId = getNodosPorId();
   const mapaDepRef = crearMapaDeposPorRef(nodosPorId);
   const cargaDisponible = obtenerCargaDesdeNodo(nodo) || {};
-  const dispKilos = Number(cargaDisponible.kilos || 0);
+  const dispVolumen = Number(getVolumenFromDatos(cargaDisponible) || 0);
   const manual = nodo.datos?.reparto_manual === true;
 
   const resumen = document.createElement("p");
   resumen.style.fontSize = "12px";
   resumen.style.color = "#777";
   resumen.textContent = manual
-    ? `Disponible: ${dispKilos.toFixed(2)} kg · Reparto manual`
-    : `Disponible: ${dispKilos.toFixed(2)} kg · Reparto automático (a partes iguales)`;
+    ? `Disponible: ${dispVolumen.toFixed(2)} · Reparto manual`
+    : `Disponible: ${dispVolumen.toFixed(2)} · Reparto automático (a partes iguales)`;
   wrapper.appendChild(resumen);
 
   const hint = document.createElement("p");
@@ -9650,7 +9551,7 @@ function crearTablaDistribucionEntrada(nodo) {
   hint.style.color = "#777";
   hint.style.marginTop = "-6px";
   hint.textContent = manual
-    ? "Edita los kilos por destino. Los cambios se aplican al flujo."
+    ? "Edita el volumen por destino. Los cambios se aplican al flujo."
     : "Edita cualquier valor para activar el reparto manual.";
   wrapper.appendChild(hint);
 
@@ -9659,7 +9560,7 @@ function crearTablaDistribucionEntrada(nodo) {
     <thead>
       <tr>
         <th>Destino</th>
-        <th>Kilos</th>
+        <th>Volumen</th>
       </tr>
     </thead>`;
   const tbody = document.createElement("tbody");
@@ -9668,8 +9569,8 @@ function crearTablaDistribucionEntrada(nodo) {
     const destino = nodosPorId[destinoId];
     if (!destino) return;
     const nombre = getNombreNodoDestino(destinoId, nodosPorId, mapaDepRef);
-    const kilosActual = obtenerKilosTransferenciaEntreNodos(nodo, destino);
-    const valorManual = normalizarNumero(nodo.datos?.distribucion?.[destinoId]?.kilos) ?? 0;
+    const volumenActual = obtenerVolumenTransferenciaEntreNodos(nodo, destino);
+    const valorManual = getVolumenFromDatos(nodo.datos?.distribucion?.[destinoId]) ?? 0;
 
     const tr = document.createElement("tr");
     const tdNombre = document.createElement("td");
@@ -9680,7 +9581,7 @@ function crearTablaDistribucionEntrada(nodo) {
     input.step = "0.01";
     input.min = "0";
     if (manual) input.value = String(valorManual);
-    input.placeholder = Number(kilosActual).toFixed(2);
+    input.placeholder = Number(volumenActual).toFixed(2);
     input.dataset.destino = destinoId;
     tdKilos.appendChild(input);
     tr.appendChild(tdNombre);
@@ -9698,8 +9599,7 @@ function crearTablaDistribucionEntrada(nodo) {
           const dest = nodosPorId[tid];
           if (!dest) return;
           nodo.datos.distribucion[tid] = {
-            kilos: obtenerKilosTransferenciaEntreNodos(nodo, dest),
-            litros: obtenerLitrosTransferenciaEntreNodos(nodo, dest),
+            volumen: obtenerVolumenTransferenciaEntreNodos(nodo, dest),
           };
         });
       } else {
@@ -9707,25 +9607,27 @@ function crearTablaDistribucionEntrada(nodo) {
       }
 
       if (!nodo.datos.distribucion[destinoId]) {
-        nodo.datos.distribucion[destinoId] = { kilos: 0, litros: 0 };
+        nodo.datos.distribucion[destinoId] = { volumen: 0 };
       }
 
       const valorIngresado = normalizarNumero(input.value);
-      const kilos = Math.max(0, valorIngresado ?? 0);
-      nodo.datos.distribucion[destinoId].kilos = kilos;
+      const volumen = Math.max(0, valorIngresado ?? 0);
+      nodo.datos.distribucion[destinoId].volumen = volumen;
+      nodo.datos.distribucion[destinoId].kilos = null;
+      nodo.datos.distribucion[destinoId].litros = null;
 
       const limite = obtenerLimiteNodo(nodo);
       if (limite != null) {
         const total = targets.reduce((acc, tid) => {
-          const k = normalizarNumero(nodo.datos?.distribucion?.[tid]?.kilos) ?? 0;
-          return acc + k;
+          const v = getVolumenFromDatos(nodo.datos?.distribucion?.[tid]) ?? 0;
+          return acc + v;
         }, 0);
         if (total > limite + 0.0001) {
           const exceso = total - limite;
-          const nuevo = Math.max(0, kilos - exceso);
-          nodo.datos.distribucion[destinoId].kilos = nuevo;
+          const nuevo = Math.max(0, volumen - exceso);
+          nodo.datos.distribucion[destinoId].volumen = nuevo;
           input.value = nuevo.toFixed(2);
-          mostrarAviso(`No puedes repartir más de ${Number(limite).toFixed(2)} kg en total.`, "error");
+          mostrarAviso(`No puedes repartir más de ${Number(limite).toFixed(2)} en total.`, "error");
         }
       }
 
@@ -9817,7 +9719,7 @@ function obtenerCapacidadDisponibleContenedor(nodoDestino) {
     return capacidadDisponibleContenedorDesdeInfo(
       info,
       datos.capacidad ?? datos.capacidad_l,
-      datos.volumen ?? datos.litros ?? datos.litros_directos
+      getVolumenFromDatos(datos)
     );
   }
   if (nodoDestino.tipo === "barrica") {
@@ -9825,7 +9727,7 @@ function obtenerCapacidadDisponibleContenedor(nodoDestino) {
     return capacidadDisponibleContenedorDesdeInfo(
       info,
       datos.capacidad ?? datos.capacidad_l,
-      datos.volumen ?? datos.litros ?? datos.litros_directos
+      getVolumenFromDatos(datos)
     );
   }
   return null;
@@ -9892,36 +9794,24 @@ function obtenerCapacidadDisponibleDesdeTargets(nodo) {
 function sumarAsignacionesLitros(nodo) {
   if (!nodo?.datos?.asignaciones) return 0;
   return Object.values(nodo.datos.asignaciones).reduce((acc, reg) => {
-    const val = Number(reg?.litros);
+    const val = getVolumenFromDatos(reg);
     return acc + (Number.isFinite(val) ? val : 0);
   }, 0);
 }
 
 function calcularTotalesAsignaciones(nodo) {
   if (!nodo?.datos?.asignaciones) return null;
-  const unidad = obtenerUnidadNodo(nodo);
   const permitidos = new Set(
     obtenerPredecesores(nodo.id).map(pre => normalizarIdNodo(pre))
   );
-  let totalKilos = 0;
-  let totalLitros = 0;
+  let totalVolumen = 0;
   Object.entries(nodo.datos.asignaciones).forEach(([origenId, info]) => {
     if (!permitidos.has(origenId)) return;
-    const kilos = normalizarNumero(info?.kilos);
-    const litros = normalizarNumero(info?.litros);
-    if (litros > 0) totalLitros += litros;
-    if (kilos > 0) totalKilos += kilos;
+    const volumen = getVolumenFromDatos(info);
+    if (volumen != null && volumen > 0) totalVolumen += volumen;
   });
-  const total =
-    unidad === "litros"
-      ? totalLitros > 0
-        ? totalLitros
-        : totalKilos
-      : totalKilos > 0
-      ? totalKilos
-      : totalLitros;
-  if (total <= 0) return null;
-  return { totalKilos, totalLitros, total }; 
+  if (totalVolumen <= 0) return null;
+  return { totalVolumen, total: totalVolumen };
 }
 
 function actualizarVolumenDesdeAsignaciones(nodo) {
@@ -9930,33 +9820,23 @@ function actualizarVolumenDesdeAsignaciones(nodo) {
   const predecesores = obtenerPredecesores(nodo.id);
   if (!predecesores.length) return;
 
-  const unidad = obtenerUnidadNodo(nodo);
+  const vistos = new Set();
   const total = predecesores.reduce((acc, pre) => {
     const key = normalizarIdNodo(pre);
+    if (vistos.has(key)) return acc;
+    vistos.add(key);
     const reg = nodo.datos?.asignaciones?.[key];
     const aporte = reg
       ? null
       : nodo.datos?.aportes?.[key] || nodo.datos?.aportes?.[String(pre.id)];
-    const valor = obtenerCantidadEnUnidad(
-      {
-        kilos: reg?.kilos ?? aporte?.kilos,
-        litros: reg?.litros ?? aporte?.litros,
-        litros_directos: reg?.litros_directos ?? aporte?.litros_directos,
-        volumen: reg?.volumen ?? aporte?.volumen,
-      },
-      unidad
-    );
+    const valor = getVolumenFromDatos(reg || aporte);
     return acc + (Number.isFinite(valor) ? valor : 0);
   }, 0);
 
   if (!(total > 0) && total !== 0) return;
 
   const final = Number(Number(total || 0).toFixed(2));
-  if (unidad === "litros") {
-    setKilosLitrosNodo(nodo, 0, final, "asignaciones");
-  } else {
-    setKilosLitrosNodo(nodo, final, 0, "asignaciones");
-  }
+  setKilosLitrosNodo(nodo, null, final, "asignaciones");
   if (nodo.tipo === "coupage") {
     nodo.datos.litros_blend = nodo.datos.volumen;
   }
@@ -10050,7 +9930,7 @@ const FLOW_NODE_TYPES = {
     label: "Elaboración",
     icono: "⚗️",
     campos: [
-      { id: "kilos", label: "Kilos asignados", tipo: "info" },
+      { id: "kilos", label: "Volumen asignado", tipo: "info" },
       {
         id: "metodo",
         label: "Método de elaboración",
@@ -10065,7 +9945,7 @@ const FLOW_NODE_TYPES = {
     icono: "🛢️",
     campos: [
       { id: "id_ref", label: "Depósito / mastelone", tipo: "number", placeholder: "Selecciona depósito" },
-      { id: "capacidad", label: "Capacidad y volumen (L)", tipo: "info" },
+      { id: "capacidad", label: "Capacidad y volumen", tipo: "info" },
       { id: "tipo", label: "Tipo", tipo: "info" },
       { id: "material", label: "Material", tipo: "info" },
       {
@@ -10083,7 +9963,7 @@ const FLOW_NODE_TYPES = {
     icono: "🍷",
     campos: [
       { id: "nombre_blend", label: "Nombre del coupage/vino", tipo: "text", placeholder: "Coupage Tempranillo-Malvar" },
-      { id: "litros_blend", label: "Litros totales del blend", tipo: "info" },
+      { id: "litros_blend", label: "Volumen total del blend", tipo: "info" },
       { id: "descripcion", label: "Notas del blend", tipo: "textarea", placeholder: "Proporciones, estilo..." },
     ],
   },
@@ -10191,7 +10071,7 @@ const FLOW_NODE_TYPES = {
     label: "Prensado",
     icono: "🌀",
     campos: [
-      { id: "litros_resultantes", label: "Litros resultantes", tipo: "number", placeholder: "1275" },
+      { id: "litros_resultantes", label: "Volumen resultante", tipo: "number", placeholder: "1275" },
       { id: "merma_abs", label: "Merma abs (volumen)", tipo: "number", placeholder: "425" },
       { id: "merma", label: "Merma (%)", tipo: "number", placeholder: "30" },
       { id: "presion", label: "Presión", tipo: "text", placeholder: "0.8 bar" },
@@ -12294,7 +12174,7 @@ function obtenerCapacidadFormateada(info) {
       ? Number(info.capacidad_hl) * 100
       : null;
   if (!Number.isFinite(capacidad) || capacidad <= 0) return "";
-  return capacidad % 1 === 0 ? `${capacidad.toFixed(0)}L` : `${capacidad.toFixed(2)}L`;
+  return capacidad % 1 === 0 ? capacidad.toFixed(0) : capacidad.toFixed(2);
 }
 
 function describirContenedor(info, tipoLabel) {
@@ -12398,49 +12278,68 @@ function calcularDatosMapaFlujo() {
   };
 
   const entradas = cacheEntradas || [];
-  resultado.entrada.valor = entradas.reduce((acc, e) => acc + (Number(e.kilos) || 0), 0);
+  resultado.entrada.valor = entradas.reduce((acc, e) => {
+    const volumen = getVolumenFromDatos(e);
+    return acc + (Number.isFinite(volumen) ? volumen : 0);
+  }, 0);
   resultado.entrada.detalle = `${entradas.length} entradas registradas`;
 
-  let litrosDesp = 0;
+  let volumenDesp = 0;
   entradas.forEach(entrada => {
     if (Array.isArray(entrada.destinos) && entrada.destinos.length) {
       entrada.destinos.forEach(dest => {
-        const kilos = Number(dest.kilos) || 0;
-        if (dest.directo_prensa) {
-          const merma = dest.merma_factor != null ? Number(dest.merma_factor) : null;
-          if (merma != null) {
-            litrosDesp += kilos * (1 - merma);
-          } else {
-            litrosDesp += kilos;
-          }
-        } else {
-          litrosDesp += kilos;
-        }
+        const volumen = getVolumenFromDatos(dest);
+        if (Number.isFinite(volumen)) volumenDesp += volumen;
       });
     } else {
-      litrosDesp += Number(entrada.kilos) || 0;
+      const volumen = getVolumenFromDatos(entrada);
+      if (Number.isFinite(volumen)) volumenDesp += volumen;
     }
   });
-  resultado.despalillado.valor = litrosDesp;
+  resultado.despalillado.valor = volumenDesp;
   resultado.despalillado.detalle = "Estimación tras despalillado / prensado";
 
   const depositos = (cacheDepositos || []).concat(cacheMastelones || []);
-  resultado.deposito.valor = depositos.reduce((acc, d) => acc + (Number(d.litros_actuales) || 0), 0);
+  resultado.deposito.valor = depositos.reduce((acc, d) => {
+    const volumen = getVolumenFromDatos({
+      volumen: d.volumen,
+      litros: d.litros_actuales,
+    });
+    return acc + (Number.isFinite(volumen) ? volumen : 0);
+  }, 0);
   resultado.deposito.detalle = `${depositos.length} depósitos / mastelones`;
 
   const barricas = cacheBarricas || [];
-  resultado.barrica.valor = barricas.reduce((acc, b) => acc + (Number(b.litros_actuales) || 0), 0);
+  resultado.barrica.valor = barricas.reduce((acc, b) => {
+    const volumen = getVolumenFromDatos({
+      volumen: b.volumen,
+      litros: b.litros_actuales,
+    });
+    return acc + (Number.isFinite(volumen) ? volumen : 0);
+  }, 0);
   resultado.barrica.detalle = `${barricas.length} barricas activas`;
 
   const embotellados = cacheEmbotellados || [];
-  resultado.embotellado.valor = embotellados.reduce((acc, e) => acc + (Number(e.litros) || 0), 0);
+  resultado.embotellado.valor = embotellados.reduce((acc, e) => {
+    const volumen = getVolumenFromDatos({
+      volumen: e.volumen,
+      litros: e.litros,
+    });
+    return acc + (Number.isFinite(volumen) ? volumen : 0);
+  }, 0);
   resultado.embotellado.detalle = `${embotellados.length} lotes embotellados`;
 
   const salidas = (cacheMovimientos || []).filter(m => {
     const tipo = (m.tipo || "").toLowerCase();
     return tipo === "venta" || tipo === "salida" || tipo === "expedicion" || m.destino_tipo === "venta";
   });
-  resultado.salida.valor = salidas.reduce((acc, m) => acc + (Number(m.litros) || 0), 0);
+  resultado.salida.valor = salidas.reduce((acc, m) => {
+    const volumen = getVolumenFromDatos({
+      volumen: m.volumen,
+      litros: m.litros,
+    });
+    return acc + (Number.isFinite(volumen) ? volumen : 0);
+  }, 0);
   resultado.salida.detalle = `${salidas.length} movimientos de salida`;
 
   return resultado;
@@ -13037,15 +12936,23 @@ function cerrarMenusNodo() {
       unidadBadge.textContent = obtenerUnidadVisual(nodo);
       body.appendChild(unidadBadge);
     }
+    if (nodo.tipo !== "entrada") {
+      const historico = obtenerHistoricoNodo(nodo);
+      const historicoNum = Number.isFinite(historico) ? Number(historico.toFixed(0)) : 0;
+      const histEl = document.createElement("div");
+      histEl.className = "flow-node-subtitle";
+      histEl.textContent = `Histórico ${historicoNum}`;
+      body.appendChild(histEl);
+    }
 
     div.appendChild(body);
 
-	    if (nodo.tipo === "estilo" && nodo.datos?.metodo) {
-	      const metodoSubtitle = document.createElement("div");
-	      metodoSubtitle.className = "flow-node-subtitle";
-	      metodoSubtitle.textContent = nodo.datos.metodo;
-	      div.appendChild(metodoSubtitle);
-	    }
+    if (nodo.tipo === "estilo" && nodo.datos?.metodo) {
+      const metodoSubtitle = document.createElement("div");
+      metodoSubtitle.className = "flow-node-subtitle flow-node-metodo";
+      metodoSubtitle.textContent = nodo.datos.metodo;
+      div.appendChild(metodoSubtitle);
+    }
 
     const controls = document.createElement("div");
     controls.className = "flow-node-controls";
@@ -13278,12 +13185,12 @@ function resumenNodo(nodo) {
 	        (layer || svg).appendChild(curva);
 
 	        if (replayActivo && enReplay) {
-	          const litros = obtenerLitrosTransferenciaEntreNodos(nodo, destinoNodo);
+	          const volumen = obtenerVolumenTransferenciaEntreNodos(nodo, destinoNodo);
 	          const ts = flowReplay.model.nodeTs?.get(destinoIdNorm) ?? null;
 	          const fechaTxt = ts != null ? formatearFechaReplay(ts) : "Sin fecha";
-	          const litrosTxt = litros > 0 ? formatearLitrosPlano(litros) : "—";
+	          const volumenTxt = volumen > 0 ? formatearVolumenPlano(volumen) : "—";
 	          const estadoTxt = futuro ? "Pendiente" : "Hecho";
-	          const tooltip = `${nodo.titulo || nodo.tipo || "Origen"} → ${destinoNodo.titulo || destinoNodo.tipo || "Destino"}\nFecha: ${fechaTxt}\nLitros: ${litrosTxt}\nEstado: ${estadoTxt}`;
+	          const tooltip = `${nodo.titulo || nodo.tipo || "Origen"} → ${destinoNodo.titulo || destinoNodo.tipo || "Destino"}\nFecha: ${fechaTxt}\nVolumen: ${volumenTxt}\nEstado: ${estadoTxt}`;
 	          curva.addEventListener("pointerenter", e => {
 	            if (e.pointerType !== "mouse") return;
 	            mostrarFlowTooltip(tooltip, e.clientX, e.clientY);
@@ -13453,12 +13360,12 @@ function conectarNodos(origenId, destinoId, silencioso = false) {
 	  if (!origen.targets.includes(destinoNorm)) {
 	    const snapshot = JSON.parse(JSON.stringify(flujoNodos));
 	    origen.targets.push(destinoNorm);
-	    if (origen.tipo === "estilo") {
+    if (origen.tipo === "estilo") {
       origen.datos = origen.datos || {};
       origen.datos.distribucion = origen.datos.distribucion || {};
       const key = destinoNorm.toString();
       if (!origen.datos.distribucion[key]) {
-        origen.datos.distribucion[key] = { kilos: 0, litros: 0 };
+        origen.datos.distribucion[key] = { volumen: 0 };
       }
     }
     if (origen.tipo === "entrada" && origen.datos?.reparto_manual === true) {
@@ -13466,7 +13373,7 @@ function conectarNodos(origenId, destinoId, silencioso = false) {
       origen.datos.distribucion = origen.datos.distribucion || {};
       const key = destinoNorm.toString();
       if (!origen.datos.distribucion[key]) {
-        origen.datos.distribucion[key] = { kilos: 0, litros: 0 };
+        origen.datos.distribucion[key] = { volumen: 0 };
       }
     }
     if (destino) {
@@ -13496,12 +13403,8 @@ function conectarNodos(origenId, destinoId, silencioso = false) {
 
 function completarCargaVisual(carga) {
   if (!carga) return null;
-  if (carga.litros == null && carga.litros_directos != null) {
-    const litrosDirectos = normalizarNumero(carga.litros_directos);
-    if (litrosDirectos > 0) {
-      carga.litros = Number(litrosDirectos.toFixed(4));
-    }
-  }
+  const volumen = getVolumenFromDatos(carga);
+  carga.volumen = volumen != null ? Number(volumen.toFixed(4)) : null;
   return carga;
 }
 
@@ -13510,10 +13413,8 @@ function obtenerLitrosDesdePredecesores(nodo) {
   const padres = obtenerPredecesores(nodo.id);
   return padres.reduce((acc, pre) => {
     const carga = obtenerCargaDesdeNodo(pre);
-    const litros = normalizarNumero(
-      carga?.litros_directos != null ? carga.litros_directos : carga?.litros
-    );
-    return acc + (Number.isFinite(litros) ? litros : 0);
+    const volumen = getVolumenFromDatos(carga);
+    return acc + (Number.isFinite(volumen) ? volumen : 0);
   }, 0);
 }
 
@@ -13528,8 +13429,10 @@ function actualizarBotellasResultantes(nodo) {
   if (resumen.totalBotellas > 0) {
     const etiqueta = resumen.totalBotellas === 1 ? "botella" : "botellas";
     const formatosTxt = resumen.formatosActivos > 1 ? ` · ${resumen.formatosActivos} formatos` : "";
-    const litrosTxt = resumen.totalLitros > 0 ? ` (${resumen.totalLitros.toFixed(2)} L calculados)` : "";
-    display.textContent = `${resumen.totalBotellas.toLocaleString("es-ES")} ${etiqueta}${formatosTxt}${litrosTxt}`;
+    const volumenTxt = resumen.totalLitros > 0
+      ? ` (${formatearVolumenPlano(resumen.totalLitros)} volumen calculado)`
+      : "";
+    display.textContent = `${resumen.totalBotellas.toLocaleString("es-ES")} ${etiqueta}${formatosTxt}${volumenTxt}`;
     hidden.value = resumen.totalBotellas;
     nodo.datos = nodo.datos || {};
     nodo.datos.botellas = resumen.totalBotellas;
@@ -13537,7 +13440,9 @@ function actualizarBotellasResultantes(nodo) {
   }
   const volBotella = VOLUMEN_BOTELLA_L[selectBotella.value] || 0;
   const botellas = volBotella > 0 ? Math.floor(litrosDisponibles / volBotella) : 0;
-  display.textContent = botellas ? `${botellas} uds (${litrosDisponibles.toFixed(2)} L disponibles)` : "—";
+  display.textContent = botellas
+    ? `${botellas} uds (${formatearVolumenPlano(litrosDisponibles)} volumen disponible)`
+    : "—";
   hidden.value = botellas;
   nodo.datos = nodo.datos || {};
   nodo.datos.botellas = botellas;
@@ -13654,12 +13559,9 @@ async function exportarTablaControlPDF(nodo) {
 function escalarCarga(cargaBase, factor) {
   if (!cargaBase || !Number.isFinite(factor)) return null;
   const carga = { ...cargaBase };
-  if (carga.kilos != null) carga.kilos = Number((carga.kilos * factor).toFixed(4));
-  if (carga.litros_directos != null) {
-    carga.litros_directos = Number((carga.litros_directos * factor).toFixed(4));
-  }
-  if (carga.litros != null) {
-    carga.litros = Number((carga.litros * factor).toFixed(4));
+  const volumen = getVolumenFromDatos(cargaBase);
+  if (volumen != null) {
+    carga.volumen = Number((volumen * factor).toFixed(4));
   }
   return completarCargaVisual(carga);
 }
@@ -13677,57 +13579,44 @@ function escalarCarga(cargaBase, factor) {
 	  if (carga) {
 	    return completarCargaVisual(carga);
 	  }
-		  if (destino.tipo === "deposito") {
-		    const kilosBase = normalizarNumero(cargaBase.kilos);
-		    const litrosBase = normalizarNumero(
-		      cargaBase.litros_directos != null ? cargaBase.litros_directos : cargaBase.litros
-		    );
-		    const origenTargets = Array.isArray(origen.targets) ? origen.targets : [];
-		    const destinoIdNorm = normalizarIdNodo(destino);
-		    const origenTieneUnSoloDestino =
-		      origenTargets.length === 1 && normalizarIdNodo(origenTargets[0]) === destinoIdNorm;
-		    const registro = asegurarAsignacionRegistro(
-		      destino,
-		      origen.id,
-		      totalDestinos <= 1 && kilosBase > 0 ? kilosBase : 0,
-		      totalDestinos <= 1 && litrosBase > 0 ? litrosBase : 0
-		    );
-		    // Si la asignación NO es manual y el origen solo tiene un destino, esta debe reflejar
-		    // siempre la carga base actual (para corregir snapshots con asignaciones erróneas).
-		    if (registro.__manual !== true && origenTieneUnSoloDestino) {
-		      registro.kilos = kilosBase > 0 ? kilosBase : 0;
-		      registro.litros = litrosBase > 0 ? litrosBase : 0;
-		    } else if (registro.__manual !== true && totalDestinos <= 1) {
-		      // Último destino: si estaba vacío/incorrecto, rellenamos con lo que queda.
-		      const kReg = normalizarNumero(registro.kilos) || 0;
-		      const lReg = normalizarNumero(registro.litros) || 0;
-		      const necesitaK = kilosBase > 0 && !(kReg > 0);
-		      const necesitaL = litrosBase > 0 && !(lReg > 0);
-		      if (necesitaK || necesitaL) {
-		        registro.kilos = kilosBase > 0 ? kilosBase : 0;
-		        registro.litros = litrosBase > 0 ? litrosBase : 0;
-		      }
-		    }
-		    const kilos = normalizarNumero(registro.kilos);
-		    const litros = normalizarNumero(registro.litros);
-		    const tieneCarga = (kilos > 0) || (litros > 0);
-		    const carga = { ...cargaBase };
-    if (!tieneCarga) {
-      carga.kilos = 0;
-      carga.litros_directos = 0;
-      return completarCargaVisual(carga);
-    }
-    carga.kilos = kilos > 0 ? kilos : 0;
-	    carga.litros_directos = litros > 0 ? litros : 0;
+	  if (destino.tipo === "deposito") {
+	    const volumenBase = getVolumenFromDatos(cargaBase);
+	    const origenTargets = Array.isArray(origen.targets) ? origen.targets : [];
+	    const destinoIdNorm = normalizarIdNodo(destino);
+	    const origenTieneUnSoloDestino =
+	      origenTargets.length === 1 && normalizarIdNodo(origenTargets[0]) === destinoIdNorm;
+	    const registro = asegurarAsignacionRegistro(
+	      destino,
+	      origen.id,
+	      totalDestinos <= 1 && volumenBase > 0 ? volumenBase : null
+	    );
+	    // Si la asignación NO es manual y el origen solo tiene un destino, esta debe reflejar
+	    // siempre la carga base actual (para corregir snapshots con asignaciones erróneas).
+	    if (registro.__manual !== true && origenTieneUnSoloDestino) {
+	      if (volumenBase != null) setVolumenRegistro(registro, volumenBase);
+	    } else if (registro.__manual !== true && totalDestinos <= 1) {
+	      // Último destino: si estaba vacío/incorrecto, rellenamos con lo que queda.
+	      const regVol = getVolumenFromDatos(registro) || 0;
+	      const necesitaVol = volumenBase > 0 && !(regVol > 0);
+	      if (necesitaVol) {
+	        setVolumenRegistro(registro, volumenBase);
+	      }
+	    }
+	    const volumenAsignado = getVolumenFromDatos(registro);
+	    const tieneCarga = volumenAsignado != null && volumenAsignado > 0;
+	    const carga = { ...cargaBase };
+	    if (!tieneCarga) {
+	      carga.volumen = 0;
+	      return completarCargaVisual(carga);
+	    }
+	    carga.volumen = volumenAsignado;
 	    return completarCargaVisual(carga);
 	  }
 	  const registro = destino.datos?.asignaciones?.[origenKey];
 	  if (registro) {
-    const kilos = normalizarNumero(registro.kilos);
-    const litros = normalizarNumero(registro.litros);
-    const carga = { ...cargaBase };
-    if (kilos >= 0) carga.kilos = Number.isFinite(kilos) ? kilos : undefined;
-    if (litros >= 0) carga.litros_directos = Number.isFinite(litros) ? litros : undefined;
+	    const volumen = getVolumenFromDatos(registro);
+	    const carga = { ...cargaBase };
+	    if (volumen != null) carga.volumen = Number(volumen.toFixed(4));
 	    return completarCargaVisual(carga);
 	  }
 
@@ -13736,9 +13625,7 @@ function escalarCarga(cargaBase, factor) {
 	  // para evitar sobreasignaciones al conectar un nuevo nodo.
 	  if (hayAsignacionesManuales && totalDestinos > 1) {
 	    const carga = { ...cargaBase };
-	    if (carga.kilos != null) carga.kilos = 0;
-	    if (carga.litros_directos != null) carga.litros_directos = 0;
-	    if (carga.litros != null) carga.litros = 0;
+	    carga.volumen = 0;
 	    return completarCargaVisual(carga);
 	  }
 	  if (totalDestinos <= 1) {
@@ -13776,23 +13663,13 @@ function escalarCarga(cargaBase, factor) {
 	    return reg?.__manual === true;
 	  });
 	  if (targets.length > 1 && !hayAsignacionesManuales) {
-	    const shareKilos =
-	      cargaBase.kilos != null ? Number((Number(cargaBase.kilos) / targets.length).toFixed(4)) : null;
-    const baseLitros =
-      cargaBase.litros_directos != null
-        ? Number(cargaBase.litros_directos)
-        : cargaBase.litros != null
-        ? Number(cargaBase.litros)
-        : null;
-    const shareLitros = baseLitros != null ? Number((baseLitros / targets.length).toFixed(4)) : null;
+	    const baseVolumen = getVolumenFromDatos(cargaBase) || 0;
+	    const shareVolumen = Number((baseVolumen / targets.length).toFixed(4));
     targets.forEach(dest => {
       if (TIPOS_CONTENEDOR_FLUJO.has(dest.tipo)) {
         const registro = asegurarAsignacionRegistro(dest, origen.id);
         registro.__manual = false;
-        if (shareKilos != null) registro.kilos = shareKilos;
-        if (shareLitros != null) {
-          registro.litros = shareLitros;
-        }
+        setVolumenRegistro(registro, shareVolumen);
       }
     });
   }
@@ -13807,14 +13684,9 @@ function escalarCarga(cargaBase, factor) {
 	    if (cargaDestino) {
 	      const aplicado = manejarTransferenciaNodo(origen, dest, cargaDestino);
 	      if (origen.tipo === "estilo" && aplicado) {
-	        const kilosUsados = normalizarNumero(aplicado.kilos) || 0;
-        const litrosUsados = normalizarNumero(aplicado.litros_directos ?? aplicado.litros) || 0;
-        if (cargaLibre.kilos != null) {
-          cargaLibre.kilos = Math.max(0, cargaLibre.kilos - kilosUsados);
-        }
-        if (cargaLibre.litros_directos != null) {
-          cargaLibre.litros_directos = Math.max(0, cargaLibre.litros_directos - litrosUsados);
-          cargaLibre.litros = cargaLibre.litros_directos;
+	        const volumenUsado = getVolumenFromDatos(aplicado) || 0;
+        if (cargaLibre.volumen != null) {
+          cargaLibre.volumen = Math.max(0, cargaLibre.volumen - volumenUsado);
         }
       }
     } else if (dest.tipo === "deposito") {
@@ -13839,32 +13711,24 @@ function escalarCarga(cargaBase, factor) {
 	  if (!carga) return null;
 
 		  if (esNodoPrensado(destino)) {
-		    const kilosAsignados = normalizarNumero(carga.kilos) || 0;
-		    const litrosAsignados =
-		      normalizarNumero(carga.litros_directos ?? carga.litros) || 0;
-		    if (!(kilosAsignados > 0 || litrosAsignados > 0)) {
+		    const volumenAsignado = getVolumenFromDatos(carga) || 0;
+		    if (!(volumenAsignado > 0)) {
 		      // Aún sin carga, aplicamos 0 para limpiar aportes previos y mantener el flujo consistente.
-		      carga.kilos = 0;
-		      carga.litros_directos = 0;
-		      carga.litros = 0;
+		      carga.volumen = 0;
 		    } else {
 		      const params = obtenerParametrosPrensadoNodo(destino);
 		      const salida = calcularSalidaPrensado({
-		        kilos: kilosAsignados,
-		        litros: litrosAsignados,
+		        kilos: volumenAsignado,
+		        litros: null,
 		        litrosResultantes: params.litrosResultantes,
 		        mermaAbs: params.mermaAbs,
 		        mermaPct: params.mermaPct,
 		      });
 		      if (!salida.ok) {
-		        carga.kilos = 0;
-		        carga.litros_directos = 0;
-		        carga.litros = 0;
+		        carga.volumen = 0;
 		        mostrarAviso(salida.error || "Prensado sin datos de merma.", "error");
 		      } else {
-		        carga.kilos = 0;
-		        carga.litros_directos = salida.volumenFinal;
-		        carga.litros = salida.volumenFinal;
+		        carga.volumen = salida.volumenFinal;
 		        carga.merma_abs = salida.mermaAbs;
 		        carga.merma_pct = salida.mermaPct;
 		        registrarPrensadoMapaNodos(origen, destino, salida);
@@ -13880,18 +13744,14 @@ function escalarCarga(cargaBase, factor) {
 
 		  if (destino.tipo === "deposito" || destino.tipo === "coupage") {
 		    const registro = asegurarAsignacionRegistro(destino, origen.id);
-		    const litrosFinales =
-		      normalizarNumero(carga.litros_directos ?? carga.litros) ?? 0;
-	    const kilosFinales = normalizarNumero(carga.kilos) ?? 0;
+		    const volumenFinal = getVolumenFromDatos(carga) ?? 0;
 	    if (esCargaManual) {
 	      registro.__manual = true;
-	      registro.litros = Number(Math.max(0, litrosFinales).toFixed(2));
-	      registro.kilos = Number(Math.max(0, kilosFinales).toFixed(2));
+	      setVolumenRegistro(registro, Math.max(0, volumenFinal));
 	    } else {
 	      // Si el usuario fijó manualmente esta asignación, no la sobreescribimos al redistribuir automáticamente.
 	      if (registro.__manual !== true) {
-	        registro.litros = Number(Math.max(0, litrosFinales).toFixed(2));
-	        registro.kilos = Number(Math.max(0, kilosFinales).toFixed(2));
+	        setVolumenRegistro(registro, Math.max(0, volumenFinal));
 	      }
 	    }
 		    actualizarVariedadDesdeAportes(destino);
@@ -13925,57 +13785,27 @@ function normalizarNumero(valor) {
 }
 
 function normalizarKilosLitrosDesdeDatos(datos) {
-  const fuente = datos || {};
-  const kilosRaw = normalizarNumero(fuente.kilos);
-  const kilos = kilosRaw != null ? kilosRaw : 0;
-  let litros = normalizarNumero(fuente.litros);
-  if (litros == null) litros = normalizarNumero(fuente.litros_directos);
-  if (litros == null) {
-    const volumenBase = normalizarNumero(fuente.volumen);
-    if (volumenBase != null) {
-      litros = Math.max(0, Number((volumenBase - kilos).toFixed(2)));
-    }
-  }
-  litros = litros != null ? litros : 0;
+  const volumen = getVolumenFromDatos(datos);
   return {
-    kilos: Number(kilos.toFixed(2)),
-    litros: Number(litros.toFixed(2)),
+    volumen: volumen != null ? Number(volumen.toFixed(2)) : null,
   };
 }
 
 function recalcularVolumenNodo(nodo, motivo = "") {
   if (!nodo) return null;
   nodo.datos = nodo.datos || {};
-  const unidad = obtenerUnidadNodo(nodo);
   const normalizado = normalizarKilosLitrosDesdeDatos(nodo.datos);
-  const base = obtenerCantidadEnUnidad(
-    {
-      kilos: normalizado.kilos,
-      litros: normalizado.litros,
-      litros_directos: normalizado.litros,
-      volumen: nodo.datos.volumen,
-    },
-    unidad
-  );
-  const baseNum = Number.isFinite(Number(base)) ? Number(base) : 0;
-  const kilos = unidad === "litros" ? 0 : Number(baseNum.toFixed(2));
-  const litros = unidad === "litros" ? Number(baseNum.toFixed(2)) : 0;
-  nodo.datos.kilos = kilos;
-  nodo.datos.litros = litros;
-  nodo.datos.litros_directos = litros;
-  const volumen = unidad === "litros" ? litros : kilos;
-  nodo.datos.volumen = volumen;
+  const volumen = normalizado.volumen;
+  nodo.datos.volumen = volumen != null ? Number(volumen.toFixed(2)) : null;
   if (flowDebugActivo()) {
     console.debug("[flow][volumen]", {
       motivo,
-      kilos,
-      litros,
       volumen,
       nodo: nodo.id,
       tipo: nodo.tipo,
     });
   }
-  return volumen;
+  return nodo.datos.volumen;
 }
 
 function formatearDensidad(valor) {
@@ -14004,9 +13834,7 @@ function obtenerVariedadNodo(nodo, visitados = new Set()) {
   }
   if (nodo.tipo === "deposito" && nodo.datos?.id_ref) {
     const esRaiz = nodo.id != null && obtenerPredecesores(nodo.id).length === 0;
-    const volActual = normalizarNumero(
-      nodo.datos?.volumen ?? nodo.datos?.litros ?? nodo.datos?.litros_directos
-    );
+    const volActual = getVolumenFromDatos(nodo.datos);
 	    if (nodo.datos?.codigo == null || (esRaiz && !(volActual > 0))) {
 	      intentarPoblarNodoDeposito(nodo, true);
 	    }
@@ -14036,26 +13864,12 @@ function obtenerVariedadNodo(nodo, visitados = new Set()) {
     }
   }
   const variedad = obtenerVariedadNodo(nodo);
-  const kilosRaw = normalizarNumero(datos.kilos);
-  const litrosRaw = normalizarNumero(datos.litros);
-  const litrosDirectos = normalizarNumero(datos.litros_directos);
-  const volumenRaw = normalizarNumero(
-    datos.volumen != null ? datos.volumen : datos.valor
-  );
-  const kilos = kilosRaw != null ? kilosRaw : 0;
-  let litros = litrosRaw != null ? litrosRaw : litrosDirectos;
-  if (litros == null && volumenRaw != null) {
-    litros = Math.max(0, Number((volumenRaw - (kilosRaw || 0)).toFixed(4)));
-  }
+  const volumenRaw = getVolumenFromDatos(datos);
+  const volumen = volumenRaw != null ? Number(volumenRaw.toFixed(4)) : null;
 	  const carga = {};
 	  if (variedad) carga.variedad = variedad;
-  if (kilosRaw != null || kilos > 0) {
-    carga.kilos = Number(kilos.toFixed(4));
-  }
-  if (litros != null) {
-    const litrosVal = Number(litros.toFixed(4));
-    carga.litros_directos = litrosVal;
-    carga.litros = litrosVal;
+  if (volumen != null) {
+    carga.volumen = volumen;
   }
   if (datos.parcela) carga.parcela = datos.parcela;
   const anada = datos.anada || obtenerAnadaDesdeFecha(datos.fecha);
@@ -14070,32 +13884,26 @@ function obtenerVariedadNodo(nodo, visitados = new Set()) {
     carga.temperatura = temperatura;
   }
 
-  const sinKilos = !(carga.kilos > 0);
-  const sinLitros = !(carga.litros > 0) && !(carga.litros_directos > 0);
-	  if (sinKilos && sinLitros && nodo.id != null) {
-	    let sumK = 0;
-	    let sumL = 0;
+  const sinVolumen = carga.volumen == null;
+	  if (sinVolumen && nodo.id != null) {
+	    let sumVol = 0;
+	    const vistos = new Set();
 	    obtenerPredecesores(nodo.id).forEach(pre => {
+	      const key = normalizarIdNodo(pre);
+	      if (vistos.has(key)) return;
+	      vistos.add(key);
 	      const cargaPre = obtenerCargaDesdeNodo(pre, visitados);
 	      if (!cargaPre) return;
-	      const k = normalizarNumero(cargaPre.kilos);
-	      const l = normalizarNumero(cargaPre.litros_directos ?? cargaPre.litros);
-	      if (k > 0) sumK += k;
-	      if (l > 0) sumL += l;
+	      const v = getVolumenFromDatos(cargaPre) || 0;
+	      if (v > 0) sumVol += v;
 	    });
-	    if (sumK > 0) {
-	      carga.kilos = Number(sumK.toFixed(2));
-	    }
-	    if (sumL > 0) {
-	      const lnum = Number(sumL.toFixed(2));
-	      carga.litros_directos = lnum;
-	      carga.litros = lnum;
+	    if (sumVol > 0) {
+	      carga.volumen = Number(sumVol.toFixed(2));
 	    }
 	  }
 
 	  if (nodo.id != null && esNodoConversor(nodo)) {
-	    let kilosEntrantes = 0;
-	    let litrosDirectosEntrantes = 0;
+	    let volumenEntrante = 0;
 
 	    const aportesObj = nodo.datos?.aportes;
 	    const aportes = aportesObj && typeof aportesObj === "object" ? Object.values(aportesObj) : [];
@@ -14104,10 +13912,8 @@ function obtenerVariedadNodo(nodo, visitados = new Set()) {
 	    // sobrecontar cuando un padre reparte su carga entre varios destinos.
 	    if (aportes.length) {
 	      aportes.forEach(a => {
-	        const k = normalizarNumero(a?.kilos) || 0;
-	        const l = normalizarNumero(a?.litros_directos ?? a?.litros) || 0;
-	        if (k > 0) kilosEntrantes += k;
-	        if (l > 0) litrosDirectosEntrantes += l;
+	        const v = getVolumenFromDatos(a) || 0;
+	        if (v > 0) volumenEntrante += v;
 	      });
 	    } else {
 	      // Fallback: si aún no hay aportes (recién conectado), usamos los padres.
@@ -14115,27 +13921,23 @@ function obtenerVariedadNodo(nodo, visitados = new Set()) {
 	      padres.forEach(pre => {
 	        const cargaPre = obtenerCargaDesdeNodo(pre, visitados);
 	        if (!cargaPre) return;
-	        const k = normalizarNumero(cargaPre.kilos) || 0;
-	        const l = normalizarNumero(cargaPre.litros_directos ?? cargaPre.litros) || 0;
-	        if (k > 0) kilosEntrantes += k;
-	        if (l > 0) litrosDirectosEntrantes += l;
+	        const v = getVolumenFromDatos(cargaPre) || 0;
+	        if (v > 0) volumenEntrante += v;
 	      });
 	    }
 
 	    const params = obtenerParametrosPrensadoNodo(nodo);
 	    const salida = calcularSalidaPrensado({
-	      kilos: kilosEntrantes,
-	      litros: litrosDirectosEntrantes,
+	      kilos: volumenEntrante,
+	      litros: null,
 	      litrosResultantes: params.litrosResultantes,
 	      mermaAbs: params.mermaAbs,
 	      mermaPct: params.mermaPct,
 	    });
 	    if (salida.ok && salida.volumenFinal > 0) {
 	      const totalRed = Number(salida.volumenFinal.toFixed(2));
-	      carga.kilos = 0;
-	      carga.litros_directos = totalRed;
-	      carga.litros = totalRed;
-	      setKilosLitrosNodo(nodo, 0, totalRed, "conversor");
+	      carga.volumen = totalRed;
+	      setKilosLitrosNodo(nodo, null, totalRed, "conversor");
 	    }
 		  }
 
@@ -14205,9 +14007,10 @@ function obtenerParametrosPrensadoNodo(nodo) {
 }
 
 function calcularSalidaPrensado({ kilos, litros, litrosResultantes, mermaAbs, mermaPct }) {
-  const kilosEntrada = normalizarNumero(kilos) || 0;
-  const litrosEntrada = normalizarNumero(litros) || 0;
-  const volumenEntrada = Number((kilosEntrada + litrosEntrada).toFixed(2));
+  const kilosEntrada = normalizarNumero(kilos);
+  const litrosEntrada = normalizarNumero(litros);
+  const volumenEntradaRaw = getVolumenFromDatos({ kilos, litros });
+  const volumenEntrada = volumenEntradaRaw != null ? Number(volumenEntradaRaw.toFixed(2)) : 0;
   if (!(volumenEntrada > 0)) {
     return { ok: false, error: "Sin volumen de entrada.", volumenEntrada, volumenFinal: 0 };
   }
@@ -14215,9 +14018,25 @@ function calcularSalidaPrensado({ kilos, litros, litrosResultantes, mermaAbs, me
   const litrosRes = normalizarNumero(litrosResultantes);
   const mermaAbsVal = normalizarNumero(mermaAbs);
   const mermaPctVal = normalizarNumero(mermaPct);
+  const tieneMermaConfig =
+    litrosRes != null ||
+    (mermaAbsVal != null && mermaAbsVal > 0) ||
+    (mermaPctVal != null && mermaPctVal > 0);
   let volumenFinal = null;
   let mermaAbsFinal = null;
   let mermaPctFinal = null;
+
+  if (!tieneMermaConfig) {
+    return {
+      ok: true,
+      kilosEntrada,
+      litrosEntrada,
+      volumenEntrada,
+      volumenFinal: volumenEntrada,
+      mermaAbs: 0,
+      mermaPct: 0,
+    };
+  }
 
   if (litrosRes != null) {
     volumenFinal = Number(litrosRes.toFixed(2));
@@ -14232,13 +14051,21 @@ function calcularSalidaPrensado({ kilos, litros, litrosResultantes, mermaAbs, me
     mermaAbsFinal = Number(((volumenEntrada * mermaPctFinal) / 100).toFixed(2));
     volumenFinal = Number((volumenEntrada - mermaAbsFinal).toFixed(2));
   } else {
-    return { ok: false, error: "Indica litros resultantes o merma.", volumenEntrada, volumenFinal: 0 };
+    return {
+      ok: true,
+      kilosEntrada,
+      litrosEntrada,
+      volumenEntrada,
+      volumenFinal: volumenEntrada,
+      mermaAbs: 0,
+      mermaPct: 0,
+    };
   }
 
-  if (!(volumenFinal < volumenEntrada)) {
+  if (volumenFinal > volumenEntrada) {
     return {
       ok: false,
-      error: "El prensado debe reducir el volumen.",
+      error: "El volumen resultante no puede superar el de entrada.",
       volumenEntrada,
       volumenFinal,
       mermaAbs: mermaAbsFinal,
@@ -14258,8 +14085,6 @@ function calcularSalidaPrensado({ kilos, litros, litrosResultantes, mermaAbs, me
 
   if (flowDebugActivo()) {
     console.debug("[flow][prensado]", {
-      kilosEntrada,
-      litrosEntrada,
       volumenEntrada,
       volumenFinal,
       mermaAbs: mermaAbsFinal,
@@ -14278,44 +14103,49 @@ function calcularSalidaPrensado({ kilos, litros, litrosResultantes, mermaAbs, me
   };
 }
 
-function obtenerValorUnidadNodo(nodo, unidad) {
+function obtenerValorUnidadNodo(nodo, _unidad) {
   if (!nodo) return 0;
-  const datos = nodo.datos || {};
-  if (unidad === "kilos") {
-    const kilos = normalizarNumero(datos.kilos);
-    return kilos != null ? kilos : 0;
-  }
-  let litros = normalizarNumero(datos.litros);
-  if (litros == null) litros = normalizarNumero(datos.litros_directos);
-  if (litros == null) {
-    const volumen = normalizarNumero(datos.volumen);
-    litros = volumen != null ? volumen : 0;
-  }
-  return litros != null ? litros : 0;
+  const volumen = getVolumenFromNodo(nodo);
+  return Number.isFinite(volumen) ? volumen : 0;
 }
 
 function obtenerVolumenActualNodo(nodo) {
-  if (!nodo) return 0;
-  return recalcularVolumenNodo(nodo, "obtener_volumen") || 0;
+  if (!nodo) return null;
+  const volumen = recalcularVolumenNodo(nodo, "obtener_volumen");
+  return volumen != null ? volumen : null;
 }
 
 function setKilosLitrosNodo(nodo, kilos, litros, motivo = "") {
   if (!nodo) return null;
   nodo.datos = nodo.datos || {};
-  nodo.datos.kilos = normalizarNumero(kilos) || 0;
-  nodo.datos.litros = normalizarNumero(litros) || 0;
+  const volumen = getVolumenFromDatos({ volumen: null, kilos, litros });
+  nodo.datos.volumen = volumen != null ? Number(volumen.toFixed(2)) : null;
+  const kilosNum = normalizarNumero(kilos);
+  const litrosNum = normalizarNumero(litros);
+  if (kilosNum != null && kilosNum > 0) {
+    nodo.datos.kilos = Number(kilosNum.toFixed(2));
+    nodo.datos.litros = null;
+    nodo.datos.litros_directos = null;
+  } else if (litrosNum != null && litrosNum > 0) {
+    nodo.datos.litros = Number(litrosNum.toFixed(2));
+    nodo.datos.litros_directos = nodo.datos.litros;
+    nodo.datos.kilos = null;
+  } else {
+    if (kilosNum != null) nodo.datos.kilos = Number(kilosNum.toFixed(2));
+    if (litrosNum != null) {
+      nodo.datos.litros = Number(litrosNum.toFixed(2));
+      nodo.datos.litros_directos = nodo.datos.litros;
+    }
+  }
   return recalcularVolumenNodo(nodo, motivo);
 }
 
 function applyVolumeOperation(nodo, { litrosDelta = 0, kilosDelta = 0, motivo = "" } = {}) {
   if (!nodo) return null;
   nodo.datos = nodo.datos || {};
-  const kilosActual = normalizarNumero(nodo.datos.kilos) || 0;
-  const litrosActual = obtenerValorUnidadNodo(nodo, "litros");
-  const deltaK = Number.isFinite(Number(kilosDelta)) ? Number(kilosDelta) : 0;
-  const deltaL = Number.isFinite(Number(litrosDelta)) ? Number(litrosDelta) : 0;
-  nodo.datos.kilos = Math.max(0, Number((kilosActual + deltaK).toFixed(2)));
-  nodo.datos.litros = Math.max(0, Number((litrosActual + deltaL).toFixed(2)));
+  const actual = getVolumenFromNodo(nodo) || 0;
+  const delta = getVolumenFromDatos({ volumen: null, kilos: kilosDelta, litros: litrosDelta }) || 0;
+  nodo.datos.volumen = Math.max(0, Number((actual + delta).toFixed(2)));
   return recalcularVolumenNodo(nodo, motivo);
 }
 
@@ -14324,10 +14154,7 @@ function aplicarVolumenAbsoluto(nodo, valor, unidad, motivo = "") {
   if (objetivo == null) return null;
   const actual = obtenerValorUnidadNodo(nodo, unidad);
   const delta = Number((objetivo - actual).toFixed(2));
-  if (unidad === "litros") {
-    return applyVolumeOperation(nodo, { litrosDelta: delta, motivo });
-  }
-  return applyVolumeOperation(nodo, { kilosDelta: delta, motivo });
+  return applyVolumeOperation(nodo, { litrosDelta: delta, motivo });
 }
 
 function esConexionTrasiego(origen, destino) {
@@ -14341,8 +14168,7 @@ function esConexionTrasiego(origen, destino) {
 function aplicarCargaANodo(nodo, carga) {
   nodo.datos = nodo.datos || {};
   const acumular = false; // evitar acumulados duplicados // en nodos de proceso sumamos aportes múltiples
-  const prevK = normalizarNumero(nodo.datos.kilos) || 0;
-  const prevL = normalizarNumero(nodo.datos.litros) || 0;
+  const prevVol = getVolumenFromNodo(nodo) || 0;
   if (carga.variedad) {
     nodo.datos.variedad = carga.variedad;
   }
@@ -14352,18 +14178,10 @@ function aplicarCargaANodo(nodo, carga) {
   if (carga.anada) {
     nodo.datos.anada = carga.anada;
   }
-  if (carga.kilos != null) {
-    const nuevos = Number(carga.kilos.toFixed(2));
-    nodo.datos.kilos = acumular ? Number((prevK + nuevos).toFixed(2)) : nuevos;
-  }
-  const litrosBase = carga.litros != null
-    ? Number(carga.litros.toFixed(2))
-    : (carga.litros_directos != null ? Number(carga.litros_directos.toFixed(2)) : null);
-  if (litrosBase != null) {
-    const litrosFinal = acumular ? Number((prevL + litrosBase).toFixed(2)) : litrosBase;
-    nodo.datos.litros = litrosFinal;
-  }
-  if (carga.kilos != null || litrosBase != null) {
+  const volumenCarga = getVolumenFromDatos(carga);
+  if (volumenCarga != null) {
+    const nuevos = Number(volumenCarga.toFixed(2));
+    nodo.datos.volumen = acumular ? Number((prevVol + nuevos).toFixed(2)) : nuevos;
     recalcularVolumenNodo(nodo, "aplicarCargaANodo");
   }
   if (carga.fecha) {
@@ -14385,11 +14203,9 @@ function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
   if (!destino) return;
   destino.datos = destino.datos || {};
   destino.datos.aportes = destino.datos.aportes || {};
+  const aporteVolumen = getVolumenFromDatos(carga);
   const aporte = {
-    kilos: carga.kilos != null ? Number(carga.kilos.toFixed(2)) : 0,
-    litros: carga.litros != null ? Number(carga.litros.toFixed(2)) : 0,
-    litros_directos:
-      carga.litros_directos != null ? Number(carga.litros_directos.toFixed(2)) : 0,
+    volumen: aporteVolumen != null ? Number(aporteVolumen.toFixed(2)) : null,
     variedad: carga.variedad,
     anada: carga.anada,
     parcela: carga.parcela,
@@ -14399,9 +14215,7 @@ function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
   };
   destino.datos.aportes[normalizarIdNodo(origenId)] = aporte;
   limpiarAportesOrfanos(destino);
-  const unidadDestino = obtenerUnidadNodo(destino);
-  let sumK = 0;
-  let sumL = 0;
+  let sumVol = 0;
   const mixVariedades = new Map();
   let densidadSuma = 0;
   let densidadPeso = 0;
@@ -14411,24 +14225,14 @@ function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
   let tempPrimera = null;
 
   const pesoParaAporte = a => {
-    const kilos = normalizarNumero(a?.kilos) || 0;
-    const litrosDirectos = normalizarNumero(a?.litros_directos) || 0;
-    const litros = normalizarNumero(a?.litros) || 0;
-    if (unidadDestino === "litros") {
-      return litrosDirectos > 0 ? litrosDirectos : litros > 0 ? litros : kilos;
-    }
-    return kilos > 0 ? kilos : litrosDirectos > 0 ? litrosDirectos : litros;
+    const volumen = getVolumenFromDatos(a);
+    return Number.isFinite(volumen) ? volumen : 0;
   };
 
   Object.values(destino.datos.aportes).forEach(a => {
-    const kilos = normalizarNumero(a?.kilos) || 0;
-    const litrosDirectos = normalizarNumero(a?.litros_directos) || 0;
-    const litros = normalizarNumero(a?.litros) || 0;
-    if (kilos > 0) sumK += kilos;
-    if (unidadDestino === "litros") {
-      if (litrosDirectos > 0) sumL += litrosDirectos;
-      else if (litros > 0) sumL += litros;
-    }
+    const volumen = getVolumenFromDatos(a);
+    const volumenSeguro = Number.isFinite(volumen) ? volumen : 0;
+    if (volumenSeguro > 0) sumVol += volumenSeguro;
     const peso = pesoParaAporte(a);
     if (a.variedad && peso > 0) {
       agregarVariedadAPeso(mixVariedades, a.variedad, peso);
@@ -14476,19 +14280,19 @@ function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
     if (destino.tipo === "barrica") {
       setKilosLitrosNodo(
         destino,
-        Number(sumK.toFixed(2)),
-        Number(sumL.toFixed(2)),
+        null,
+        Number(sumVol.toFixed(2)),
         "aportes_barrica"
       );
     }
     return;
   }
 
-  // En nodos de proceso sí consolidamos los volúmenes/kilos para mostrar totales.
+  // En nodos de proceso sí consolidamos los volúmenes para mostrar totales.
   setKilosLitrosNodo(
     destino,
-    Number(sumK.toFixed(2)),
-    Number(sumL.toFixed(2)),
+    null,
+    Number(sumVol.toFixed(2)),
     "aportes_proceso"
   );
 }
@@ -14600,7 +14404,7 @@ function formatearKilosPlano(valor) {
 
 function formatearVolumenPlano(valor) {
   if (valor == null || Number.isNaN(Number(valor))) return "—";
-  return `${Number(valor).toLocaleString("es-ES", { maximumFractionDigits: 1 })} vol`;
+  return `${Number(valor).toLocaleString("es-ES", { maximumFractionDigits: 1 })}`;
 }
 
 function normalizarTextoMapa(valor) {
@@ -14664,8 +14468,6 @@ function construirDetalleNodoMapa(nodo) {
   if (volumen) lineas.push(volumen);
 
   if (nodo.tipo === "entrada") {
-    const kilos = normalizarNumero(datos.kilos);
-    if (kilos != null) agregarLineaMapa(lineas, "Kilos", formatearKilosPlano(kilos));
     const densidad = normalizarNumero(datos.densidad);
     if (densidad != null) agregarLineaMapa(lineas, "Densidad", densidad);
     const temp = normalizarNumero(datos.temperatura);
@@ -14704,8 +14506,8 @@ function construirDetalleNodoMapa(nodo) {
     if (botellas != null) agregarLineaMapa(lineas, "Botellas", botellas);
   } else if (nodo.tipo === "coupage") {
     agregarLineaMapa(lineas, "Nombre", datos.nombre_blend);
-    const litrosBlend = normalizarNumero(datos.litros_blend);
-    if (litrosBlend != null) agregarLineaMapa(lineas, "Litros", formatearLitrosPlano(litrosBlend));
+    const volumenBlend = normalizarNumero(datos.litros_blend);
+    if (volumenBlend != null) agregarLineaMapa(lineas, "Volumen", formatearVolumenPlano(volumenBlend));
     agregarLineaMapa(lineas, "Notas", datos.descripcion);
   } else if (nodo.tipo === "almacen") {
     agregarLineaMapa(lineas, "Condición", datos.condicion);
@@ -14790,16 +14592,8 @@ function describirNodoMapaNodos(nodo) {
 }
 
 function construirCantidadConexionMapa(origen, destino) {
-  const litros = obtenerLitrosTransferenciaEntreNodos(origen, destino);
-  const kilos = obtenerKilosTransferenciaEntreNodos(origen, destino);
-  const unidad = obtenerUnidadNodo(origen);
-  if (unidad === "litros") {
-    if (litros > 0) return formatearLitrosPlano(litros);
-    if (kilos > 0) return formatearLitrosPlano(kilos);
-  } else {
-    if (kilos > 0) return formatearKilosPlano(kilos);
-    if (litros > 0) return formatearKilosPlano(litros);
-  }
+  const volumen = obtenerVolumenTransferenciaEntreNodos(origen, destino);
+  if (volumen > 0) return formatearVolumenPlano(volumen);
   return "";
 }
 
@@ -14809,13 +14603,7 @@ function construirDetalleConexionMapa(origen, destino, cantidad) {
   const destinoTxt = describirNodoMapaNodos(destino);
   agregarLineaMapa(lineas, "Origen", origenTxt);
   agregarLineaMapa(lineas, "Destino", destinoTxt);
-  agregarLineaMapa(lineas, "Cantidad", cantidad);
-  const litros = obtenerLitrosTransferenciaEntreNodos(origen, destino);
-  const kilos = obtenerKilosTransferenciaEntreNodos(origen, destino);
-  if (litros > 0 && kilos > 0) {
-    agregarLineaMapa(lineas, "Kilos", formatearKilosPlano(kilos));
-    agregarLineaMapa(lineas, "Litros", formatearLitrosPlano(litros));
-  }
+  agregarLineaMapa(lineas, "Volumen", cantidad);
   const variedad = obtenerVariedadVisibleNodo(origen) || obtenerVariedadVisibleNodo(destino);
   agregarLineaMapa(lineas, "Variedad", variedad);
   const opOrigen = obtenerOperacionNodoMapa(origen);
@@ -14827,13 +14615,12 @@ function construirDetalleConexionMapa(origen, destino, cantidad) {
 
 function registrarConexionMapaNodos(origen, destino) {
   if (!origen || !destino) return;
-  const litros = obtenerLitrosTransferenciaEntreNodos(origen, destino);
-  const kilos = obtenerKilosTransferenciaEntreNodos(origen, destino);
   const cantidad = construirCantidadConexionMapa(origen, destino);
+  const cantidadTexto = cantidad ? `Volumen ${cantidad}` : "";
   const origenTxt = describirNodoMapaNodos(origen);
   const destinoTxt = describirNodoMapaNodos(destino);
   const resumenBase = `${origenTxt} → ${destinoTxt}`;
-  const resumen = `${resumenBase}${cantidad ? ` · ${cantidad}` : ""} · mapa de nodos`;
+  const resumen = `${resumenBase}${cantidadTexto ? ` · ${cantidadTexto}` : ""} · mapa de nodos`;
   const detalleLineas = construirDetalleConexionMapa(origen, destino, cantidad);
   const detalle = detalleLineas.join("\n");
   const contenedores = [
@@ -14846,9 +14633,7 @@ function registrarConexionMapaNodos(origen, destino) {
     tipo_movimiento: "conexion",
     origen: origenTxt,
     destino: destinoTxt,
-    litros: litros > 0 ? litros : null,
-    kilos: kilos > 0 ? kilos : null,
-    cantidad: cantidad || null,
+    cantidad: cantidadTexto || null,
     observacion: "mapa de nodos",
     origen_nodo: origen.id,
     destino_nodo: destino.id,
@@ -14872,7 +14657,7 @@ function registrarPrensadoMapaNodos(origen, destino, salida) {
   const contenedor = resolverContenedorDesdeNodoControl(origen);
 
   const nombre = obtenerNombreContenedorNodo(origen);
-  const resumen = `PRENSADO ${nombre}: entrada ${salida.volumenEntrada} L, salida ${salida.volumenFinal} L, merma ${salida.mermaAbs} L (${salida.mermaPct}%)`;
+  const resumen = `PRENSADO ${nombre}: entrada ${salida.volumenEntrada}, salida ${salida.volumenFinal}, merma ${salida.mermaAbs} (${salida.mermaPct}%)`;
   const meta = {
     accion: "mapa_nodos",
     tipo_evento: "prensado",
@@ -15006,7 +14791,7 @@ function abrirLimpiezaNodo(nodoId) {
   if (detalle) {
     detalle.textContent =
       "Vas a resetear la información del vino de este contenedor para iniciar una nueva línea. " +
-      "Se borra: variedades, litros, estado del vino, flags de vino activo/datos actuales. " +
+      "Se borra: variedades, volumen, estado del vino, flags de vino activo/datos actuales. " +
       "Se mantiene: el nodo, el depósito/barrica y la Bitácora completa (NO se borra).";
   }
   if (check) {
@@ -15625,13 +15410,13 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
   if (nodo.tipo === "coupage") {
     const labelAsign = document.createElement("label");
     labelAsign.textContent =
-      "Selecciona los litros de cada depósito para el blend";
+      "Selecciona el volumen de cada depósito para el blend";
     form.appendChild(labelAsign);
     form.appendChild(crearTablaAsignacionesDeposito(nodo));
   }
   if (nodo.tipo === "estilo") {
     const labelDistrib = document.createElement("label");
-    labelDistrib.textContent = "Reparto de kilos/litros hacia los nodos conectados";
+    labelDistrib.textContent = "Reparto de volumen hacia los nodos conectados";
     form.appendChild(labelDistrib);
     form.appendChild(crearTablaDistribucionEstilo(nodo));
   }
@@ -15939,7 +15724,9 @@ function intentarPoblarNodoDeposito(nodo, silencioso = false) {
     ? JSON.parse(JSON.stringify(nodo.datos.asignaciones))
     : null;
   nodo.datos.codigo = deposito.codigo || nodo.datos.codigo;
-  nodo.datos.capacidad = deposito.capacidad_l || (deposito.capacidad_hl ? deposito.capacidad_hl * 100 : nodo.datos.capacidad);
+  nodo.datos.capacidad =
+    deposito.capacidad_l ||
+    (deposito.capacidad_hl ? deposito.capacidad_hl * 100 : nodo.datos.capacidad);
   // Solo rellenamos volumen desde el sistema cuando el nodo es un "punto de partida" (sin entradas).
   // En nodos intermedios, el volumen se reconstruye por asignaciones/aportes del flujo.
   if (esRaiz) {
@@ -16238,7 +16025,7 @@ async function sincronizarBarricaDesdeNodo(nodo) {
 async function sincronizarEmbotelladoDesdeNodo(nodo) {
   const litros = Number(nodo.datos.litros || 0);
   if (!litros) {
-    mostrarAviso("Indica litros para el embotellado.", "error");
+    mostrarAviso("Indica volumen para el embotellado.", "error");
     return;
   }
   const formatos = Array.isArray(nodo.datos?.formatos_botella)
@@ -16405,17 +16192,20 @@ function obtenerNodoFinalContenedor(tipo, idRef) {
   if (idRef == null || !Array.isArray(flujoNodos)) return null;
   const ids = obtenerIdentificadoresContenedor(tipo, idRef);
   if (!ids.length) return null;
-  const idsSet = new Set(ids.map(String));
+  const normalizarClave = valor =>
+    valor == null ? "" : String(valor).trim().toLowerCase();
+  const idsSet = new Set(ids.map(normalizarClave).filter(Boolean));
   const coincide = n => {
-    if (!n || n.tipo !== tipo || !n.datos) return false;
+    if (!n || n.tipo !== tipo) return false;
     const datos = n.datos || {};
     const candidatos = [
       datos.id_ref,
       datos.contenedor_id,
       datos.codigo,
+      n.titulo,
       n.id,
     ].filter(v => v != null && v !== "");
-    return candidatos.some(v => idsSet.has(String(v)));
+    return candidatos.some(v => idsSet.has(normalizarClave(v)));
   };
   const candidatos = flujoNodos.filter(coincide);
   if (!candidatos.length) return null;
@@ -19024,7 +18814,12 @@ async function cargarDepositos() {
     });
     mapaDepositosPorId = new Map(cacheDepositos.map(d => [d.id, d]));
     mapaMastelonesPorId = new Map(cacheMastelones.map(d => [d.id, d]));
-    poblarSelectBitacoraContenedores();
+    if (typeof poblarSelectBitacoraContenedores === "function") {
+      poblarSelectBitacoraContenedores();
+    } else if (!window.__bitacoraSelectWarned) {
+      console.warn("[bitacora] falta poblarSelectBitacoraContenedores; se omite para no cortar carga");
+      window.__bitacoraSelectWarned = true;
+    }
 
     const listaTabla = [...cacheDepositos, ...cacheMastelones];
     renderTablaContenedores(listaTabla, "tablaDepositos", "No hay depósitos ni mastelones.");
@@ -19090,10 +18885,6 @@ function renderTablaContenedores(lista, tablaId, mensajeVacio) {
           <button class="small-btn"
             onclick="abrirBitacoraContenedor('${tipoBitacora}', ${d.id})">
             Bitácora
-          </button>
-          <button class="small-btn"
-            onclick="abrirCuadernoContenedor('${tipoBitacora}', ${d.id})">
-            Cuaderno
           </button>
         </div>
       </td>
@@ -20456,7 +20247,12 @@ async function construirHistorialLocal(tipo, id) {
                     }
                 });
                 mapaBarricasPorId = new Map(datos.map(b => [b.id, b]));
-                poblarSelectBitacoraContenedores();
+                if (typeof poblarSelectBitacoraContenedores === "function") {
+                    poblarSelectBitacoraContenedores();
+                } else if (!window.__bitacoraSelectWarned) {
+                    console.warn("[bitacora] falta poblarSelectBitacoraContenedores; se omite para no cortar carga");
+                    window.__bitacoraSelectWarned = true;
+                }
                 renderPlano();
 
                 const tbody = document.getElementById("tablaBarricas");
@@ -20501,10 +20297,6 @@ async function construirHistorialLocal(tipo, id) {
                 <button class="small-btn"
                     onclick="abrirBitacoraContenedor('barrica', ${b.id})">
                     Bitácora
-                </button>
-                <button class="small-btn"
-                    onclick="abrirCuadernoContenedor('barrica', ${b.id})">
-                    Cuaderno
                 </button>
             </div>
         </td>
@@ -21641,7 +21433,7 @@ function leerArchivoBase64(file) {
                 el.innerHTML = `
                     <h4 style="margin:0 0 4px;">${nodo.id}</h4>
                     <div class="flow-node-subtitle">${nodo.tipo} · ${nodo.vino}</div>
-                    <div class="flow-node-subtitle">Volumen ${nodo.volumen} / ${nodo.capacidad} L</div>
+                    <div class="flow-node-subtitle">Volumen ${nodo.volumen} / ${nodo.capacidad}</div>
                     <div class="estado-pill estado-${(nodo.estado || "").toLowerCase()}" style="margin-top:6px;">${nodo.estado}</div>
                 `;
                 el.addEventListener("pointerdown", ev => startDemoDrag(ev, idx));

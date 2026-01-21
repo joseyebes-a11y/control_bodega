@@ -39,6 +39,12 @@ function formatMaybeNumber(value, decimals = 2) {
   return num.toFixed(decimals);
 }
 
+function calcularLitrosEfectivosEntrada(kilos, _directoPrensa, _mermaFactor) {
+  const kilosNum = Number(kilos);
+  if (!Number.isFinite(kilosNum)) return 0;
+  return kilosNum;
+}
+
 function ensureDb() {
   if (!db) {
     throw new Error("Base de datos no inicializada");
@@ -83,6 +89,7 @@ export async function listTimeline({
       timestamp: registro.fecha_hora,
       tipo: "MEDICION",
       resumen: `Medicion: densidad ${densidadTxt}, temperatura ${tempTxt} C`,
+      cantidad_efectiva: 0,
       payload: {
         densidad: registro.densidad,
         temperatura_c: registro.temperatura_c,
@@ -113,10 +120,25 @@ export async function listTimeline({
   );
 
   for (const movimiento of movimientos) {
+    const litrosNum = Number(movimiento.litros);
+    const litrosFinal = Number.isFinite(litrosNum) ? litrosNum : 0;
+    const esOrigen =
+      movimiento.origen_tipo === contenedorTipoFinal &&
+      movimiento.origen_id === contenedorIdFinal;
+    const esDestino =
+      movimiento.destino_tipo === contenedorTipoFinal &&
+      movimiento.destino_id === contenedorIdFinal;
+    let cantidadEfectiva = 0;
+    if (esDestino && !esOrigen) {
+      cantidadEfectiva = litrosFinal;
+    } else if (esOrigen && !esDestino) {
+      cantidadEfectiva = -litrosFinal;
+    }
     eventos.push({
       timestamp: movimiento.fecha,
       tipo: "MOVIMIENTO",
       resumen: `Movimiento ${movimiento.tipo || "vino"}: ${formatMaybeNumber(movimiento.litros)} L`,
+      cantidad_efectiva: cantidadEfectiva,
       payload: {
         tipo: movimiento.tipo,
         litros: movimiento.litros,
@@ -151,10 +173,13 @@ export async function listTimeline({
 
   for (const embotellado of embotellados) {
     const loteTxt = embotellado.lote ? `, lote ${embotellado.lote}` : "";
+    const litrosNum = Number(embotellado.litros);
+    const litrosFinal = Number.isFinite(litrosNum) ? litrosNum : 0;
     eventos.push({
       timestamp: embotellado.fecha,
       tipo: "EMBOTELLADO",
       resumen: `Embotellado: ${formatMaybeNumber(embotellado.litros)} L${loteTxt}`,
+      cantidad_efectiva: -litrosFinal,
       payload: {
         litros: embotellado.litros,
         botellas: embotellado.botellas,
@@ -199,10 +224,20 @@ export async function listTimeline({
   );
 
   for (const entrada of entradas) {
+    const directoPrensa = Number(entrada.directo_prensa) === 1;
+    const litrosEfectivos = calcularLitrosEfectivosEntrada(
+      entrada.kilos,
+      directoPrensa,
+      entrada.merma_factor
+    );
+    const kilosTxt = formatMaybeNumber(entrada.kilos);
+    const aplicaEstado = entrada.movimiento_id == null;
+    const resumen = `Entrada de uva: ${kilosTxt} volumen`;
     eventos.push({
       timestamp: entrada.fecha,
       tipo: "ENTRADA_UVA",
-      resumen: `Entrada de uva: ${formatMaybeNumber(entrada.kilos)} kg`,
+      resumen,
+      cantidad_efectiva: aplicaEstado ? litrosEfectivos : 0,
       payload: {
         entrada_id: entrada.entrada_id,
         variedad: entrada.variedad,
@@ -210,6 +245,7 @@ export async function listTimeline({
         merma_factor: entrada.merma_factor,
         directo_prensa: entrada.directo_prensa,
         movimiento_id: entrada.movimiento_id,
+        litros_efectivos: litrosEfectivos,
         contenedor_tipo: contenedorTipoFinal,
         contenedor_id: contenedorIdFinal,
       },
@@ -238,6 +274,7 @@ export async function listTimeline({
       timestamp: nota.fecha,
       tipo: "NOTA",
       resumen: `Nota: ${nota.texto}`,
+      cantidad_efectiva: 0,
       payload: {
         texto: nota.texto,
         contenedor_tipo: contenedorTipoFinal,

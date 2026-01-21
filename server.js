@@ -11,6 +11,11 @@ import session from 'express-session';
 import bcrypt from 'bcryptjs';
 import multer from "multer";
 import { initTimelineService, listTimeline } from "./services/timelineService.js";
+import {
+  initContenedoresEstadoService,
+  recalcularCantidad,
+  obtenerCantidadConsolidada,
+} from "./services/contenedoresEstadoService.js";
 import { evaluar as evaluarReglas } from "./rules/rulesEngine.js";
 
 
@@ -134,6 +139,14 @@ async function ensureTables() {
     "pos_x",
     "pos_y",
     "activo",
+  ]);
+  await assertColumns("contenedores_estado", [
+    "user_id",
+    "bodega_id",
+    "contenedor_tipo",
+    "contenedor_id",
+    "cantidad",
+    "updated_at",
   ]);
   await ensureColumn("entradas_uva", "densidad", "REAL");
   await ensureColumn("entradas_uva", "temperatura", "REAL");
@@ -408,7 +421,6 @@ const BITACORA_ORIGINS = new Set([
   "express",
 ]);
 const FORMATOS_EMBOTELLADO = new Set([750, 1500, 375]);
-const FACTOR_MERMA_PRENSA = 0.35;
 const ESTADOS_DEPOSITO = [
   { id: "fa", nombre: "Fermentación alcohólica" },
   { id: "fml", nombre: "Fermentación maloláctica" },
@@ -938,28 +950,7 @@ async function registrarBitacoraMovimiento({
 
 async function obtenerLitrosActuales(tipo, id, bodegaId, userId) {
   if (!TIPOS_CONTENEDOR.has(tipo) || !bodegaId || !userId) return null;
-  const fila = await db.get(
-    `
-    SELECT 
-      COALESCE((
-        SELECT SUM(litros) FROM movimientos_vino
-        WHERE destino_tipo = ? AND destino_id = ? AND bodega_id = ? AND user_id = ?
-      ), 0) -
-      COALESCE((
-        SELECT SUM(litros) FROM movimientos_vino
-        WHERE origen_tipo = ? AND origen_id = ? AND bodega_id = ? AND user_id = ?
-      ), 0) AS litros
-    `,
-    tipo,
-    id,
-    bodegaId,
-    userId,
-    tipo,
-    id,
-    bodegaId,
-    userId
-  );
-  return fila ? fila.litros : 0;
+  return obtenerCantidadConsolidada(tipo, id, bodegaId, userId);
 }
 
 async function existeCodigo(tabla, codigo, bodegaId, userId) {
@@ -1055,19 +1046,20 @@ async function registrarConsumoProducto(
 }
 
 async function registrarMovimientoEmbotellado(origen_tipo, origen_id, litros, nota, bodegaId, userId) {
+  const origenTipo = normalizarTipoContenedor(origen_tipo);
   const origenId = Number(origen_id);
   const litrosNum = Number(litros);
-  if (!origen_tipo || Number.isNaN(origenId) || !litrosNum || litrosNum <= 0) {
+  if (!origenTipo || Number.isNaN(origenId) || !litrosNum || litrosNum <= 0) {
     throw new Error("Datos de embotellado inválidos");
   }
   if (!bodegaId || !userId) {
     throw new Error("Usuario o bodega inválidos");
   }
-  const cont = await obtenerContenedor(origen_tipo, origenId, bodegaId, userId);
+  const cont = await obtenerContenedor(origenTipo, origenId, bodegaId, userId);
   if (!cont) {
     throw new Error("El contenedor de origen no existe");
   }
-  const disponibles = await obtenerLitrosActuales(origen_tipo, origenId, bodegaId, userId);
+  const disponibles = await obtenerLitrosActuales(origenTipo, origenId, bodegaId, userId);
   if (disponibles != null && litrosNum > disponibles + 1e-6) {
     throw new Error(`El contenedor solo tiene ${disponibles.toFixed(2)} L disponibles`);
   }
@@ -1077,13 +1069,14 @@ async function registrarMovimientoEmbotellado(origen_tipo, origen_id, litros, no
       (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, bodega_id, user_id)
      VALUES (?, 'embotellado', ?, ?, 'embotellado', NULL, ?, ?, ?, ?)`,
     fecha,
-    origen_tipo,
+    origenTipo,
     origenId,
     litrosNum,
     nota || "",
     bodegaId,
     userId
   );
+  await recalcularCantidad(origenTipo, origenId, bodegaId, userId);
   return { movimientoId: stmt.lastID, fecha };
 }
 
@@ -1153,56 +1146,21 @@ app.get("/api/depositos", async (req, res) => {
         d.activo,
         d.clase,
         d.capacidad_hl * 100 AS capacidad_l,
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE destino_tipo = CASE
-            WHEN COALESCE(d.clase, 'deposito') = 'mastelone' THEN 'mastelone'
-            WHEN COALESCE(d.clase, 'deposito') = 'barrica' THEN 'barrica'
-            ELSE 'deposito'
-          END
-            AND destino_id = d.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) +
-        COALESCE((
-          SELECT SUM(
-            CASE
-              WHEN COALESCE(directo_prensa, 0) = 1 THEN kilos * (1 - COALESCE(merma_factor, ${FACTOR_MERMA_PRENSA}))
-              ELSE kilos
-            END
-          ) FROM entradas_destinos
-          WHERE movimiento_id IS NULL
-            AND contenedor_tipo = CASE
-              WHEN COALESCE(d.clase, 'deposito') = 'mastelone' THEN 'mastelone'
-              WHEN COALESCE(d.clase, 'deposito') = 'barrica' THEN 'barrica'
-              ELSE 'deposito'
-            END
-            AND contenedor_id = d.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) -
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE origen_tipo = CASE
-            WHEN COALESCE(d.clase, 'deposito') = 'mastelone' THEN 'mastelone'
-            WHEN COALESCE(d.clase, 'deposito') = 'barrica' THEN 'barrica'
-            ELSE 'deposito'
-          END
-            AND origen_id = d.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) AS litros_actuales
+        COALESCE(ce.cantidad, 0) AS litros_actuales
       FROM depositos d
+      LEFT JOIN contenedores_estado ce
+        ON ce.contenedor_tipo = CASE
+          WHEN COALESCE(d.clase, 'deposito') = 'mastelone' THEN 'mastelone'
+          WHEN COALESCE(d.clase, 'deposito') = 'barrica' THEN 'barrica'
+          ELSE 'deposito'
+        END
+        AND ce.contenedor_id = d.id
+        AND ce.bodega_id = d.bodega_id
+        AND ce.user_id = d.user_id
       WHERE d.activo = 1
         AND d.bodega_id = ?
         AND d.user_id = ?
     `,
-      bodegaId,  // destino movs
-      userId,    // destino movs user
-      bodegaId,  // entradas_destinos
-      userId,    // entradas_destinos user
-      bodegaId,  // origen movs
-      userId,    // origen movs user
       bodegaId,  // where depositos
       userId     // where depositos
     );
@@ -1540,27 +1498,17 @@ app.get("/api/barricas", async (req, res) => {
       `
       SELECT
         b.*,
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE destino_tipo = 'barrica' AND destino_id = b.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) -
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE origen_tipo = 'barrica' AND origen_id = b.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) AS litros_actuales
+        COALESCE(ce.cantidad, 0) AS litros_actuales
       FROM barricas b
+      LEFT JOIN contenedores_estado ce
+        ON ce.contenedor_tipo = 'barrica'
+        AND ce.contenedor_id = b.id
+        AND ce.bodega_id = b.bodega_id
+        AND ce.user_id = b.user_id
       WHERE b.activo = 1
         AND b.bodega_id = ?
         AND b.user_id = ?
     `,
-      bodegaId,
-      userId,
-      bodegaId,
-      userId,
       bodegaId,
       userId
     );
@@ -1959,7 +1907,8 @@ app.post("/api/embotellados", async (req, res) => {
 
   const litrosNum = Number(litros);
   const contenedorIdNum = Number(contenedor_id);
-  if (!contenedor_tipo || Number.isNaN(contenedorIdNum) || !litrosNum || litrosNum <= 0) {
+  const contenedorTipo = normalizarTipoContenedor(contenedor_tipo);
+  if (!contenedorTipo || Number.isNaN(contenedorIdNum) || !litrosNum || litrosNum <= 0) {
     return res.status(400).json({ error: "Datos de embotellado inválidos" });
   }
 
@@ -1972,35 +1921,46 @@ app.post("/api/embotellados", async (req, res) => {
     }
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
-    const { movimientoId, fecha: fechaMovimiento } = await registrarMovimientoEmbotellado(
-      contenedor_tipo,
-      contenedorIdNum,
-      litrosNum,
-      nota,
-      bodegaId,
-      userId
-    );
-
-    await db.run(
-      `INSERT INTO embotellados
-        (fecha, contenedor_tipo, contenedor_id, litros, botellas, lote, nota, formatos, movimiento_id, bodega_id, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      fecha || fechaMovimiento,
-      contenedor_tipo,
-      contenedorIdNum,
-      litrosNum,
-      botellas || null,
-      lote || null,
-      nota || null,
-      formatosJson,
-      movimientoId,
-      bodegaId,
-      userId
-    );
+    let movimientoId;
+    let fechaMovimiento;
+    await db.run("BEGIN");
     try {
-      const scopeData = resolverScopeBitacoraPorContenedor(contenedor_tipo, contenedorIdNum);
+      const movimiento = await registrarMovimientoEmbotellado(
+        contenedorTipo,
+        contenedorIdNum,
+        litrosNum,
+        nota,
+        bodegaId,
+        userId
+      );
+      movimientoId = movimiento.movimientoId;
+      fechaMovimiento = movimiento.fecha;
+
+      await db.run(
+        `INSERT INTO embotellados
+          (fecha, contenedor_tipo, contenedor_id, litros, botellas, lote, nota, formatos, movimiento_id, bodega_id, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        fecha || fechaMovimiento,
+        contenedorTipo,
+        contenedorIdNum,
+        litrosNum,
+        botellas || null,
+        lote || null,
+        nota || null,
+        formatosJson,
+        movimientoId,
+        bodegaId,
+        userId
+      );
+      await db.run("COMMIT");
+    } catch (err) {
+      await db.run("ROLLBACK");
+      throw err;
+    }
+    try {
+      const scopeData = resolverScopeBitacoraPorContenedor(contenedorTipo, contenedorIdNum);
       const origen =
-        contenedor_tipo === "barrica" ? "maderas" : "depositos";
+        contenedorTipo === "barrica" ? "maderas" : "depositos";
       const litrosTxt = Number.isFinite(litrosNum)
         ? litrosNum.toFixed(2).replace(/\.00$/, "")
         : String(litros || "");
@@ -2039,7 +1999,7 @@ app.delete("/api/embotellados/:id", async (req, res) => {
   }
   try {
     const actual = await db.get(
-      "SELECT id, movimiento_id FROM embotellados WHERE id = ? AND bodega_id = ? AND user_id = ?",
+      "SELECT id, movimiento_id, contenedor_tipo, contenedor_id FROM embotellados WHERE id = ? AND bodega_id = ? AND user_id = ?",
       id,
       bodegaId,
       userId
@@ -2047,19 +2007,29 @@ app.delete("/api/embotellados/:id", async (req, res) => {
     if (!actual) {
       return res.status(404).json({ ok: false, error: "Embotellado no encontrado" });
     }
-    await db.run(
-      "DELETE FROM embotellados WHERE id = ? AND bodega_id = ? AND user_id = ?",
-      id,
-      bodegaId,
-      userId
-    );
-    if (actual.movimiento_id) {
+    await db.run("BEGIN");
+    try {
       await db.run(
-        "DELETE FROM movimientos_vino WHERE id = ? AND bodega_id = ? AND user_id = ?",
-        actual.movimiento_id,
+        "DELETE FROM embotellados WHERE id = ? AND bodega_id = ? AND user_id = ?",
+        id,
         bodegaId,
         userId
       );
+      if (actual.movimiento_id) {
+        await db.run(
+          "DELETE FROM movimientos_vino WHERE id = ? AND bodega_id = ? AND user_id = ?",
+          actual.movimiento_id,
+          bodegaId,
+          userId
+        );
+      }
+      if (actual.contenedor_tipo && actual.contenedor_id != null) {
+        await recalcularCantidad(actual.contenedor_tipo, actual.contenedor_id, bodegaId, userId);
+      }
+      await db.run("COMMIT");
+    } catch (err) {
+      await db.run("ROLLBACK");
+      throw err;
     }
     return res.json({ ok: true, movimiento_id: actual.movimiento_id || null });
   } catch (err) {
@@ -2916,22 +2886,41 @@ app.post("/api/registro-express", async (req, res) => {
     }
 
     const fecha = new Date().toISOString();
-    const stmt = await db.run(
-      `INSERT INTO movimientos_vino
-       (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, perdida_litros, bodega_id, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      fecha,
-      movimientoTipo,
-      origenTipo,
-      origenId,
-      destinoTipo,
-      destinoId,
-      litrosNum,
-      nota || "",
-      perdidaNum,
-      bodegaId,
-      userId
-    );
+    let stmt;
+    await db.run("BEGIN");
+    try {
+      stmt = await db.run(
+        `INSERT INTO movimientos_vino
+         (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, perdida_litros, bodega_id, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        fecha,
+        movimientoTipo,
+        origenTipo,
+        origenId,
+        destinoTipo,
+        destinoId,
+        litrosNum,
+        nota || "",
+        perdidaNum,
+        bodegaId,
+        userId
+      );
+      await recalcularCantidad(origenTipo, origenId, bodegaId, userId);
+      const mismoContenedor =
+        destinoTipo &&
+        destinoId != null &&
+        origenTipo &&
+        origenId != null &&
+        destinoTipo === origenTipo &&
+        destinoId === origenId;
+      if (destinoTipo && destinoId != null && !mismoContenedor) {
+        await recalcularCantidad(destinoTipo, destinoId, bodegaId, userId);
+      }
+      await db.run("COMMIT");
+    } catch (err) {
+      await db.run("ROLLBACK");
+      throw err;
+    }
     try {
       await registrarBitacoraMovimiento({
         userId,
@@ -4907,6 +4896,99 @@ app.post("/api/recalcular-alertas", async (req, res) => {
 });
 
 // ===================================================
+//  ADMIN: RECALCULAR ESTADO
+// ===================================================
+app.post("/api/admin/recalcular-todo", async (req, res) => {
+  const inicio = Date.now();
+  try {
+    const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
+    const depositos = await db.all(
+      `SELECT id, COALESCE(clase, 'deposito') AS clase
+       FROM depositos
+       WHERE activo = 1 AND bodega_id = ? AND user_id = ?`,
+      bodegaId,
+      userId
+    );
+    const barricas = await db.all(
+      `SELECT id
+       FROM barricas
+       WHERE activo = 1 AND bodega_id = ? AND user_id = ?`,
+      bodegaId,
+      userId
+    );
+
+    const contadores = {
+      depositos: 0,
+      mastelones: 0,
+      barricas: 0,
+      total: 0,
+    };
+
+    for (const deposito of depositos) {
+      const tipoFinal = normalizarClaseDeposito(deposito.clase || "deposito");
+      await recalcularCantidad(tipoFinal, deposito.id, bodegaId, userId);
+      if (tipoFinal === "mastelone") {
+        contadores.mastelones += 1;
+      } else if (tipoFinal === "barrica") {
+        contadores.barricas += 1;
+      } else {
+        contadores.depositos += 1;
+      }
+      contadores.total += 1;
+    }
+
+    for (const barrica of barricas) {
+      await recalcularCantidad("barrica", barrica.id, bodegaId, userId);
+      contadores.barricas += 1;
+      contadores.total += 1;
+    }
+
+    res.json({ ok: true, contadores, duracion_ms: Date.now() - inicio });
+  } catch (err) {
+    console.error("Error al recalcular estado:", err);
+    res.status(500).json({ error: "Error al recalcular estado" });
+  }
+});
+
+// ===================================================
+//  DEBUG: VALIDAR ESTADO VS TIMELINE
+// ===================================================
+app.get("/api/debug/validar-estado/:tipo/:id", async (req, res) => {
+  const tipoFinal = normalizarTipoContenedor(req.params.tipo);
+  const contenedorId = Number(req.params.id);
+  if (!tipoFinal || !Number.isFinite(contenedorId) || contenedorId <= 0) {
+    return res.status(400).json({ error: "Parametros invalidos" });
+  }
+  try {
+    const bodegaId = req.session.bodegaId;
+    const userId = req.session.userId;
+    const estado = await obtenerCantidadConsolidada(tipoFinal, contenedorId, bodegaId, userId);
+    const timeline = await listTimeline({
+      userId,
+      bodegaId,
+      contenedorTipo: tipoFinal,
+      contenedorId,
+      limit: 1000000,
+    });
+    const sumaTimeline = timeline.reduce((acc, evento) => {
+      const valor = Number(evento?.cantidad_efectiva);
+      return acc + (Number.isFinite(valor) ? valor : 0);
+    }, 0);
+    const diferencia = (estado ?? 0) - sumaTimeline;
+    res.json({
+      estado_tabla: estado ?? 0,
+      suma_timeline: sumaTimeline,
+      diferencia,
+      inconsistente: Math.abs(diferencia) > 0.01,
+    });
+  } catch (err) {
+    console.error("Error en validar estado:", err);
+    res.status(500).json({ error: "Error al validar estado" });
+  }
+});
+
+// ===================================================
 //  MOVIMIENTOS DE VINO
 // ===================================================
 
@@ -5015,24 +5097,44 @@ app.post("/api/movimientos", async (req, res) => {
       }
     }
 
-    await db.run(
-      `INSERT INTO movimientos_vino
-        (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, perdida_litros, bodega_id, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        fechaReal,
-        tipo,
-        origenTipo || null,
-        origenId || null,
-        destinoTipo || null,
-        destinoId || null,
-        litrosNum,
-        nota || "",
-        perdidaValor || null,
-        bodegaId,
-        userId
-      ]
-    );
+    await db.run("BEGIN");
+    try {
+      await db.run(
+        `INSERT INTO movimientos_vino
+          (fecha, tipo, origen_tipo, origen_id, destino_tipo, destino_id, litros, nota, perdida_litros, bodega_id, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          fechaReal,
+          tipo,
+          origenTipo || null,
+          origenId || null,
+          destinoTipo || null,
+          destinoId || null,
+          litrosNum,
+          nota || "",
+          perdidaValor || null,
+          bodegaId,
+          userId
+        ]
+      );
+      if (origenTipo && origenId != null) {
+        await recalcularCantidad(origenTipo, origenId, bodegaId, userId);
+      }
+      const mismoContenedor =
+        destinoTipo &&
+        destinoId != null &&
+        origenTipo &&
+        origenId != null &&
+        destinoTipo === origenTipo &&
+        destinoId === origenId;
+      if (destinoTipo && destinoId != null && !mismoContenedor) {
+        await recalcularCantidad(destinoTipo, destinoId, bodegaId, userId);
+      }
+      await db.run("COMMIT");
+    } catch (err) {
+      await db.run("ROLLBACK");
+      throw err;
+    }
     try {
       const origenRaw = (req.body?.origin || req.body?.origen || req.body?.fuente || "")
         .toString()
@@ -5089,7 +5191,38 @@ app.delete("/api/movimientos/:id", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
-    await db.run("DELETE FROM movimientos_vino WHERE id = ? AND bodega_id = ? AND user_id = ?", req.params.id, bodegaId, userId);
+    const movimiento = await db.get(
+      "SELECT origen_tipo, origen_id, destino_tipo, destino_id FROM movimientos_vino WHERE id = ? AND bodega_id = ? AND user_id = ?",
+      req.params.id,
+      bodegaId,
+      userId
+    );
+    await db.run("BEGIN");
+    try {
+      await db.run(
+        "DELETE FROM movimientos_vino WHERE id = ? AND bodega_id = ? AND user_id = ?",
+        req.params.id,
+        bodegaId,
+        userId
+      );
+      if (movimiento?.origen_tipo && movimiento?.origen_id != null) {
+        await recalcularCantidad(movimiento.origen_tipo, movimiento.origen_id, bodegaId, userId);
+      }
+      const mismoContenedor =
+        movimiento?.destino_tipo &&
+        movimiento?.destino_id != null &&
+        movimiento?.origen_tipo &&
+        movimiento?.origen_id != null &&
+        movimiento.destino_tipo === movimiento.origen_tipo &&
+        movimiento.destino_id === movimiento.origen_id;
+      if (movimiento?.destino_tipo && movimiento?.destino_id != null && !mismoContenedor) {
+        await recalcularCantidad(movimiento.destino_tipo, movimiento.destino_id, bodegaId, userId);
+      }
+      await db.run("COMMIT");
+    } catch (err) {
+      await db.run("ROLLBACK");
+      throw err;
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al borrar movimiento:", err);
@@ -5173,87 +5306,51 @@ app.get("/api/resumen", async (req, res) => {
     );
     const litrosDep = await db.get(
       `
-      SELECT COALESCE(SUM(
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE destino_tipo = 'deposito' AND destino_id = d.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) -
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE origen_tipo = 'deposito' AND origen_id = d.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0)
-      ), 0) AS litros
+      SELECT COALESCE(SUM(COALESCE(ce.cantidad, 0)), 0) AS litros
       FROM depositos d
+      LEFT JOIN contenedores_estado ce
+        ON ce.contenedor_tipo = 'deposito'
+        AND ce.contenedor_id = d.id
+        AND ce.bodega_id = d.bodega_id
+        AND ce.user_id = d.user_id
       WHERE d.activo = 1
         AND COALESCE(d.clase, 'deposito') = 'deposito'
         AND d.bodega_id = ?
         AND d.user_id = ?
     `,
       bodegaId,
-      userId,
-      bodegaId,
-      userId,
-      bodegaId,
       userId
     );
     const litrosMast = await db.get(
       `
-      SELECT COALESCE(SUM(
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE destino_tipo = 'mastelone' AND destino_id = d.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) -
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE origen_tipo = 'mastelone' AND origen_id = d.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0)
-      ), 0) AS litros
+      SELECT COALESCE(SUM(COALESCE(ce.cantidad, 0)), 0) AS litros
       FROM depositos d
+      LEFT JOIN contenedores_estado ce
+        ON ce.contenedor_tipo = 'mastelone'
+        AND ce.contenedor_id = d.id
+        AND ce.bodega_id = d.bodega_id
+        AND ce.user_id = d.user_id
       WHERE d.activo = 1
         AND COALESCE(d.clase, 'deposito') = 'mastelone'
         AND d.bodega_id = ?
         AND d.user_id = ?
     `,
       bodegaId,
-      userId,
-      bodegaId,
-      userId,
-      bodegaId,
       userId
     );
     const litrosBar = await db.get(
       `
-      SELECT COALESCE(SUM(
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE destino_tipo = 'barrica' AND destino_id = b.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0) -
-        COALESCE((
-          SELECT SUM(litros) FROM movimientos_vino
-          WHERE origen_tipo = 'barrica' AND origen_id = b.id
-            AND bodega_id = ?
-            AND user_id = ?
-        ), 0)
-      ), 0) AS litros
+      SELECT COALESCE(SUM(COALESCE(ce.cantidad, 0)), 0) AS litros
       FROM barricas b
+      LEFT JOIN contenedores_estado ce
+        ON ce.contenedor_tipo = 'barrica'
+        AND ce.contenedor_id = b.id
+        AND ce.bodega_id = b.bodega_id
+        AND ce.user_id = b.user_id
       WHERE b.activo = 1
         AND b.bodega_id = ?
         AND b.user_id = ?
     `,
-      bodegaId,
-      userId,
-      bodegaId,
-      userId,
       bodegaId,
       userId
     );
@@ -5541,6 +5638,7 @@ async function startServer() {
 
   await ensureTables();
   initTimelineService(db);
+  initContenedoresEstadoService(db);
   await ensureAdminUser();
 
   // 👇 IMPORTANTE: forzar 0.0.0.0 para Render

@@ -63,6 +63,19 @@ CREATE TABLE IF NOT EXISTS barricas (
   FOREIGN KEY (user_id) REFERENCES usuarios(id)
 );
 
+-- ESTADO CONSOLIDADO DE CONTENEDORES
+CREATE TABLE IF NOT EXISTS contenedores_estado (
+  user_id INTEGER NOT NULL,
+  bodega_id INTEGER NOT NULL,
+  contenedor_tipo TEXT NOT NULL,
+  contenedor_id INTEGER NOT NULL,
+  cantidad REAL NOT NULL,
+  updated_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, bodega_id, contenedor_tipo, contenedor_id),
+  FOREIGN KEY (bodega_id) REFERENCES bodegas(id),
+  FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
 -- ENTRADAS DE UVA
 CREATE TABLE IF NOT EXISTS entradas_uva (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -63,7 +63,7 @@ function obtenerPredecesores(nodoId) {
 }
 
 function obtenerUnidadNodo(_nodo) {
-  return "litros";
+  return "volumen";
 }
 
 function asegurarMermaPorDefecto() {}
@@ -86,39 +86,34 @@ function registrarPrensadoMapaNodos() {}
 
 function obtenerCargaDesdeNodo(nodo) {
   if (!nodo || !nodo.datos) return null;
-  const kilos = normalizarNumero(nodo.datos.kilos);
-  const litros = normalizarNumero(nodo.datos.litros);
-  const carga = {};
-  if (kilos != null) carga.kilos = kilos;
-  if (litros != null) {
-    carga.litros = litros;
-    carga.litros_directos = litros;
-  }
-  return carga;
+  const volumen = getVolumenFromNodo(nodo);
+  if (volumen == null) return null;
+  return { volumen };
 }
 
 function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
   if (!destino) return;
   destino.datos = destino.datos || {};
   destino.datos.aportes = destino.datos.aportes || {};
-  destino.datos.aportes[normalizarIdNodo(origenId)] = {
-    kilos: carga.kilos || 0,
-    litros: carga.litros || 0,
-    litros_directos: carga.litros_directos || 0,
-  };
-  const kilos = normalizarNumero(carga.kilos) || 0;
-  const litros = normalizarNumero(carga.litros_directos ?? carga.litros) || 0;
-  setKilosLitrosNodo(destino, kilos, litros, "test_aporte");
+  const key = normalizarIdNodo(origenId);
+  const volumen = getVolumenFromDatos(carga) || 0;
+  destino.datos.aportes[key] = { volumen };
+  const total = Object.values(destino.datos.aportes).reduce((acc, aporte) => {
+    const val = getVolumenFromDatos(aporte);
+    return acc + (Number.isFinite(val) ? val : 0);
+  }, 0);
+  setKilosLitrosNodo(destino, null, total, "test_aporte");
 }
 
 function actualizarDepositoContenido() {}
 
-function asegurarAsignacionRegistro(destino, origenId) {
+function asegurarAsignacionRegistro(destino, origenId, volumenPorDefecto = null) {
   destino.datos = destino.datos || {};
   destino.datos.asignaciones = destino.datos.asignaciones || {};
   const key = normalizarIdNodo(origenId);
   if (!destino.datos.asignaciones[key]) {
-    destino.datos.asignaciones[key] = { litros: 0, kilos: 0 };
+    const base = volumenPorDefecto ?? 0;
+    destino.datos.asignaciones[key] = { volumen: base, litros: base, kilos: null };
   }
   return destino.datos.asignaciones[key];
 }
@@ -133,6 +128,8 @@ function guardarEstadoNodos() {
 const code = [
   stubs,
   extractFunction("normalizarNumero"),
+  extractFunction("getVolumenFromDatos"),
+  extractFunction("getVolumenFromNodo"),
   extractFunction("normalizarKilosLitrosDesdeDatos"),
   extractFunction("recalcularVolumenNodo"),
   extractFunction("flowDebugActivo"),
@@ -142,6 +139,7 @@ const code = [
   extractFunction("calcularSalidaPrensado"),
   extractFunction("obtenerValorUnidadNodo"),
   extractFunction("obtenerVolumenActualNodo"),
+  extractFunction("setVolumenRegistro"),
   extractFunction("setKilosLitrosNodo"),
   extractFunction("applyVolumeOperation"),
   extractFunction("aplicarVolumenAbsoluto"),
@@ -154,10 +152,10 @@ vm.createContext(sandbox);
 vm.runInContext(code, sandbox);
 
 const {
+  getVolumenFromDatos,
   recalcularVolumenNodo,
   calcularSalidaPrensado,
   manejarTransferenciaNodo,
-  actualizarVolumenDesdeAsignaciones,
   setPredecesores,
 } = sandbox;
 if (typeof calcularSalidaPrensado !== "function" || typeof manejarTransferenciaNodo !== "function") {
@@ -169,8 +167,16 @@ const approx = (actual, expected, msg) => {
   assert.ok(diff < 1e-6, `${msg} (actual ${actual}, esperado ${expected})`);
 };
 
-function crearDeposito(id, kilos, litros) {
-  return { id, tipo: "deposito", datos: { kilos, litros, unidad: "litros" } };
+function crearEntrada(id, kilos) {
+  return { id, tipo: "entrada", datos: { kilos } };
+}
+
+function crearDeposito(id, datos = {}) {
+  return { id, tipo: "deposito", datos: { ...datos } };
+}
+
+function crearSalida(id) {
+  return { id, tipo: "salida", datos: {} };
 }
 
 function crearPrensado(id, { litrosResultantes = null, mermaAbs = null, mermaPct = null } = {}) {
@@ -186,55 +192,59 @@ function crearPrensado(id, { litrosResultantes = null, mermaAbs = null, mermaPct
   };
 }
 
-function ejecutarFlujo(origen, prensado, destino) {
-  setPredecesores(prensado.id, [{ id: origen.id }]);
-  setPredecesores(destino.id, [{ id: prensado.id }]);
-  manejarTransferenciaNodo(origen, prensado);
-  manejarTransferenciaNodo(prensado, destino);
+function ejecutarFlujo(origen, intermedio, destino) {
+  setPredecesores(intermedio.id, [{ id: origen.id }]);
+  setPredecesores(destino.id, [{ id: intermedio.id }]);
+  manejarTransferenciaNodo(origen, intermedio);
+  manejarTransferenciaNodo(intermedio, destino);
 }
 
-// Caso 1: kilos=1000, litros=700 => volumen=1700
+// Caso 1: entrada con kilos=1000 => volumen=1000
 {
-  const a1 = crearDeposito("A1", 1000, 700);
-  recalcularVolumenNodo(a1, "test");
-  approx(a1.datos.volumen, 1700, "Caso 1: volumen");
+  const entrada = crearEntrada("E1", 1000);
+  const volumen = getVolumenFromDatos(entrada.datos);
+  approx(volumen, 1000, "Caso 1: volumen desde kilos");
 }
 
-// Caso 2: prensado con litros_resultantes=1275 => merma=425, merma%=25%
+// Caso 2: kilos=1000, litros=700 => volumen=1000 (prioriza kilos)
 {
-  const salida = calcularSalidaPrensado({ kilos: 1000, litros: 700, litrosResultantes: 1275 });
-  assert.ok(salida.ok, "Caso 2: salida ok");
-  approx(salida.volumenFinal, 1275, "Caso 2: volumenFinal");
-  approx(salida.mermaAbs, 425, "Caso 2: mermaAbs");
-  approx(salida.mermaPct, 25, "Caso 2: mermaPct");
+  const dep = crearDeposito("D1", { kilos: 1000, litros: 700 });
+  recalcularVolumenNodo(dep, "test");
+  approx(dep.datos.volumen, 1000, "Caso 2: volumen prioriza kilos");
 }
 
-// Caso 3: A1 -> Prensado -> A1 aplica siempre
+// Caso 3: prensado usa volumen 1-1
+{
+  const salida = calcularSalidaPrensado({ kilos: 1000, litros: 700, litrosResultantes: 800 });
+  assert.ok(salida.ok, "Caso 3: salida ok");
+  approx(salida.volumenEntrada, 1000, "Caso 3: volumen entrada");
+  approx(salida.volumenFinal, 800, "Caso 3: volumen final");
+  approx(salida.mermaAbs, 200, "Caso 3: mermaAbs");
+  approx(salida.mermaPct, 20, "Caso 3: mermaPct");
+}
+
+// Caso 4: entrada -> depósito -> salida mantiene volumen
 {
   sandbox.persistencias = 0;
-  const a1 = crearDeposito("A1", 1000, 700);
-  const prensado = crearPrensado("P1", { litrosResultantes: 1275 });
-  ejecutarFlujo(a1, prensado, a1);
-  approx(a1.datos.kilos, 0, "Caso 3: kilos final");
-  approx(a1.datos.litros, 1275, "Caso 3: litros final");
-  approx(a1.datos.volumen, 1275, "Caso 3: volumen final");
-  assert.ok(sandbox.persistencias > 0, "Caso 3: persistencia invocada");
+  const entrada = crearEntrada("E1", 1000);
+  const deposito = crearDeposito("D1");
+  const salida = crearSalida("S1");
+  ejecutarFlujo(entrada, deposito, salida);
+  approx(deposito.datos.volumen, 1000, "Caso 4: volumen depósito");
+  approx(salida.datos.volumen, 1000, "Caso 4: volumen salida");
+  assert.ok(sandbox.persistencias > 0, "Caso 4: persistencia invocada");
 }
 
-// Caso 4: volumen siempre = kilos + litros
+// Caso 5: cambiar depósito no altera el volumen total
 {
-  const dep = crearDeposito("D1", 300, 500);
-  recalcularVolumenNodo(dep, "test");
-  approx(dep.datos.volumen, dep.datos.kilos + dep.datos.litros, "Caso 4: igualdad");
+  const entrada = crearEntrada("E1", 1000);
+  const deposito = crearDeposito("D1");
+  setPredecesores(deposito.id, [{ id: entrada.id }]);
+  manejarTransferenciaNodo(entrada, deposito);
+  const volInicial = deposito.datos.volumen;
+  deposito.datos.contenedor_id = 99;
+  manejarTransferenciaNodo(entrada, deposito);
+  approx(deposito.datos.volumen, volInicial, "Caso 5: volumen estable");
 }
 
-// Caso 5: asignaciones con kilos + litros suman volumen
-{
-  const dep = crearDeposito("D1", 0, 0);
-  dep.datos.asignaciones = { P1: { litros: 700, kilos: 1000 } };
-  setPredecesores("D1", [{ id: "P1" }]);
-  actualizarVolumenDesdeAsignaciones(dep);
-  approx(dep.datos.volumen, 1700, "Caso 5: asignaciones volumen");
-}
-
-console.log("OK: tests canonicos de volumen/prensado pasaron.");
+console.log("OK: tests canonicos de volumen 1-1 pasaron.");
