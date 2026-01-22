@@ -1626,6 +1626,25 @@ body::after {
             opacity: 0.55;
         }
 
+        .entrada-catastro-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            margin-top: 6px;
+            font-size: 12px;
+        }
+
+        .entrada-catastro-links a {
+            color: #3a342d;
+            text-decoration: underline;
+        }
+
+        .entrada-catastro-links a[aria-disabled="true"] {
+            opacity: 0.5;
+            pointer-events: none;
+            text-decoration: none;
+        }
+
         .entrada-plantillas {
             display: grid;
             gap: 6px;
@@ -5659,6 +5678,10 @@ label {
                         <button type="button" class="btnPrimario" id="btnCatastroRc" disabled>Ver en Catastro (RC)</button>
                         <button type="button" class="btnSecundario" id="btnCatastroParcela" disabled>Ver en Catastro (Parcela)</button>
                         <div class="entrada-hint" id="entradaCatastroHint">Faltan datos para abrir Catastro.</div>
+                    </div>
+                    <div class="entrada-catastro-links">
+                        <a id="entradaCatastroLinkRc" href="#" target="_blank" rel="noopener" aria-disabled="true">Abrir enlace RC</a>
+                        <a id="entradaCatastroLinkParcela" href="#" target="_blank" rel="noopener" aria-disabled="true">Abrir enlace Parcela</a>
                     </div>
 
                     <div class="entrada-plantillas">
@@ -18230,7 +18253,7 @@ function renderResumenParcelas() {
         const PLANTILLAS_PROCEDENCIA_KEY = "plantillas_procedencia_uva";
 
         function normalizarRc(valor) {
-            return (valor || "").toString().replace(/\s+/g, "").toUpperCase();
+            return (valor || "").toString().toUpperCase().replace(/[^0-9A-Z]/g, "");
         }
 
         function obtenerDatosProcedenciaForm() {
@@ -18348,7 +18371,15 @@ function renderResumenParcelas() {
 
         function construirUrlCatastroRc(rc) {
             const base = "https://www1.sedecatastro.gob.es/CYCBienInmueble/OVCConsulta.aspx";
-            return `${base}?RC=${encodeURIComponent(rc)}`;
+            const limpio = normalizarRc(rc);
+            const rcFull = limpio.length > 20 ? limpio.slice(0, 20) : limpio;
+            const params = new URLSearchParams();
+            if (rcFull) params.set("RC", rcFull);
+            if (rcFull.length === 20) {
+                params.set("RC1", rcFull.slice(0, 14));
+                params.set("RC2", rcFull.slice(14, 20));
+            }
+            return `${base}?${params.toString()}`;
         }
 
         function construirUrlCatastroParcela({ provincia, municipio, poligono, parcela, recinto }) {
@@ -18363,11 +18394,22 @@ function renderResumenParcelas() {
             return `${base}?${params.toString()}`;
         }
 
+        function abrirUrlSeguro(url) {
+            const win = window.open(url, "_blank", "noopener");
+            if (win) {
+                win.focus?.();
+                return;
+            }
+            window.location.href = url;
+        }
+
         function actualizarCatastroUI() {
             const datos = obtenerDatosProcedenciaForm();
             const btnRc = document.getElementById("btnCatastroRc");
             const btnParcela = document.getElementById("btnCatastroParcela");
             const hint = document.getElementById("entradaCatastroHint");
+            const linkRc = document.getElementById("entradaCatastroLinkRc");
+            const linkParcela = document.getElementById("entradaCatastroLinkParcela");
             const tieneRc = Boolean(datos.catastro_rc);
             const tieneParcela = Boolean(
                 datos.catastro_provincia &&
@@ -18384,18 +18426,38 @@ function renderResumenParcelas() {
                     hint.textContent = "Faltan datos para abrir Catastro.";
                 }
             }
+            if (linkRc) {
+                linkRc.href = tieneRc ? construirUrlCatastroRc(datos.catastro_rc) : "#";
+                linkRc.setAttribute("aria-disabled", tieneRc ? "false" : "true");
+            }
+            if (linkParcela) {
+                linkParcela.href = tieneParcela
+                    ? construirUrlCatastroParcela({
+                        provincia: datos.catastro_provincia,
+                        municipio: datos.catastro_municipio,
+                        poligono: datos.catastro_poligono,
+                        parcela: datos.catastro_parcela,
+                        recinto: datos.catastro_recinto,
+                    })
+                    : "#";
+                linkParcela.setAttribute("aria-disabled", tieneParcela ? "false" : "true");
+            }
             actualizarAvisoRc(datos.catastro_rc);
         }
 
         function abrirCatastroRc() {
             const rc = normalizarRc(document.getElementById("entradaRc")?.value || "");
-            if (!rc) return;
-            window.open(construirUrlCatastroRc(rc), "_blank", "noopener");
+            if (!rc) {
+                mostrarAviso("Introduce una RC valida para abrir Catastro.", "info");
+                return;
+            }
+            abrirUrlSeguro(construirUrlCatastroRc(rc));
         }
 
         function abrirCatastroParcela() {
             const datos = obtenerDatosProcedenciaForm();
             if (!datos.catastro_provincia || !datos.catastro_municipio || !datos.catastro_poligono || !datos.catastro_parcela) {
+                mostrarAviso("Completa provincia, municipio, poligono y parcela para abrir Catastro.", "info");
                 return;
             }
             const url = construirUrlCatastroParcela({
@@ -18405,7 +18467,7 @@ function renderResumenParcelas() {
                 parcela: datos.catastro_parcela,
                 recinto: datos.catastro_recinto,
             });
-            window.open(url, "_blank", "noopener");
+            abrirUrlSeguro(url);
         }
 
         function construirResumenAdministracion() {
@@ -18515,7 +18577,7 @@ function renderResumenParcelas() {
             inputs.forEach(id => {
                 const input = document.getElementById(id);
                 if (!input) return;
-                input.addEventListener("input", () => {
+                const handler = () => {
                     if (id === "entradaRc" && rcInput) {
                         const normalizado = normalizarRc(rcInput.value);
                         if (rcInput.value !== normalizado) rcInput.value = normalizado;
@@ -18525,7 +18587,9 @@ function renderResumenParcelas() {
                     }
                     actualizarCatastroUI();
                     actualizarResumenAdministracion();
-                });
+                };
+                input.addEventListener("input", handler);
+                input.addEventListener("change", handler);
             });
 
             const btnRc = document.getElementById("btnCatastroRc");
@@ -18610,6 +18674,9 @@ function renderResumenParcelas() {
             }
 
             try {
+                const mensajePorDefecto = entradaEditandoId
+                    ? "Error al actualizar la entrada de uva."
+                    : "Error al registrar la entrada de uva.";
                 const body = {
                     parcela: parcela || null,
                     viticultor,
@@ -18683,7 +18750,16 @@ function renderResumenParcelas() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(body),
                 });
-                if (!res.ok) throw new Error();
+                if (!res.ok) {
+                    let mensaje = mensajePorDefecto;
+                    try {
+                        const data = await res.json();
+                        if (data?.error) mensaje = data.error;
+                    } catch (_err) {
+                        // Si falla el parseo, dejamos el mensaje por defecto.
+                    }
+                    throw new Error(mensaje);
+                }
 
                 cancelarEdicionEntrada();
                 await Promise.all([
@@ -18697,8 +18773,9 @@ function renderResumenParcelas() {
                 mostrarAviso("Entrada registrada en la bodega.", "success");
             } catch (err) {
                 console.error("Error creando entrada:", err);
-                setFormFeedback("feedbackEntradaUva", "Error al registrar la entrada de uva.", "error");
-                mostrarAviso("No se pudo registrar la entrada.", "error");
+                const mensaje = err?.message || "Error al registrar la entrada de uva.";
+                setFormFeedback("feedbackEntradaUva", mensaje, "error");
+                mostrarAviso(mensaje, "error");
             }
         }
 
