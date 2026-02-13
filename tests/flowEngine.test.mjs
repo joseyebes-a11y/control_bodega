@@ -45,121 +45,73 @@ function extractFunction(name) {
   throw new Error(`No se pudo cerrar el bloque de ${name}`);
 }
 
-const stubs = `
-const TIPOS_NODO_CONTENEDOR = new Set(["deposito", "barrica", "coupage"]);
-var persistencias = 0;
-const _predecesores = new Map();
-
-function setPredecesores(nodoId, lista) {
-  _predecesores.set(String(nodoId), lista);
-}
-
-function normalizarIdNodo(id) {
-  return id && typeof id === "object" && id.id != null ? String(id.id) : String(id);
-}
-
-function obtenerPredecesores(nodoId) {
-  return _predecesores.get(String(nodoId)) || [];
-}
-
-function obtenerUnidadNodo(_nodo) {
-  return "volumen";
-}
-
-function asegurarMermaPorDefecto() {}
-
-function completarCargaVisual(carga) {
-  return carga;
-}
-
-function esNodoPrensado(nodo) {
-  return nodo && nodo.tipo === "prensado";
-}
-
-function esNodoConversor(nodo) {
-  return esNodoPrensado(nodo);
-}
-
-function mostrarAviso() {}
-
-function registrarPrensadoMapaNodos() {}
-
-function obtenerCargaDesdeNodo(nodo) {
-  if (!nodo || !nodo.datos) return null;
-  const volumen = getVolumenFromNodo(nodo);
-  if (volumen == null) return null;
-  return { volumen };
-}
-
-function aplicarCargaProcesoSinDuplicar(destino, origenId, carga) {
-  if (!destino) return;
-  destino.datos = destino.datos || {};
-  destino.datos.aportes = destino.datos.aportes || {};
-  const key = normalizarIdNodo(origenId);
-  const volumen = getVolumenFromDatos(carga) || 0;
-  destino.datos.aportes[key] = { volumen };
-  const total = Object.values(destino.datos.aportes).reduce((acc, aporte) => {
-    const val = getVolumenFromDatos(aporte);
-    return acc + (Number.isFinite(val) ? val : 0);
-  }, 0);
-  setKilosLitrosNodo(destino, null, total, "test_aporte");
-}
-
-function actualizarDepositoContenido() {}
-
-function asegurarAsignacionRegistro(destino, origenId, volumenPorDefecto = null) {
-  destino.datos = destino.datos || {};
-  destino.datos.asignaciones = destino.datos.asignaciones || {};
-  const key = normalizarIdNodo(origenId);
-  if (!destino.datos.asignaciones[key]) {
-    const base = volumenPorDefecto ?? 0;
-    destino.datos.asignaciones[key] = { volumen: base, litros: base, kilos: null };
+function extractFlowCoreBlock() {
+  const marker = "const FLOW_CORE = (() => {";
+  const start = html.indexOf(marker);
+  if (start === -1) {
+    throw new Error("No se encontró el bloque FLOW_CORE en public/index.html");
   }
-  return destino.datos.asignaciones[key];
+  const braceStart = html.indexOf("{", start);
+  let depth = 0;
+  for (let i = braceStart; i < html.length; i += 1) {
+    const char = html[i];
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+    if (depth === 0) {
+      const end = html.indexOf("})();", i);
+      if (end === -1) {
+        return html.slice(start, i + 1);
+      }
+      return html.slice(start, end + 4);
+    }
+  }
+  throw new Error("No se pudo cerrar el bloque FLOW_CORE");
 }
 
-function actualizarVariedadDesdeAportes() {}
-
-function guardarEstadoNodos() {
-  persistencias += 1;
-}
+const stubs = `
+const FLOW_SCHEMA_VERSION = 2;
+const FLOW_CORE_LOCKED = true;
+const FLOW_SANITIZE_KEYS = [
+  "volumen",
+  "volume",
+  "currentVolume",
+  "current_volume_l",
+  "kilos",
+  "litros",
+  "litros_directos",
+  "litros_blend",
+  "stock",
+  "fill",
+  "variedad",
+  "variedadBase",
+  "vino",
+  "vino_tipo",
+  "tipoColor",
+  "composicionVariedades",
+  "aportes",
+  "asignaciones",
+  "distribucion",
+  "reparto_manual",
+];
+${extractFunction("normalizarNumero")}
 `;
 
 const code = [
   stubs,
-  extractFunction("normalizarNumero"),
-  extractFunction("getVolumenFromDatos"),
-  extractFunction("getVolumenFromNodo"),
-  extractFunction("normalizarKilosLitrosDesdeDatos"),
-  extractFunction("recalcularVolumenNodo"),
-  extractFunction("flowDebugActivo"),
-  extractFunction("obtenerMermaLitrosNodo"),
-  extractFunction("obtenerLitrosResultantesNodo"),
-  extractFunction("obtenerParametrosPrensadoNodo"),
-  extractFunction("calcularSalidaPrensado"),
-  extractFunction("obtenerValorUnidadNodo"),
-  extractFunction("obtenerVolumenActualNodo"),
-  extractFunction("setVolumenRegistro"),
-  extractFunction("setKilosLitrosNodo"),
-  extractFunction("applyVolumeOperation"),
-  extractFunction("aplicarVolumenAbsoluto"),
-  extractFunction("actualizarVolumenDesdeAsignaciones"),
-  extractFunction("manejarTransferenciaNodo"),
+  extractFlowCoreBlock(),
+  extractFunction("sanitizeFlow"),
+  extractFunction("validateFlow"),
+  extractFunction("computeBalances"),
+  extractFunction("computeCompositions"),
 ].join("\n\n");
 
 const sandbox = { console };
 vm.createContext(sandbox);
 vm.runInContext(code, sandbox);
 
-const {
-  getVolumenFromDatos,
-  recalcularVolumenNodo,
-  calcularSalidaPrensado,
-  manejarTransferenciaNodo,
-  setPredecesores,
-} = sandbox;
-if (typeof calcularSalidaPrensado !== "function" || typeof manejarTransferenciaNodo !== "function") {
-  throw new Error("Funciones requeridas no están disponibles en el contexto de tests");
+const { sanitizeFlow, computeBalances, computeCompositions } = sandbox;
+if (typeof sanitizeFlow !== "function" || typeof computeBalances !== "function" || typeof computeCompositions !== "function") {
+  throw new Error("FLOW_CORE no está disponible en el contexto de tests");
 }
 
 const approx = (actual, expected, msg) => {
@@ -167,84 +119,120 @@ const approx = (actual, expected, msg) => {
   assert.ok(diff < 1e-6, `${msg} (actual ${actual}, esperado ${expected})`);
 };
 
-function crearEntrada(id, kilos) {
-  return { id, tipo: "entrada", datos: { kilos } };
+// Caso 1: balances simples con movimientos válidos
+{
+  const nodes = [
+    { id: "A", tipo: "deposito", datos: {} },
+    { id: "B", tipo: "barrica", datos: {} },
+    { id: "P", tipo: "estilo", datos: {} },
+  ];
+  const movements = [
+    { id: "m1", fromNodeId: null, toNodeId: "A", amount_l: 100 },
+    { id: "m2", fromNodeId: "A", toNodeId: "B", amount_l: 40 },
+    { id: "m3", fromNodeId: "B", toNodeId: null, amount_l: 10 },
+  ];
+  const { balances, warnings } = computeBalances(nodes, movements);
+  approx(balances.get("A"), 60, "Caso 1: balance A");
+  approx(balances.get("B"), 30, "Caso 1: balance B");
+  assert.strictEqual(warnings.length, 0, "Caso 1: sin warnings");
 }
 
-function crearDeposito(id, datos = {}) {
-  return { id, tipo: "deposito", datos: { ...datos } };
+// Caso 2: cantidad inválida genera warning con origin
+{
+  const nodes = [{ id: "A", tipo: "deposito", datos: {} }];
+  const movements = [{ id: "m1", fromNodeId: null, toNodeId: "A", amount_l: "x" }];
+  const { warnings } = computeBalances(nodes, movements);
+  assert.strictEqual(warnings.length, 1, "Caso 2: warning por amount inválido");
+  assert.strictEqual(warnings[0].type, "invalid_amount", "Caso 2: type invalid_amount");
+  assert.ok(warnings[0].origin && warnings[0].origin.includes("amount_l"), "Caso 2: origin amount_l");
 }
 
-function crearSalida(id) {
-  return { id, tipo: "salida", datos: {} };
+// Caso 3: nodo inexistente genera warning unknown_node
+{
+  const nodes = [{ id: "A", tipo: "deposito", datos: {} }];
+  const movements = [{ id: "m1", fromNodeId: "Z", toNodeId: "A", amount_l: 5 }];
+  const { warnings } = computeBalances(nodes, movements);
+  assert.strictEqual(warnings.length, 1, "Caso 3: warning nodo desconocido");
+  assert.strictEqual(warnings[0].type, "unknown_node", "Caso 3: type unknown_node");
+  assert.ok(warnings[0].origin && warnings[0].origin.includes("fromNodeId"), "Caso 3: origin fromNodeId");
 }
 
-function crearPrensado(id, { litrosResultantes = null, mermaAbs = null, mermaPct = null } = {}) {
-  return {
-    id,
-    tipo: "prensado",
-    datos: {
-      litros_resultantes: litrosResultantes,
-      merma_abs: mermaAbs,
-      merma: mermaPct,
-      unidad: "litros",
+// Caso 4: balance negativo se clampa y avisa
+{
+  const nodes = [{ id: "A", tipo: "deposito", datos: {} }];
+  const movements = [{ id: "m1", fromNodeId: "A", toNodeId: null, amount_l: 25 }];
+  const { balances, warnings } = computeBalances(nodes, movements);
+  approx(balances.get("A"), 0, "Caso 4: balance clamp a 0");
+  assert.strictEqual(warnings.length, 1, "Caso 4: warning balance negativo");
+  assert.strictEqual(warnings[0].type, "negative_balance", "Caso 4: type negative_balance");
+  assert.ok(warnings[0].origin && warnings[0].origin.includes("negative_balance"), "Caso 4: origin negative_balance");
+}
+
+// Caso 5: sanitizeFlow normaliza estructura v2
+{
+  const raw = { schemaVersion: 1, nodes: [{ id: "A", tipo: "deposito", datos: { volumen: 80 } }] };
+  const { flow } = sanitizeFlow(raw);
+  assert.strictEqual(flow.schemaVersion, 2, "Caso 5: schemaVersion=2");
+  assert.ok(Array.isArray(flow.nodes), "Caso 5: nodes array");
+  assert.ok(Array.isArray(flow.edges), "Caso 5: edges array");
+  assert.ok(Array.isArray(flow.movements), "Caso 5: movements array");
+}
+
+console.log("OK: tests ledger básicos pasaron.");
+
+// Caso 6: composiciones básicas (ENTRADA -> PROCESS)
+{
+  const nodes = [
+    { id: "P1", tipo: "estilo", datos: {} },
+    { id: "D1", tipo: "deposito", datos: {} },
+  ];
+  const compositions = [
+    {
+      id: "c1",
+      kind: "UVA_A_MOSTO",
+      fromRef: { type: "ENTRADA", id: 1 },
+      toRef: { type: "PROCESS", id: "P1" },
+      amount: 100,
+      unit: "kg",
+      breakdown: { Tempranillo: 60, Malvar: 40 },
+      ts: "2026-01-01T10:00:00.000Z",
     },
-  };
+    {
+      id: "c2",
+      kind: "TRASIEGO_COMP",
+      fromRef: { type: "PROCESS", id: "P1" },
+      toRef: { type: "CONTAINER", id: "D1" },
+      amount: 100,
+      unit: "kg",
+      breakdown: { Tempranillo: 60, Malvar: 40 },
+      ts: "2026-01-01T12:00:00.000Z",
+    },
+  ];
+  const { compositions: compMap, warnings } = computeCompositions(nodes, compositions);
+  const proc = compMap.get("PROCESS:P1");
+  const cont = compMap.get("CONTAINER:D1");
+  assert.ok(proc && cont, "Caso 6: composiciones generadas");
+  approx(proc.total, 0, "Caso 6: PROCESS sin saldo (entrada -> salida)");
+  approx(cont.total, 100, "Caso 6: CONTAINER con saldo");
+  assert.strictEqual(warnings.length, 0, "Caso 6: sin warnings");
 }
 
-function ejecutarFlujo(origen, intermedio, destino) {
-  setPredecesores(intermedio.id, [{ id: origen.id }]);
-  setPredecesores(destino.id, [{ id: intermedio.id }]);
-  manejarTransferenciaNodo(origen, intermedio);
-  manejarTransferenciaNodo(intermedio, destino);
-}
-
-// Caso 1: entrada con kilos=1000 => volumen=1000
+// Caso 7: composición inválida (amount no numérico)
 {
-  const entrada = crearEntrada("E1", 1000);
-  const volumen = getVolumenFromDatos(entrada.datos);
-  approx(volumen, 1000, "Caso 1: volumen desde kilos");
+  const nodes = [{ id: "P1", tipo: "estilo", datos: {} }];
+  const compositions = [
+    {
+      id: "cX",
+      fromRef: { type: "ENTRADA", id: 1 },
+      toRef: { type: "PROCESS", id: "P1" },
+      amount: "x",
+      unit: "kg",
+      breakdown: { Garnacha: 100 },
+    },
+  ];
+  const { warnings } = computeCompositions(nodes, compositions);
+  assert.strictEqual(warnings.length, 1, "Caso 7: warning por amount inválido");
+  assert.strictEqual(warnings[0].type, "invalid_amount", "Caso 7: type invalid_amount");
 }
 
-// Caso 2: kilos=1000, litros=700 => volumen=1000 (prioriza kilos)
-{
-  const dep = crearDeposito("D1", { kilos: 1000, litros: 700 });
-  recalcularVolumenNodo(dep, "test");
-  approx(dep.datos.volumen, 1000, "Caso 2: volumen prioriza kilos");
-}
-
-// Caso 3: prensado usa volumen 1-1
-{
-  const salida = calcularSalidaPrensado({ kilos: 1000, litros: 700, litrosResultantes: 800 });
-  assert.ok(salida.ok, "Caso 3: salida ok");
-  approx(salida.volumenEntrada, 1000, "Caso 3: volumen entrada");
-  approx(salida.volumenFinal, 800, "Caso 3: volumen final");
-  approx(salida.mermaAbs, 200, "Caso 3: mermaAbs");
-  approx(salida.mermaPct, 20, "Caso 3: mermaPct");
-}
-
-// Caso 4: entrada -> depósito -> salida mantiene volumen
-{
-  sandbox.persistencias = 0;
-  const entrada = crearEntrada("E1", 1000);
-  const deposito = crearDeposito("D1");
-  const salida = crearSalida("S1");
-  ejecutarFlujo(entrada, deposito, salida);
-  approx(deposito.datos.volumen, 1000, "Caso 4: volumen depósito");
-  approx(salida.datos.volumen, 1000, "Caso 4: volumen salida");
-  assert.ok(sandbox.persistencias > 0, "Caso 4: persistencia invocada");
-}
-
-// Caso 5: cambiar depósito no altera el volumen total
-{
-  const entrada = crearEntrada("E1", 1000);
-  const deposito = crearDeposito("D1");
-  setPredecesores(deposito.id, [{ id: entrada.id }]);
-  manejarTransferenciaNodo(entrada, deposito);
-  const volInicial = deposito.datos.volumen;
-  deposito.datos.contenedor_id = 99;
-  manejarTransferenciaNodo(entrada, deposito);
-  approx(deposito.datos.volumen, volInicial, "Caso 5: volumen estable");
-}
-
-console.log("OK: tests canonicos de volumen 1-1 pasaron.");
+console.log("OK: tests composiciones pasaron.");

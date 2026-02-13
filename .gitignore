@@ -1,2 +1,4 @@
 node_modules/
 bodega.db
+.env
+.env.*
