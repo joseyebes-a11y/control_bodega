@@ -2,3 +2,9 @@ node_modules/
 bodega.db
 .env
 .env.*
+backups/
+uploads/
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite.pending
