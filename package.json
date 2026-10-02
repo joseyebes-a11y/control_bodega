@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "test:integrity": "node --test tests/dataIntegrity.test.mjs tests/flowPersistence.test.mjs tests/flowHttp.test.mjs tests/movementIntegrity.test.mjs tests/bottlingIntegrity.test.mjs tests/entryProductIntegrity.test.mjs",
     "test:smoke": "node scripts/smoke-checks.mjs"
   },
   "dependencies": {

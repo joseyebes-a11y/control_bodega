@@ -17,17 +17,24 @@ import {
   obtenerCantidadConsolidada,
 } from "./services/contenedoresEstadoService.js";
 import { evaluar as evaluarReglas } from "./rules/rulesEngine.js";
+import { createFlowStore, normalizarFlowSnapshot } from "./services/flowStore.js";
+import { createDatabaseBackup } from "./services/databaseBackup.js";
+import { createDatabaseContext } from "./services/databaseContext.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+if (process.env.NODE_ENV === "production" && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32)) {
+  throw new Error("Configura SESSION_SECRET con al menos 32 caracteres antes de iniciar en producción.");
+}
  const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
 app.use(session({
-  secret: "mi_clave_super_secreta",
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false
 }));
@@ -128,7 +135,9 @@ async function requireAdmin(req, res, next) {
   }
 }
 
-let db;
+const databaseContext = createDatabaseContext();
+const db = databaseContext.database;
+let flowStore;
 const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : __dirname;
 const uploadsDir = path.join(dataDir, "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -213,12 +222,22 @@ async function initDB() {
   if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true });
   }
-  db = await open({
+  const existed = fs.existsSync(dbPath) && fs.statSync(dbPath).size > 0;
+  const database = await open({
     filename: dbPath,
     driver: sqlite3.Database,
   });
+  databaseContext.initialize(database, dbPath);
 
-  await db.exec("PRAGMA foreign_keys = ON");
+  await db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA synchronous = FULL;");
+  flowStore = createFlowStore(dbPath);
+  if (existed) {
+    const backupDirectory = process.env.BACKUP_DIR
+      ? path.resolve(process.env.BACKUP_DIR)
+      : path.join(dbDir, "backups");
+    const backupPath = await createDatabaseBackup(db, backupDirectory);
+    console.log("[DB] Respaldo verificado antes de migraciones:", backupPath);
+  }
   // Ejecutar el schema inicial (por si hay tablas que crear)
   const schemaPath = path.join(__dirname, "schema.sql");
   const schemaSql = fs.readFileSync(schemaPath, "utf-8");
@@ -235,7 +254,7 @@ async function assertColumns(tableName, requiredColumns) {
     throw new Error(
       `Faltan columnas en ${tableName}: ${faltantes.join(
         ", "
-      )}. Borra la base de datos para regenerarla con el nuevo esquema multiusuario.`
+      )}. Se requiere una migración del esquema con copia de seguridad.`
     );
   }
 }
@@ -1602,21 +1621,6 @@ function crearFlowVacio() {
   return { schemaVersion: 1, nodes: [], edges: [], movements: [] };
 }
 
-function normalizarFlowSnapshot(raw) {
-  if (Array.isArray(raw)) {
-    return { schemaVersion: 1, nodes: raw, edges: [], movements: [] };
-  }
-  if (!raw || typeof raw !== "object") {
-    return crearFlowVacio();
-  }
-  const schemaVersion = Number(raw.schemaVersion);
-  return {
-    schemaVersion: Number.isFinite(schemaVersion) && schemaVersion > 0 ? schemaVersion : 1,
-    nodes: Array.isArray(raw.nodes) ? raw.nodes : [],
-    edges: Array.isArray(raw.edges) ? raw.edges : [],
-    movements: Array.isArray(raw.movements) ? raw.movements : [],
-  };
-}
 
 function anadaFlowKey(anada) {
   const year = Number(anada);
@@ -1704,7 +1708,7 @@ const DEFAULT_CAMPANIA_ANIO = obtenerAnioVitivinicola();
 const DEFAULT_CAMPANIA_NOMBRE = `Añada ${DEFAULT_CAMPANIA_ANIO}`;
 const DEFAULT_PARTIDA_NOMBRE = `Partida General ${DEFAULT_CAMPANIA_ANIO}`;
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "vinosconganas";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const ADMIN_BODEGA_NOMBRE = process.env.ADMIN_BODEGA_NOMBRE || DEFAULT_BODEGA_NAME;
 
 function normalizarClaseDeposito(valor) {
@@ -1842,6 +1846,28 @@ function normalizarFormatosEmbotellado(valor) {
     }
   }
   return [];
+}
+
+function validarFormatosEmbotellado(valor, botellas, litros) {
+  const lista = normalizarFormatosEmbotellado(valor);
+  if (!lista.length) throw Object.assign(new Error("Indica los formatos y las botellas del embotellado"), { status: 400 });
+  let totalBotellas = 0;
+  let totalMl = 0;
+  for (const item of lista) {
+    const formatoMl = parseFormatoMl(item?.formato);
+    const cantidad = Number(item?.botellas);
+    if (!formatoMl || !Number.isSafeInteger(cantidad) || cantidad <= 0) {
+      throw Object.assign(new Error("Formato o número de botellas inválido"), { status: 400 });
+    }
+    totalBotellas += cantidad;
+    totalMl += cantidad * formatoMl;
+  }
+  if (!Number.isSafeInteger(totalBotellas) || !Number.isSafeInteger(totalMl) ||
+      (botellas != null && botellas !== "" && Number(botellas) !== totalBotellas) ||
+      (litros != null && totalMl / 1000 > Number(litros) + 0.001)) {
+    throw Object.assign(new Error("Las botellas y sus formatos no cuadran con el total o los litros disponibles"), { status: 400 });
+  }
+  return { formatos: lista, botellas: totalBotellas };
 }
 
 function estimarFormatoMlDesdeEmbotellado(row) {
@@ -2761,10 +2787,19 @@ async function registrarConsumoProducto(
   if (!producto) {
     throw new Error("Producto no encontrado");
   }
-  if (cantidad <= 0) {
-    throw new Error("La cantidad debe ser mayor que 0");
+  if (!Number.isSafeInteger(Number(productoId)) || Number(productoId) <= 0 || !Number.isFinite(cantidad) || cantidad <= 0) {
+    throw new Error("El producto y la cantidad deben ser válidos");
   }
-  if (producto.cantidad_disponible < cantidad - 1e-6) {
+  const tieneDestinoTipo = destino_tipo != null && destino_tipo !== "";
+  const tieneDestinoId = destino_id != null && destino_id !== "";
+  if (tieneDestinoTipo !== tieneDestinoId || (tieneDestinoTipo &&
+      (!normalizarTipoContenedor(destino_tipo) || !Number.isSafeInteger(Number(destino_id)) || Number(destino_id) <= 0))) {
+    throw new Error("El destino debe indicar un contenedor y un ID válidos");
+  }
+  destino_tipo = tieneDestinoTipo ? normalizarTipoContenedor(destino_tipo) : null;
+  destino_id = tieneDestinoId ? Number(destino_id) : null;
+  if (!Number.isFinite(Number(producto.cantidad_disponible))) throw new Error("El stock del producto no es válido");
+  if (Number(producto.cantidad_disponible) < cantidad) {
     throw new Error("No hay suficiente stock de este producto");
   }
   if (destino_tipo && destino_id != null) {
@@ -2784,7 +2819,6 @@ async function registrarConsumoProducto(
     nota || null,
     bodegaId
   ];
-  await db.run("BEGIN");
   try {
     await db.run(
       `INSERT INTO ${tablaConsumos}
@@ -2804,9 +2838,7 @@ async function registrarConsumoProducto(
     if (update.changes === 0) {
       throw new Error("No se pudo descontar el stock");
     }
-    await db.run("COMMIT");
   } catch (err) {
-    await db.run("ROLLBACK");
     throw err;
   }
 }
@@ -3087,7 +3119,7 @@ async function obtenerResumenBottleLot(bodegaId, campaniaId, lotRef) {
     const qty = Number(ev.qty_value);
     if (!Number.isFinite(qty)) continue;
     if (tipo === "IN") entradas += Math.abs(qty);
-    else if (tipo === "OUT") salidas += Math.abs(qty);
+    else if (tipo === "OUT" || tipo === "CANCEL") salidas += Math.abs(qty);
     else if (tipo === "MERMA") mermas += Math.abs(qty);
     else if (tipo === "ADJUST") ajustes += qty;
   }
@@ -3454,7 +3486,7 @@ async function obtenerTraceBottleLot({ bodegaId, lotRef, userId, campaniaId }) {
         COALESCE(c.nombre, e.dst_ref, 'Sin cliente') AS cliente,
         COALESCE(d.numero, '-') AS documento,
         COALESCE(d.tipo, '-') AS doc_tipo,
-        SUM(ABS(CASE WHEN e.event_type = 'OUT' THEN e.qty_value ELSE 0 END)) AS botellas,
+        SUM(ABS(CASE WHEN e.event_type IN ('OUT', 'CANCEL') THEN e.qty_value ELSE 0 END)) AS botellas,
         MIN(e.created_at) AS primera_fecha,
         MAX(e.created_at) AS ultima_fecha
      FROM eventos_traza e
@@ -3661,10 +3693,10 @@ async function aplicarMovimientoAlmacenVino({
   originContainerId = null,
   originVolumeL = null,
 }) {
-  if (!bodegaId || !partidaId) return;
+  if (!bodegaId || !partidaId) throw Object.assign(new Error("Falta la partida del embotellado"), { status: 409 });
   const campaniaFinal = (campaniaId || "").toString().trim() || "2025";
   const lista = normalizarFormatosEmbotellado(formatos);
-  if (!lista.length) return;
+  if (!lista.length) throw Object.assign(new Error("Faltan los formatos del embotellado"), { status: 409 });
   const tipoFinal = (tipo || "ENTRADA").toString().trim().toUpperCase();
   let userFinal = Number(userId);
   if (!Number.isFinite(userFinal) || userFinal <= 0) {
@@ -3691,10 +3723,12 @@ async function aplicarMovimientoAlmacenVino({
       partidaId,
       formatoMl
     );
+    if (lote && nombre && String(lote.nombre || "").trim() !== String(nombre).trim()) {
+      throw Object.assign(new Error("Esta operación mezclaría dos lotes con nombres distintos"), { status: 409 });
+    }
     if (!lote) {
       if (tipoFinal !== "ENTRADA") {
-        console.warn("[ALMACEN] Lote inexistente para salida:", { partidaId, formatoMl });
-        continue;
+        throw Object.assign(new Error("No existe el lote de almacén que se intenta descontar"), { status: 409 });
       }
       const nombreFinal = (nombre || `Partida ${partidaId}`).toString().trim() || `Partida ${partidaId}`;
       const stmt = await db.run(
@@ -3705,10 +3739,15 @@ async function aplicarMovimientoAlmacenVino({
         partidaId,
         nombreFinal,
         formatoMl,
-        tipoFinal === "ENTRADA" ? cantidadAbs : 0
+        0
       );
       lote = { id: stmt.lastID };
     }
+    const lotRef = await asegurarBottleLotDesdeAlmacen({
+      bodegaId, campaniaId: campaniaFinal, almacenLoteId: lote.id,
+      partidaId, formatoMl, nombre: nombre || lote.nombre || `Lote ${lote.id}`,
+      originContainerId, originVolumeL,
+    });
     const deltaBase =
       tipoFinal === "ENTRADA"
         ? cantidadAbs
@@ -3717,6 +3756,12 @@ async function aplicarMovimientoAlmacenVino({
         : tipoFinal === "AJUSTE"
         ? Math.floor(botellasNum)
         : 0;
+    if (deltaBase < 0) {
+      const resumen = await obtenerResumenBottleLot(bodegaId, campaniaFinal, lotRef);
+      if (Number(resumen.saldo_bot) + deltaBase < 0 || Number(lote.botellas_actuales || 0) + deltaBase < 0) {
+        throw Object.assign(new Error("Las botellas ya han salido del almacén; no se puede anular este embotellado"), { status: 409 });
+      }
+    }
     if (deltaBase !== 0) {
       if (deltaBase < 0) {
         await db.run(
@@ -3741,22 +3786,6 @@ async function aplicarMovimientoAlmacenVino({
         );
       }
     }
-    const loteActualizado = await db.get(
-      `SELECT id, botellas_actuales, nombre
-       FROM almacen_lotes_vino
-       WHERE id = ?`,
-      lote.id
-    );
-    const lotRef = await asegurarBottleLotDesdeAlmacen({
-      bodegaId,
-      campaniaId: campaniaFinal,
-      almacenLoteId: lote.id,
-      partidaId,
-      formatoMl,
-      nombre: nombre || loteActualizado?.nombre || `Lote ${lote.id}`,
-      originContainerId,
-      originVolumeL,
-    });
 
     await db.run(
       `INSERT INTO almacen_movimientos_vino
@@ -3953,16 +3982,11 @@ app.get("/api/depositos", async (req, res) => {
 app.get("/api/flujo", async (req, res) => {
   try {
     const campaniaId = req.campaniaId;
-    const fila = await db.get(
-      "SELECT snapshot FROM flujo_nodos WHERE user_id = ? AND bodega_id = ? AND campania_id = ?",
-      req.session.userId,
-      req.session.bodegaId,
-      campaniaId
-    );
-    if (!fila || !fila.snapshot) {
-      return res.json({ nodos: [] });
-    }
-    let flow = normalizarFlowSnapshot(JSON.parse(fila.snapshot));
+    const { flow, revision } = await flowStore.read({
+      userId: req.session.userId,
+      bodegaId: req.session.bodegaId,
+      campaniaId,
+    });
     let nodos = flow.nodes;
     let edges = flow.edges;
     const esProceso = (tipo = "") => {
@@ -3985,169 +4009,55 @@ app.get("/api/flujo", async (req, res) => {
       flow.nodes = nodos;
       flow.edges = edges;
     }
-    res.json({ nodos, flow });
+    res.set("Cache-Control", "no-store");
+    res.json({ nodos, flow, revision });
   } catch (err) {
     console.error("Error al obtener flujo:", err);
     res.status(500).json({ error: "Error al obtener el mapa de nodos" });
   }
 });
 
+function flowScope(req) {
+  return { userId: req.session.userId, bodegaId: req.session.bodegaId, campaniaId: req.campaniaId };
+}
+
+function sendFlowError(res, err) {
+  console.error("Error de persistencia del mapa:", err);
+  return res.status(err.status || 500).json({
+    error: err.status ? err.message : "No se pudo guardar el mapa. Tu copia local se conserva.",
+    code: err.code || "FLOW_SAVE_FAILED",
+    ...(err.previo != null ? { previo: err.previo, nuevo: err.nuevo } : {}),
+  });
+}
+
 app.post("/api/flujo", async (req, res) => {
-  const { nodos, nodes, edges, movements, schemaVersion, force } = req.body || {};
-  const nodosEntrada = Array.isArray(nodos)
-    ? nodos
-    : Array.isArray(nodes)
-    ? nodes
-    : Array.isArray(req.body?.flow?.nodes)
-    ? req.body.flow.nodes
-    : null;
-  const edgesEntrada = Array.isArray(edges)
-    ? edges
-    : Array.isArray(req.body?.flow?.edges)
-    ? req.body.flow.edges
-    : [];
-  const movimientosEntrada = Array.isArray(movements)
-    ? movements
-    : Array.isArray(req.body?.flow?.movements)
-    ? req.body.flow.movements
-    : [];
-  const schemaEntrada =
-    schemaVersion != null
-      ? schemaVersion
-      : req.body?.flow?.schemaVersion != null
-      ? req.body.flow.schemaVersion
-      : 1;
-  if (!Array.isArray(nodosEntrada)) {
-    return res.status(400).json({ error: "Estructura de nodos inválida" });
-  }
+  const body = req.body || {};
+  const input = body.flow || body;
+  const flow = {
+    schemaVersion: input.schemaVersion ?? 1,
+    nodes: input.nodes ?? input.nodos,
+    edges: input.edges,
+    movements: input.movements,
+    compositions: input.compositions,
+  };
   try {
-    const esProceso = (tipo = "") => {
-      const t = String(tipo || "").toLowerCase();
-      if (!t) return true;
-      if (t === "entrada") return false;
-      if (t === "deposito" || t === "barrica") return false;
-      return true;
-    };
-    const nodosSan = nodosEntrada.map(n => {
-      if (!n || typeof n !== "object") return n;
-      if (!esProceso(n.tipo)) return n;
-      const datos = n.datos && typeof n.datos === "object" ? { ...n.datos } : {};
-      ["volumen", "kilos", "litros", "litros_directos", "litros_blend"].forEach(k => {
-        if (k in datos) delete datos[k];
-      });
-      return { ...n, datos };
+    const saved = await flowStore.save(flowScope(req), flow, {
+      baseRevision: body.baseRevision,
+      force: body.force === true,
     });
-    const edgesSan = Array.isArray(edgesEntrada)
-      ? edgesEntrada.filter(e => e && typeof e === "object")
-      : [];
-    const movimientosSan = Array.isArray(movimientosEntrada)
-      ? movimientosEntrada.filter(m => m && typeof m === "object")
-      : [];
-    const bodegaId = req.session.bodegaId;
-    const userId = req.session.userId;
-    const campaniaId = req.campaniaId;
-    const nuevoCount = nodosSan.length;
-    let previoCount = null;
-    let previoSnapshot = null;
-    try {
-      const previo = await db.get(
-        "SELECT snapshot FROM flujo_nodos WHERE user_id = ? AND bodega_id = ? AND campania_id = ?",
-        userId,
-        bodegaId,
-        campaniaId
-      );
-      if (previo && previo.snapshot) {
-        previoSnapshot = previo.snapshot;
-        const previoFlow = normalizarFlowSnapshot(JSON.parse(previo.snapshot));
-        previoCount = Array.isArray(previoFlow?.nodes) ? previoFlow.nodes.length : 0;
+    if (saved.changed) {
+      try {
+        await registrarBitacoraEntry({
+          userId: req.session.userId, bodegaId: req.session.bodegaId,
+          text: "Mapa de nodos actualizado", scope: "general", origin: "mapa_nodos", note_type: "accion",
+        });
+      } catch (err) {
+        console.warn("El mapa y su histórico están guardados; no se pudo registrar la bitácora:", err);
       }
-    } catch (err) {
-      console.warn("No se pudo leer el snapshot previo para validar tamaño:", err);
     }
-    if (previoCount != null && nuevoCount < previoCount && !force) {
-      return res.status(409).json({
-        error: "Guardado bloqueado: el mapa se ha reducido. Confirma la eliminación.",
-        previo: previoCount,
-        nuevo: nuevoCount,
-      });
-    }
-    const flowToSave = {
-      schemaVersion: Number(schemaEntrada) || 1,
-      nodes: nodosSan,
-      edges: edgesSan,
-      movements: movimientosSan,
-    };
-    const snapshotToSave = JSON.stringify(flowToSave);
-    if (previoSnapshot) {
-      await db.run(
-        `INSERT INTO flujo_nodos_backups (flujo_id, bodega_id, campania_id, flow_json, created_at, note)
-         VALUES (?, ?, ?, ?, datetime('now'), 'autosave')`,
-        userId,
-        bodegaId,
-        campaniaId,
-        previoSnapshot
-      );
-      await db.run(
-        `DELETE FROM flujo_nodos_backups
-         WHERE flujo_id = ?
-           AND bodega_id = ?
-           AND campania_id = ?
-           AND id NOT IN (
-             SELECT id FROM flujo_nodos_backups
-             WHERE flujo_id = ? AND bodega_id = ? AND campania_id = ?
-             ORDER BY id DESC
-             LIMIT 5
-           )`,
-        userId,
-        bodegaId,
-        campaniaId,
-        userId,
-        bodegaId,
-        campaniaId
-      );
-    }
-    await db.run(
-      `INSERT INTO flujo_nodos (user_id, bodega_id, campania_id, snapshot, updated_at)
-       VALUES (?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(user_id, bodega_id, campania_id) DO UPDATE SET
-         snapshot = excluded.snapshot,
-         updated_at = excluded.updated_at,
-         bodega_id = excluded.bodega_id,
-         campania_id = excluded.campania_id`,
-      userId,
-      bodegaId,
-      campaniaId,
-      snapshotToSave
-    );
-    try {
-      await db.run(
-        `INSERT INTO flujo_nodos_hist (user_id, bodega_id, campania_id, snapshot, nodos_count, created_at)
-         VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-        userId,
-        bodegaId,
-        campaniaId,
-        JSON.stringify(flowToSave),
-        nuevoCount
-      );
-    } catch (err) {
-      console.warn("No se pudo guardar histórico del mapa de nodos:", err);
-    }
-    try {
-      await registrarBitacoraEntry({
-        userId,
-        bodegaId,
-        text: "Mapa de nodos actualizado",
-        scope: "general",
-        origin: "mapa_nodos",
-        note_type: "accion",
-      });
-    } catch (err) {
-      console.warn("No se pudo registrar bitácora del mapa de nodos:", err);
-    }
-    res.json({ ok: true });
+    res.json({ ok: true, revision: saved.revision });
   } catch (err) {
-    console.error("Error guardando flujo:", err);
-    res.status(500).json({ error: "No se pudo guardar el mapa de nodos" });
+    sendFlowError(res, err);
   }
 });
 
@@ -4174,46 +4084,13 @@ app.get("/api/flujo/backups", async (req, res) => {
 
 app.post("/api/flujo/restore", async (req, res) => {
   try {
-    const userId = req.session.userId;
-    const bodegaId = req.session.bodegaId;
-    const campaniaId = req.campaniaId;
-    const backupId = req.body?.backup_id;
-    const fila = backupId
-      ? await db.get(
-          "SELECT flow_json AS snapshot FROM flujo_nodos_backups WHERE id = ? AND flujo_id = ? AND bodega_id = ? AND campania_id = ?",
-          backupId,
-          userId,
-          bodegaId,
-          campaniaId
-        )
-      : await db.get(
-          "SELECT flow_json AS snapshot FROM flujo_nodos_backups WHERE flujo_id = ? AND bodega_id = ? AND campania_id = ? ORDER BY id DESC LIMIT 1",
-          userId,
-          bodegaId,
-          campaniaId
-        );
-    if (!fila || !fila.snapshot) {
-      return res.status(404).json({ error: "No hay snapshot de respaldo" });
-    }
-    const flowRestaurado = normalizarFlowSnapshot(JSON.parse(fila.snapshot));
-    const snapshotRestaurado = JSON.stringify(flowRestaurado);
-    await db.run(
-      `INSERT INTO flujo_nodos (user_id, bodega_id, campania_id, snapshot, updated_at)
-       VALUES (?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(user_id, bodega_id, campania_id) DO UPDATE SET
-         snapshot = excluded.snapshot,
-         updated_at = excluded.updated_at,
-         bodega_id = excluded.bodega_id,
-         campania_id = excluded.campania_id`,
-      userId,
-      bodegaId,
-      campaniaId,
-      snapshotRestaurado
-    );
-    res.json({ ok: true, flow: flowRestaurado });
+    const restored = await flowStore.restore(flowScope(req), {
+      backupId: req.body?.backup_id,
+      baseRevision: req.body?.baseRevision,
+    });
+    res.json({ ok: true, ...restored });
   } catch (err) {
-    console.error("Error restaurando flujo:", err);
-    res.status(500).json({ error: "No se pudo restaurar el mapa de nodos" });
+    sendFlowError(res, err);
   }
 });
 
@@ -4985,10 +4862,10 @@ app.get("/api/limpieza", async (req, res) => {
   }
 });
 
-app.post("/api/limpieza", async (req, res) => {
+app.post("/api/limpieza", databaseContext.jsonRoute(async (req, res) => {
   const { nombre, lote, cantidad, unidad, nota } = req.body;
   const cantidadNum = Number(cantidad);
-  if (!nombre || !lote || !cantidadNum || cantidadNum <= 0) {
+  if (!String(nombre || "").trim() || !String(lote || "").trim() || !Number.isFinite(cantidadNum) || cantidadNum <= 0) {
     return res.status(400).json({ error: "Faltan datos del producto o la cantidad es inválida" });
   }
   const bodegaId = req.session.bodegaId;
@@ -5013,9 +4890,9 @@ app.post("/api/limpieza", async (req, res) => {
     console.error("Error al registrar producto de limpieza:", err);
     res.status(500).json({ error: "Error al registrar producto de limpieza" });
   }
-});
+}));
 
-app.post("/api/limpieza/consumos", async (req, res) => {
+app.post("/api/limpieza/consumos", databaseContext.jsonRoute(async (req, res) => {
   const { producto_id, cantidad, destino_tipo, destino_id, nota } = req.body;
   try {
     const cantidadNum = Number(cantidad);
@@ -5037,7 +4914,7 @@ app.post("/api/limpieza/consumos", async (req, res) => {
     console.error("Error al registrar consumo de limpieza:", err);
     res.status(400).json({ error: err.message || "Error al registrar consumo" });
   }
-});
+}));
 
 // ===================================================
 //  PRODUCTOS ENOLÓGICOS
@@ -5058,10 +4935,10 @@ app.get("/api/enologicos", async (req, res) => {
   }
 });
 
-app.post("/api/enologicos", async (req, res) => {
+app.post("/api/enologicos", databaseContext.jsonRoute(async (req, res) => {
   const { nombre, lote, cantidad, unidad, nota } = req.body;
   const cantidadNum = Number(cantidad);
-  if (!nombre || !lote || !cantidadNum || cantidadNum <= 0) {
+  if (!String(nombre || "").trim() || !String(lote || "").trim() || !Number.isFinite(cantidadNum) || cantidadNum <= 0) {
     return res.status(400).json({ error: "Faltan datos del producto o la cantidad es inválida" });
   }
   const bodegaId = req.session.bodegaId;
@@ -5086,9 +4963,9 @@ app.post("/api/enologicos", async (req, res) => {
     console.error("Error al registrar producto enológico:", err);
     res.status(500).json({ error: "Error al registrar producto enológico" });
   }
-});
+}));
 
-app.post("/api/enologicos/consumos", async (req, res) => {
+app.post("/api/enologicos/consumos", databaseContext.jsonRoute(async (req, res) => {
   const { producto_id, cantidad, destino_tipo, destino_id, nota } = req.body;
   try {
     const cantidadNum = Number(cantidad);
@@ -5110,7 +4987,7 @@ app.post("/api/enologicos/consumos", async (req, res) => {
     console.error("Error al registrar consumo enológico:", err);
     res.status(400).json({ error: err.message || "Error al registrar consumo" });
   }
-});
+}));
 
 // ===================================================
 //  ALMACÉN DE VINO
@@ -5132,7 +5009,7 @@ app.get("/api/almacen-vino/lotes", async (req, res) => {
               bl.origin_volume_l,
               bl.created_at,
               COALESCE(SUM(CASE WHEN e.event_type = 'IN' THEN ABS(e.qty_value) ELSE 0 END), 0) AS botellas_entrada,
-              COALESCE(SUM(CASE WHEN e.event_type = 'OUT' THEN ABS(e.qty_value) ELSE 0 END), 0) AS botellas_salida,
+              COALESCE(SUM(CASE WHEN e.event_type IN ('OUT', 'CANCEL') THEN ABS(e.qty_value) ELSE 0 END), 0) AS botellas_salida,
               COALESCE(SUM(CASE WHEN e.event_type = 'MERMA' THEN ABS(e.qty_value) ELSE 0 END), 0) AS botellas_merma,
               COALESCE(SUM(CASE WHEN e.event_type = 'ADJUST' THEN e.qty_value ELSE 0 END), 0) AS botellas_ajuste,
               MAX(e.created_at) AS ultima_fecha_mov
@@ -5262,7 +5139,7 @@ app.get("/api/almacen-vino/lotes/:id/trazabilidad", async (req, res) => {
   }
 });
 
-app.put("/api/almacen-vino/lotes/:id", async (req, res) => {
+app.put("/api/almacen-vino/lotes/:id", databaseContext.jsonRoute(async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
@@ -5298,16 +5175,18 @@ app.put("/api/almacen-vino/lotes/:id", async (req, res) => {
     const nombre = nombreRaw || lote.nombre_comercial || lote.id;
     const status = normalizarBottleLotStatus(req.body?.status || lote.status || "LIBERADO");
     const resumenActual = await obtenerResumenBottleLot(bodegaId, req.campaniaId, lote.id);
+    const tieneBotellas = Object.hasOwn(req.body || {}, "botellas_actuales");
     const botellasNum = Number(req.body?.botellas_actuales);
-    const botellasObjetivo = Number.isFinite(botellasNum) && botellasNum >= 0 ? Math.floor(botellasNum) : null;
+    if (tieneBotellas && (req.body.botellas_actuales == null || req.body.botellas_actuales === "" || !Number.isSafeInteger(botellasNum) || botellasNum < 0)) {
+      return res.status(400).json({ error: "El número de botellas debe ser un entero válido" });
+    }
+    const botellasObjetivo = tieneBotellas ? botellasNum : null;
     const reasonRaw = (req.body?.reason || "").toString().trim();
 
     const cajaRaw = Number(req.body?.caja_unidades);
     const cajaUnidades = [3, 6, 12].includes(cajaRaw)
       ? cajaRaw
       : 6;
-
-    await db.exec("BEGIN");
     try {
       await db.run(
         `UPDATE bottle_lots
@@ -5380,9 +5259,7 @@ app.put("/api/almacen-vino/lotes/:id", async (req, res) => {
           }
         }
       }
-      await db.exec("COMMIT");
     } catch (txErr) {
-      await db.exec("ROLLBACK");
       throw txErr;
     }
     const resumenFinal = await obtenerResumenBottleLot(bodegaId, req.campaniaId, lote.id);
@@ -5400,7 +5277,7 @@ app.put("/api/almacen-vino/lotes/:id", async (req, res) => {
     console.error("Error actualizando lote de almacén:", err);
     return res.status(500).json({ error: "Error al actualizar lote de almacén" });
   }
-});
+}));
 
 app.post("/api/docs", async (req, res) => {
   try {
@@ -5552,7 +5429,7 @@ app.get("/api/bottle-lots", async (req, res) => {
               bl.origin_container_id, bl.origin_volume_l, bl.created_at, bl.legacy_almacen_lote_id,
               COALESCE(al.caja_unidades, 6) AS caja_unidades,
               COALESCE(SUM(CASE WHEN et.event_type = 'IN' THEN ABS(et.qty_value) ELSE 0 END), 0) AS entradas_bot,
-              COALESCE(SUM(CASE WHEN et.event_type = 'OUT' THEN ABS(et.qty_value) ELSE 0 END), 0) AS salidas_bot,
+              COALESCE(SUM(CASE WHEN et.event_type IN ('OUT', 'CANCEL') THEN ABS(et.qty_value) ELSE 0 END), 0) AS salidas_bot,
               COALESCE(SUM(CASE WHEN et.event_type = 'MERMA' THEN ABS(et.qty_value) ELSE 0 END), 0) AS mermas_bot,
               COALESCE(SUM(CASE WHEN et.event_type = 'ADJUST' THEN et.qty_value ELSE 0 END), 0) AS ajustes_bot
        FROM bottle_lots bl
@@ -5561,6 +5438,7 @@ app.get("/api/bottle-lots", async (req, res) => {
         AND al.bodega_id = bl.bodega_id
        LEFT JOIN eventos_traza et
          ON et.bodega_id = bl.bodega_id
+        AND et.campania_id = bl.campania_id
         AND et.lot_ref = bl.id
         AND et.qty_unit = 'BOT'
        WHERE bl.bodega_id = ? AND bl.campania_id = ?
@@ -5611,7 +5489,7 @@ app.get("/api/bottle-lots/:id/trace", async (req, res) => {
   }
 });
 
-app.post("/api/warehouse/move", async (req, res) => {
+app.post("/api/warehouse/move", databaseContext.jsonRoute(async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
@@ -5646,10 +5524,10 @@ app.post("/api/warehouse/move", async (req, res) => {
       return res.status(400).json({ ok: false, error: "event_type inválido" });
     }
     const qtyRaw = Number(req.body?.qty_value);
-    if (!Number.isFinite(qtyRaw) || qtyRaw === 0) {
+    if (!Number.isSafeInteger(qtyRaw) || qtyRaw === 0) {
       return res.status(400).json({ ok: false, error: "qty_value inválido" });
     }
-    const qtyNorm = eventType === "ADJUST" ? Math.round(qtyRaw) : Math.round(Math.abs(qtyRaw));
+    const qtyNorm = eventType === "ADJUST" ? qtyRaw : Math.abs(qtyRaw);
     if (!(Math.abs(qtyNorm) > 0)) {
       return res.status(400).json({ ok: false, error: "qty_value inválido" });
     }
@@ -5686,6 +5564,12 @@ app.post("/api/warehouse/move", async (req, res) => {
         error: "Para SALIDA se requiere cliente_id y doc_id o note",
       });
     }
+    if (clienteId && !(await db.get("SELECT id FROM clientes WHERE id=? AND bodega_id=?", clienteId, bodegaId))) {
+      return res.status(400).json({ ok: false, error: "El cliente no pertenece a esta bodega" });
+    }
+    if (docId && !(await db.get("SELECT id FROM docs WHERE id=? AND bodega_id=? AND campania_id=?", docId, bodegaId, campaniaId))) {
+      return res.status(400).json({ ok: false, error: "El documento no pertenece a esta bodega y añada" });
+    }
     if ((eventType === "ADJUST" || eventType === "CANCEL") && !reason) {
       return res.status(400).json({ ok: false, error: "reason obligatorio" });
     }
@@ -5693,18 +5577,14 @@ app.post("/api/warehouse/move", async (req, res) => {
     const delta = deltaBotellasPorEvento(eventType, qtyNorm);
     const saldoPrevio = Number(resumenActual.saldo_bot || 0);
     const saldoProyectado = saldoPrevio + delta;
-    if (saldoProyectado < 0 && !reason) {
+    if (saldoProyectado < 0) {
       return res.status(400).json({
         ok: false,
-        error: "El movimiento deja saldo negativo; añade reason",
+        error: "No hay suficientes botellas disponibles para este movimiento",
       });
-    }
-    if (saldoProyectado < 0 && reason) {
-      reason = `${reason} (saldo proyectado negativo)`;
     }
     const srcRef = (req.body?.src_ref || "").toString().trim() || null;
     const dstRef = clienteId ? `cliente:${clienteId}` : ((req.body?.dst_ref || "").toString().trim() || null);
-    await db.exec("BEGIN");
     try {
       await insertarEventoTraza({
         userId,
@@ -5766,9 +5646,7 @@ app.post("/api/warehouse/move", async (req, res) => {
           );
         }
       }
-      await db.exec("COMMIT");
     } catch (txErr) {
-      await db.exec("ROLLBACK");
       throw txErr;
     }
     const resumenFinal = await obtenerResumenBottleLot(bodegaId, req.campaniaId, lotRef);
@@ -5783,7 +5661,7 @@ app.post("/api/warehouse/move", async (req, res) => {
     console.error("Error en movimiento de almacén:", err);
     return res.status(500).json({ ok: false, error: err.message || "No se pudo registrar el movimiento" });
   }
-});
+}));
 
 function tipoLegacyDesdeEventoBotellas(eventType) {
   const tipo = normalizarTraceEventType(eventType);
@@ -5965,7 +5843,7 @@ app.get("/api/express/recent", async (req, res) => {
   }
 });
 
-app.post("/api/express/invert", async (req, res) => {
+app.post("/api/express/invert", databaseContext.jsonRoute(async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
@@ -6031,7 +5909,15 @@ app.post("/api/express/invert", async (req, res) => {
         return res.status(404).json({ ok: false, error: "Lote asociado no encontrado" });
       }
       const delta = deltaBotellasPorEvento(inverseType, inverseQty);
-      await db.exec("BEGIN");
+      const saldo = await obtenerResumenBottleLot(bodegaId, campaniaId, ev.lot_ref);
+      if (Number(saldo.saldo_bot) + delta < 0) {
+        return res.status(409).json({ ok: false, error: "La inversión dejaría saldo negativo en el lote" });
+      }
+      const inversionAnterior = await db.get(
+        "SELECT id FROM eventos_traza WHERE bodega_id=? AND campania_id=? AND lot_ref=? AND reason='INVERSION_EXPRESS' AND note=?",
+        bodegaId, campaniaId, ev.lot_ref, `Inversión express de evento #${ev.id}`
+      );
+      if (inversionAnterior) return res.status(409).json({ ok: false, error: "Este evento ya se ha invertido" });
       try {
         await insertarEventoTraza({
           userId,
@@ -6056,9 +5942,7 @@ app.post("/api/express/invert", async (req, res) => {
           delta,
           note: `Inversión express de evento #${ev.id}`,
         });
-        await db.exec("COMMIT");
       } catch (txErr) {
-        await db.exec("ROLLBACK");
         throw txErr;
       }
       const resumen = await obtenerResumenBottleLot(bodegaId, req.campaniaId, ev.lot_ref);
@@ -6110,7 +5994,30 @@ app.post("/api/express/invert", async (req, res) => {
 
       const fechaInv = new Date().toISOString();
       const notaInv = `Inversión express de movimiento #${mov.id}${mov.nota ? ` · ${mov.nota}` : ""}`;
-      await db.exec("BEGIN");
+      if (await db.get("SELECT id FROM movimientos_vino WHERE bodega_id=? AND user_id=? AND campania_id=? AND nota=?", bodegaId, userId, campaniaId, notaInv)) {
+        return res.status(409).json({ ok: false, error: "Este movimiento ya se ha invertido" });
+      }
+      if (invOrigenTipo && invOrigenId != null) {
+        const disponible = await obtenerLitrosActuales(invOrigenTipo, invOrigenId, bodegaId, userId);
+        const partidaActual = await obtenerPartidaActualContenedor(invOrigenTipo, invOrigenId, bodegaId, userId);
+        if (disponible < litros || (partidaActual && Number(partidaActual) !== Number(mov.partida_id))) {
+          return res.status(409).json({ ok: false, error: "El vino de origen ya no permite invertir este movimiento" });
+        }
+      }
+      if (invDestinoTipo && invDestinoId != null) {
+        const destino = await obtenerContenedor(invDestinoTipo, invDestinoId, bodegaId, userId);
+        if (!destino) return res.status(409).json({ ok: false, error: "El contenedor de destino ya no existe" });
+        const capacidad = invDestinoTipo === "barrica" ? Number(destino.capacidad_l) : Number(destino.capacidad_hl) * 100;
+        const actual = await obtenerLitrosActuales(invDestinoTipo, invDestinoId, bodegaId, userId);
+        if (capacidad > 0 && actual + litros > capacidad + 0.0001) {
+          return res.status(409).json({ ok: false, error: "La inversión superaría la capacidad del destino" });
+        }
+        try {
+          await validarDestinoPartida({ destinoTipo: invDestinoTipo, destinoId: invDestinoId, partidaId: mov.partida_id, bodegaId, userId });
+        } catch (error) {
+          return res.status(409).json({ ok: false, error: error.message });
+        }
+      }
       try {
         const ins = await db.run(
           `INSERT INTO movimientos_vino
@@ -6131,7 +6038,7 @@ app.post("/api/express/invert", async (req, res) => {
           userId
         );
         if (invOrigenTipo && invOrigenId != null) {
-          await recalcularCantidad(invOrigenTipo, invOrigenId, bodegaId, userId);
+          await recalcularSaldoMovimiento(invOrigenTipo, invOrigenId, bodegaId, userId);
           await ajustarOcupacionContenedor(invOrigenTipo, invOrigenId, bodegaId, userId, mov.partida_id || null);
         }
         const mismoContenedor =
@@ -6142,7 +6049,7 @@ app.post("/api/express/invert", async (req, res) => {
           invOrigenTipo === invDestinoTipo &&
           Number(invOrigenId) === Number(invDestinoId);
         if (invDestinoTipo && invDestinoId != null && !mismoContenedor) {
-          await recalcularCantidad(invDestinoTipo, invDestinoId, bodegaId, userId);
+          await recalcularSaldoMovimiento(invDestinoTipo, invDestinoId, bodegaId, userId);
           await ajustarOcupacionContenedor(invDestinoTipo, invDestinoId, bodegaId, userId, mov.partida_id || null);
         }
         await registrarBitacoraMovimiento({
@@ -6160,10 +6067,8 @@ app.post("/api/express/invert", async (req, res) => {
           partida_id: mov.partida_id || null,
           created_at: fechaInv,
         });
-        await db.exec("COMMIT");
         return res.json({ ok: true, kind: "movement", id: mov.id, inverse_id: ins.lastID });
       } catch (txErr) {
-        await db.exec("ROLLBACK");
         throw txErr;
       }
     }
@@ -6171,9 +6076,9 @@ app.post("/api/express/invert", async (req, res) => {
     return res.status(400).json({ ok: false, error: "kind inválido" });
   } catch (err) {
     console.error("Error invirtiendo evento express:", err);
-    return res.status(500).json({ ok: false, error: "No se pudo invertir el evento" });
+    return res.status(err.status || 500).json({ ok: false, error: err.status ? err.message : "No se pudo invertir el evento" });
   }
-});
+}));
 
 app.get("/api/almacen-vino/movimientos", async (req, res) => {
   try {
@@ -6254,7 +6159,7 @@ app.get("/api/embotellados", async (req, res) => {
   }
 });
 
-app.post("/api/embotellados", async (req, res) => {
+app.post("/api/embotellados", databaseContext.jsonRoute(async (req, res) => {
   const {
     fecha,
     contenedor_tipo,
@@ -6270,7 +6175,7 @@ app.post("/api/embotellados", async (req, res) => {
   const contenedorIdNum = Number(contenedor_id);
   const contenedorTipo = normalizarTipoContenedor(contenedor_tipo);
   const loteTxt = String(lote || "").trim();
-  if (!contenedorTipo || Number.isNaN(contenedorIdNum) || !litrosNum || litrosNum <= 0) {
+  if (!contenedorTipo || !Number.isSafeInteger(contenedorIdNum) || contenedorIdNum <= 0 || !Number.isFinite(litrosNum) || litrosNum <= 0) {
     return res.status(400).json({ error: "Datos de embotellado inválidos" });
   }
   if (!loteTxt) {
@@ -6278,12 +6183,8 @@ app.post("/api/embotellados", async (req, res) => {
   }
 
   try {
-    let formatosJson = null;
-    if (Array.isArray(formatos)) {
-      formatosJson = JSON.stringify(formatos);
-    } else if (typeof formatos === "string" && formatos.trim()) {
-      formatosJson = formatos.trim();
-    }
+    const validado = validarFormatosEmbotellado(formatos, botellas, litrosNum);
+    const formatosJson = JSON.stringify(validado.formatos);
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
     const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
@@ -6298,7 +6199,6 @@ app.post("/api/embotellados", async (req, res) => {
     let movimientoId;
     let fechaMovimiento;
     let partidaId;
-    await db.run("BEGIN");
     try {
       const movimiento = await registrarMovimientoEmbotellado(
         contenedorTipo,
@@ -6321,7 +6221,7 @@ app.post("/api/embotellados", async (req, res) => {
         contenedorTipo,
         contenedorIdNum,
         litrosNum,
-        botellas || null,
+        validado.botellas,
         loteTxt,
         nota || null,
         formatosJson,
@@ -6331,13 +6231,11 @@ app.post("/api/embotellados", async (req, res) => {
         bodegaId,
         userId
       );
-      const formatosAlmacen =
-        Array.isArray(formatos) && formatos.length ? formatos : formatosJson;
       await aplicarMovimientoAlmacenVino({
         bodegaId,
         campaniaId: req.campaniaId,
         partidaId,
-        formatos: formatosAlmacen,
+        formatos: validado.formatos,
         nombre: loteTxt,
         fecha: fecha || fechaMovimiento,
         nota: nota || null,
@@ -6348,46 +6246,41 @@ app.post("/api/embotellados", async (req, res) => {
         originContainerId: `${contenedorTipo}:${contenedorIdNum}`,
         originVolumeL: litrosNum,
       });
-      await db.run("COMMIT");
     } catch (err) {
-      await db.run("ROLLBACK");
       throw err;
     }
-    try {
-      const scopeData = resolverScopeBitacoraPorContenedor(contenedorTipo, contenedorIdNum);
-      const origen =
-        contenedorTipo === "barrica" ? "maderas" : "depositos";
-      const litrosTxt = Number.isFinite(litrosNum)
-        ? litrosNum.toFixed(2).replace(/\.00$/, "")
-        : String(litros || "");
-      const partes = [`Embotellado: ${litrosTxt} L`];
-      if (botellas) partes.push(`${botellas} botellas`);
-      if (loteTxt) partes.push(`Lote ${loteTxt}`);
-      if (nota) partes.push(nota);
-      const texto = partes.filter(Boolean).join(" · ");
-      await registrarBitacoraEntry({
-        userId,
-        bodegaId,
-        text: texto,
-        scope: scopeData.scope,
-        origin: origen,
-        note_type: "accion",
-        deposito_id: scopeData.deposito_id,
-        madera_id: scopeData.madera_id,
-        partida_id: partidaId,
-        created_at: fecha || fechaMovimiento,
-      });
-    } catch (err) {
-      console.warn("No se pudo registrar bitácora de embotellado:", err);
-    }
+    const scopeData = resolverScopeBitacoraPorContenedor(contenedorTipo, contenedorIdNum);
+    const origen =
+      contenedorTipo === "barrica" ? "maderas" : "depositos";
+    const litrosTxt = Number.isFinite(litrosNum)
+      ? litrosNum.toFixed(2).replace(/\.00$/, "")
+      : String(litros || "");
+    const partes = [`Embotellado: ${litrosTxt} L`];
+    if (botellas) partes.push(`${botellas} botellas`);
+    if (loteTxt) partes.push(`Lote ${loteTxt}`);
+    if (nota) partes.push(nota);
+    const texto = partes.filter(Boolean).join(" · ");
+    await registrarBitacoraEntry({
+      userId,
+      bodegaId,
+      text: texto,
+      scope: scopeData.scope,
+      origin: origen,
+      note_type: "accion",
+      deposito_id: scopeData.deposito_id,
+      madera_id: scopeData.madera_id,
+      partida_id: partidaId,
+      created_at: fecha || fechaMovimiento,
+    });
+
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al registrar embotellado:", err);
-    res.status(400).json({ error: err.message || "Error al registrar embotellado" });
+    res.status(err.status || 400).json({ error: err.message || "Error al registrar embotellado" });
   }
-});
+}));
 
-app.delete("/api/embotellados/:id", async (req, res) => {
+app.delete("/api/embotellados/:id", databaseContext.jsonRoute(async (req, res) => {
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
   const id = Number(req.params.id);
@@ -6408,7 +6301,10 @@ app.delete("/api/embotellados/:id", async (req, res) => {
     if (!actual) {
       return res.status(404).json({ ok: false, error: "Embotellado no encontrado" });
     }
-    await db.run("BEGIN");
+    if (!actual.partida_id) {
+      return res.status(409).json({ ok: false, error: "El embotellado no tiene una partida de almacén verificable" });
+    }
+    validarFormatosEmbotellado(actual.formatos);
     try {
       await db.run(
         "DELETE FROM embotellados WHERE id = ? AND bodega_id = ? AND campania_id = ? AND user_id = ?",
@@ -6452,28 +6348,30 @@ app.delete("/api/embotellados/:id", async (req, res) => {
           actual.partida_id
         );
       }
-      await db.run("COMMIT");
     } catch (err) {
-      await db.run("ROLLBACK");
       throw err;
     }
     return res.json({ ok: true, movimiento_id: actual.movimiento_id || null });
   } catch (err) {
     console.error("Error al eliminar embotellado:", err);
-    return res.status(500).json({ ok: false, error: "No se pudo eliminar el embotellado" });
+    return res.status(err.status || 500).json({ ok: false, error: err.status ? err.message : "No se pudo eliminar el embotellado" });
   }
-});
+}));
 
 // ===================================================
 //  ENTRADAS DE UVA
 // ===================================================
 function validarEntradaUvaPayload(body) {
+  for (const campo of ["grado_potencial", "densidad", "temperatura", "ph", "acidez_total"]) {
+    const valor = parseNumeroValor(body?.[campo]);
+    if (valor !== null && !Number.isFinite(valor)) return { error: `Valor inválido en ${campo}` };
+  }
   const parcela = (body?.parcela || "").toString().trim();
 
   const mixto = normalizarBool(body?.mixto);
   const modoKilos = mixto ? normalizarModoKilos(body?.modo_kilos) : "total";
   const cajasTotal = parseEntero(body?.cajas_total ?? body?.cajas);
-  if (!Number.isInteger(cajasTotal) || cajasTotal <= 0) {
+  if (!Number.isSafeInteger(cajasTotal) || cajasTotal <= 0) {
     return { error: "Las cajas totales deben ser un entero positivo" };
   }
 
@@ -6492,7 +6390,7 @@ function validarEntradaUvaPayload(body) {
     if (!variedad) {
       return { error: "La variedad es obligatoria" };
     }
-    if (kilosTotalRaw === null || Number.isNaN(kilosTotalRaw) || kilosTotalRaw <= 0) {
+    if (kilosTotalRaw === null || !Number.isFinite(kilosTotalRaw) || kilosTotalRaw <= 0) {
       return { error: "Los kilos totales son obligatorios" };
     }
     variedadFinal = variedad;
@@ -6516,13 +6414,13 @@ function validarEntradaUvaPayload(body) {
         return { error: `Variedad obligatoria en la línea ${index + 1}` };
       }
       const cajasLinea = parseEntero(linea?.cajas);
-      if (!Number.isInteger(cajasLinea) || cajasLinea <= 0) {
+      if (!Number.isSafeInteger(cajasLinea) || cajasLinea <= 0) {
         return { error: `Cajas inválidas en la línea ${index + 1}` };
       }
       let kilosLinea = null;
       if (modoKilos === "por_variedad") {
         const kilosNum = parseNumeroValor(linea?.kilos);
-        if (kilosNum === null || Number.isNaN(kilosNum) || kilosNum <= 0) {
+        if (kilosNum === null || !Number.isFinite(kilosNum) || kilosNum <= 0) {
           return { error: `Kilos inválidos en la línea ${index + 1}` };
         }
         kilosLinea = kilosNum;
@@ -6540,7 +6438,7 @@ function validarEntradaUvaPayload(body) {
       return { error: "Las cajas de las líneas no cuadran con el total" };
     }
     if (modoKilos === "total") {
-      if (kilosTotalRaw === null || Number.isNaN(kilosTotalRaw) || kilosTotalRaw <= 0) {
+      if (kilosTotalRaw === null || !Number.isFinite(kilosTotalRaw) || kilosTotalRaw <= 0) {
         return { error: "Los kilos totales son obligatorios" };
       }
       kilosTotalFinal = kilosTotalRaw;
@@ -6632,6 +6530,16 @@ function normalizarRcCatastro(valor) {
   return limpio ? limpio : null;
 }
 
+function fechaEntradaValida(fechaIso) {
+  const match = fechaIso?.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return false;
+  const [year, month, day, hour, minute, second] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day && date.getUTCHours() === hour &&
+    date.getUTCMinutes() === minute && date.getUTCSeconds() === second;
+}
+
 async function insertarEntradaUva({ body, userId, bodegaId, campaniaId, origin = "depositos" }) {
   const { error, data } = validarEntradaUvaPayload(body);
   if (error) return { error };
@@ -6641,10 +6549,11 @@ async function insertarEntradaUva({ body, userId, bodegaId, campaniaId, origin =
     return { error: "La fecha es obligatoria" };
   }
   const fechaIso = normalizarFechaEntradaBodega(fechaRaw);
-  if (!fechaIso) {
+  if (!fechaEntradaValida(fechaIso)) {
     return { error: "Fecha inválida" };
   }
   const anada = extraerAnadaDesdeFecha(fechaIso);
+  if (String(anada) !== String(campaniaId)) return { error: "La fecha debe pertenecer a la añada seleccionada" };
   const tipoSuelo = (body?.tipo_suelo || "").toString().trim() || null;
   const anosVid = (body?.anos_vid || "").toString().trim() || null;
   const catastroRc = normalizarRcCatastro(body?.catastro_rc || body?.rc);
@@ -6661,7 +6570,6 @@ async function insertarEntradaUva({ body, userId, bodegaId, campaniaId, origin =
   const ph = parseNumeroValor(body?.ph);
   const acidezTotal = parseNumeroValor(body?.acidez_total);
 
-  await db.run("BEGIN");
   try {
     const stmt = await db.run(
       `INSERT INTO entradas_uva
@@ -6716,11 +6624,10 @@ async function insertarEntradaUva({ body, userId, bodegaId, campaniaId, origin =
       );
     }
 
-    await db.run("COMMIT");
-    try {
+    {
       const variedades = data.lineas.map(linea => linea.variedad).filter(Boolean);
       const variedadesUnicas = Array.from(new Set(variedades));
-      const partes = [];
+      const partes = [`Entrada de uva #${stmt.lastID}`];
       const kilosTxt = Number.isFinite(data.kilos_total)
         ? data.kilos_total.toFixed(2).replace(/\.00$/, "")
         : "";
@@ -6737,9 +6644,11 @@ async function insertarEntradaUva({ body, userId, bodegaId, campaniaId, origin =
       if (data.proveedor) partes.push(data.proveedor);
       const texto = partes.filter(Boolean).join(" · ") || "Entrada de uva registrada";
       const scope = variedadesUnicas.length ? "variedad" : "general";
+      const campaniaLibro = await db.get("SELECT id FROM campanias WHERE bodega_id=? AND anio=?", bodegaId, Number(campaniaId));
       await registrarBitacoraEntry({
         userId,
         bodegaId,
+        campania_libro_id: campaniaLibro.id,
         text: texto,
         scope,
         origin,
@@ -6747,8 +6656,6 @@ async function insertarEntradaUva({ body, userId, bodegaId, campaniaId, origin =
         variedades: variedadesUnicas,
         created_at: fechaIso,
       });
-    } catch (err) {
-      console.warn("No se pudo registrar bitácora de entrada de uva:", err);
     }
     return {
       entradaId: stmt.lastID,
@@ -6758,7 +6665,6 @@ async function insertarEntradaUva({ body, userId, bodegaId, campaniaId, origin =
       cajas_total: data.cajas_total,
     };
   } catch (err) {
-    await db.run("ROLLBACK");
     throw err;
   }
 }
@@ -6772,10 +6678,11 @@ async function actualizarEntradaUva({ entradaId, body, userId, bodegaId, campani
     return { error: "La fecha es obligatoria" };
   }
   const fechaIso = normalizarFechaEntradaBodega(fechaRaw);
-  if (!fechaIso) {
+  if (!fechaEntradaValida(fechaIso)) {
     return { error: "Fecha inválida" };
   }
   const anada = extraerAnadaDesdeFecha(fechaIso);
+  if (String(anada) !== String(campaniaId)) return { error: "La fecha debe pertenecer a la añada seleccionada" };
   const tipoSuelo = (body?.tipo_suelo || "").toString().trim() || null;
   const anosVid = (body?.anos_vid || "").toString().trim() || null;
   const catastroRc = normalizarRcCatastro(body?.catastro_rc || body?.rc);
@@ -6793,7 +6700,7 @@ async function actualizarEntradaUva({ entradaId, body, userId, bodegaId, campani
   const acidezTotal = parseNumeroValor(body?.acidez_total);
 
   const existente = await db.get(
-    "SELECT id FROM entradas_uva WHERE id = ? AND bodega_id = ? AND user_id = ? AND campania_id = ?",
+    "SELECT * FROM entradas_uva WHERE id = ? AND bodega_id = ? AND user_id = ? AND campania_id = ?",
     entradaId,
     bodegaId,
     userId,
@@ -6802,8 +6709,19 @@ async function actualizarEntradaUva({ entradaId, body, userId, bodegaId, campani
   if (!existente) {
     return { error: "Entrada no encontrada", status: 404 };
   }
+  const asignacion = await db.get("SELECT id FROM entradas_destinos WHERE entrada_id=? LIMIT 1", entradaId);
+  const evento = await db.get("SELECT id FROM eventos_bodega WHERE entidad_tipo='entrada_uva' AND entidad_id=? AND bodega_id=? AND user_id=? LIMIT 1", entradaId, bodegaId, userId);
+  if (asignacion || evento) {
+    const lineasPrevias = await db.all("SELECT variedad,kilos,cajas FROM entradas_uva_lineas WHERE entrada_id=? ORDER BY id", entradaId);
+    const composicion = lineas => lineas.map(l => [String(l.variedad), l.kilos == null ? null : Number(l.kilos), Number(l.cajas)]);
+    if (Number(existente.kilos) !== data.kilos_total || Number(existente.cajas_total ?? existente.cajas) !== data.cajas_total ||
+        String(existente.variedad) !== data.variedad || Boolean(existente.mixto) !== data.mixto ||
+        (existente.modo_kilos || "total") !== data.modo_kilos ||
+        (lineasPrevias.length && JSON.stringify(composicion(lineasPrevias)) !== JSON.stringify(composicion(data.lineas)))) {
+      return { error: "La entrada tiene asignaciones o eventos asociados; revísalos antes de cambiar cantidades o variedades", status: 409 };
+    }
+  }
 
-  await db.run("BEGIN");
   try {
     await db.run(
       `UPDATE entradas_uva
@@ -6896,7 +6814,13 @@ async function actualizarEntradaUva({ entradaId, body, userId, bodegaId, campani
       );
     }
 
-    await db.run("COMMIT");
+    const campaniaLibro = await db.get("SELECT id FROM campanias WHERE bodega_id=? AND anio=?", bodegaId, Number(campaniaId));
+    await registrarBitacoraEntry({
+      userId, bodegaId, text: `Entrada de uva #${entradaId} actualizada: ${data.kilos_total} kg · ${data.cajas_total} cajas`,
+      scope: "variedad", origin: "depositos", note_type: "accion",
+      campania_libro_id: campaniaLibro.id,
+      variedades: [...new Set(data.lineas.map(l => l.variedad))],
+    });
     return {
       entradaId,
       mixto: data.mixto,
@@ -6905,7 +6829,6 @@ async function actualizarEntradaUva({ entradaId, body, userId, bodegaId, campani
       cajas_total: data.cajas_total,
     };
   } catch (err) {
-    await db.run("ROLLBACK");
     throw err;
   }
 }
@@ -7043,7 +6966,7 @@ app.get("/api/entradas-uva/:id/lineas", async (req, res) => {
   }
 });
 
-app.post("/api/entradas_uva", async (req, res) => {
+app.post("/api/entradas_uva", databaseContext.jsonRoute(async (req, res) => {
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
 
@@ -7071,9 +6994,9 @@ app.post("/api/entradas_uva", async (req, res) => {
     console.error("Error al crear entrada de uva:", err);
     res.status(500).json({ ok: false, error: "Error al crear entrada de uva" });
   }
-});
+}));
 
-app.post("/api/entradas-uva", async (req, res) => {
+app.post("/api/entradas-uva", databaseContext.jsonRoute(async (req, res) => {
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
 
@@ -7101,9 +7024,9 @@ app.post("/api/entradas-uva", async (req, res) => {
     console.error("Error al crear entrada de uva:", err);
     res.status(500).json({ ok: false, error: "Error al crear entrada de uva" });
   }
-});
+}));
 
-app.post("/api/entradas-uva/express", async (req, res) => {
+app.post("/api/entradas-uva/express", databaseContext.jsonRoute(async (req, res) => {
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
 
@@ -7119,7 +7042,7 @@ app.post("/api/entradas-uva/express", async (req, res) => {
       console.warn("Validación entrada express:", resultado.error);
       return res.status(400).json({ ok: false, error: resultado.error });
     }
-    try {
+    {
       await insertarEventoTraza({
         userId,
         bodegaId,
@@ -7141,8 +7064,6 @@ app.post("/api/entradas-uva/express", async (req, res) => {
           cajas_total: req.body?.cajas_total ?? null,
         }),
       });
-    } catch (traceErr) {
-      console.warn("No se pudo registrar traza de entrada express:", traceErr);
     }
     res.json({
       ok: true,
@@ -7156,9 +7077,9 @@ app.post("/api/entradas-uva/express", async (req, res) => {
     console.error("Error al guardar entrada express:", err);
     res.status(500).json({ ok: false, error: "No se pudo guardar la entrada" });
   }
-});
+}));
 
-app.put("/api/entradas_uva/:id", async (req, res) => {
+app.put("/api/entradas_uva/:id", databaseContext.jsonRoute(async (req, res) => {
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
 
@@ -7186,9 +7107,9 @@ app.put("/api/entradas_uva/:id", async (req, res) => {
     console.error("Error actualizando entrada de uva:", err);
     res.status(500).json({ ok: false, error: "Error al actualizar entrada de uva" });
   }
-});
+}));
 
-app.put("/api/entradas-uva/:id", async (req, res) => {
+app.put("/api/entradas-uva/:id", databaseContext.jsonRoute(async (req, res) => {
   const bodegaId = req.session.bodegaId;
   const userId = req.session.userId;
 
@@ -7216,31 +7137,57 @@ app.put("/api/entradas-uva/:id", async (req, res) => {
     console.error("Error actualizando entrada de uva:", err);
     res.status(500).json({ ok: false, error: "Error al actualizar entrada de uva" });
   }
-});
+}));
 
-app.delete("/api/entradas_uva/:id", async (req, res) => {
+async function eliminarEntradaUva({ entradaId, bodegaId, userId, campaniaId }) {
+  if (!Number.isSafeInteger(entradaId) || entradaId <= 0) return { error: "ID de entrada inválido", status: 400 };
+  const entrada = await db.get("SELECT * FROM entradas_uva WHERE id=? AND bodega_id=? AND user_id=? AND campania_id=?", entradaId, bodegaId, userId, campaniaId);
+  if (!entrada) return { error: "Entrada no encontrada", status: 404 };
+  const asignacion = await db.get("SELECT id FROM entradas_destinos WHERE entrada_id=? LIMIT 1", entradaId);
+  const evento = await db.get("SELECT id FROM eventos_bodega WHERE entidad_tipo='entrada_uva' AND entidad_id=? AND bodega_id=? AND user_id=? LIMIT 1", entradaId, bodegaId, userId);
+  if (asignacion || evento) return { error: "La entrada tiene asignaciones o eventos asociados; revisa esas operaciones antes de borrarla", status: 409 };
+  const campaniaLibro = await db.get("SELECT id FROM campanias WHERE bodega_id=? AND anio=?", bodegaId, Number(campaniaId));
+  await registrarBitacoraEntry({
+    userId, bodegaId, text: `Entrada de uva #${entradaId} eliminada: ${entrada.kilos} kg · ${entrada.variedad}`,
+    scope: "general", origin: "depositos", note_type: "accion",
+    campania_libro_id: campaniaLibro.id,
+  });
+  const trace = await db.get("SELECT id FROM eventos_traza WHERE bodega_id=? AND campania_id=? AND entity_type='GRAPE_IN' AND entity_id=? LIMIT 1", bodegaId, campaniaId, String(entradaId));
+  if (trace) await insertarEventoTraza({
+    userId, bodegaId, campaniaId, entityType: "GRAPE_IN", entityId: String(entradaId),
+    eventType: "CANCEL", qtyValue: 0, qtyUnit: "L", srcRef: `entrada_uva:${entradaId}`,
+    reason: "ENTRADA_ELIMINADA", note: `Anulación de entrada de uva #${entradaId}`,
+  });
+  await db.run("DELETE FROM entradas_uva_lineas WHERE entrada_id=?", entradaId);
+  await db.run("DELETE FROM entradas_uva WHERE id=? AND bodega_id=? AND user_id=? AND campania_id=?", entradaId, bodegaId, userId, campaniaId);
+  return { ok: true };
+}
+
+app.delete("/api/entradas_uva/:id", databaseContext.jsonRoute(async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
-    await db.run("DELETE FROM entradas_uva WHERE id = ? AND bodega_id = ? AND user_id = ? AND campania_id = ?", req.params.id, bodegaId, userId, req.campaniaId);
-    res.json({ ok: true });
+    const resultado = await eliminarEntradaUva({ entradaId: Number(req.params.id), bodegaId, userId, campaniaId: req.campaniaId });
+    if (resultado.error) return res.status(resultado.status).json({ ok: false, error: resultado.error });
+    res.json(resultado);
   } catch (err) {
     console.error("Error borrando entrada de uva:", err);
     res.status(500).json({ error: "Error al borrar entrada de uva" });
   }
-});
+}));
 
-app.delete("/api/entradas-uva/:id", async (req, res) => {
+app.delete("/api/entradas-uva/:id", databaseContext.jsonRoute(async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
-    await db.run("DELETE FROM entradas_uva WHERE id = ? AND bodega_id = ? AND user_id = ? AND campania_id = ?", req.params.id, bodegaId, userId, req.campaniaId);
-    res.json({ ok: true });
+    const resultado = await eliminarEntradaUva({ entradaId: Number(req.params.id), bodegaId, userId, campaniaId: req.campaniaId });
+    if (resultado.error) return res.status(resultado.status).json({ ok: false, error: resultado.error });
+    res.json(resultado);
   } catch (err) {
     console.error("Error borrando entrada de uva:", err);
     res.status(500).json({ error: "Error al borrar entrada de uva" });
   }
-});
+}));
 
 // ===================================================
 //  REGISTROS ANALÍTICOS
@@ -7339,7 +7286,7 @@ app.post("/api/registros", async (req, res) => {
 // ===================================================
 //  REGISTRO EXPRESS
 // ===================================================
-app.post("/api/registro-express", async (req, res) => {
+app.post("/api/registro-express", databaseContext.jsonRoute(async (req, res) => {
   const {
     tipo,
     contenedor_tipo,
@@ -7366,13 +7313,14 @@ app.post("/api/registro-express", async (req, res) => {
   if (!contenedorTipo) {
     return res.status(400).json({ error: "Tipo de contenedor inválido" });
   }
-  if (!Number.isFinite(contenedorId) || contenedorId <= 0) {
+  if (!Number.isSafeInteger(contenedorId) || contenedorId <= 0) {
     return res.status(400).json({ error: "ID de contenedor inválido" });
   }
 
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
+    const campaniaId = req.campaniaId;
     const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
     const contenedor = await obtenerContenedor(contenedorTipo, contenedorId, bodegaId, userId);
     if (!contenedor) {
@@ -7388,14 +7336,14 @@ app.post("/api/registro-express", async (req, res) => {
         densidad !== undefined && densidad !== null && densidad !== ""
           ? Number(densidad)
           : null;
-      if (densidadNum !== null && Number.isNaN(densidadNum)) {
+      if (densidadNum !== null && !Number.isFinite(densidadNum)) {
         return res.status(400).json({ error: "Densidad inválida" });
       }
       const temperaturaNum =
         temperatura_c !== undefined && temperatura_c !== null && temperatura_c !== ""
           ? Number(temperatura_c)
           : null;
-      if (temperaturaNum !== null && Number.isNaN(temperaturaNum)) {
+      if (temperaturaNum !== null && !Number.isFinite(temperaturaNum)) {
         return res.status(400).json({ error: "Temperatura inválida" });
       }
       const fecha = new Date().toISOString();
@@ -7413,56 +7361,50 @@ app.post("/api/registro-express", async (req, res) => {
         bodegaId,
         userId
       );
-      try {
-        const partes = [];
-        if (densidadNum !== null && !Number.isNaN(densidadNum)) {
-          partes.push(`Densidad ${densidadNum}`);
-        }
-        if (temperaturaNum !== null && !Number.isNaN(temperaturaNum)) {
-          partes.push(`Temperatura ${temperaturaNum}°C`);
-        }
-        if (nota) partes.push(String(nota).trim());
-        const texto = partes.filter(Boolean).join(" · ") || "Medición registrada";
-        const scopeData = resolverScopeBitacoraPorContenedor(contenedorTipo, contenedorId);
-        const noteType =
-          densidadNum !== null || temperaturaNum !== null ? "medicion" : "hecho";
-        await registrarBitacoraEntry({
-          userId,
-          bodegaId,
-          text: texto,
-          scope: scopeData.scope,
-          origin: "express",
-          note_type: noteType,
-          deposito_id: scopeData.deposito_id,
-          madera_id: scopeData.madera_id,
-          created_at: fecha,
-        });
-      } catch (err) {
-        console.warn("No se pudo registrar bitácora de medición:", err);
+      const partes = [];
+      if (densidadNum !== null && !!Number.isFinite(densidadNum)) {
+        partes.push(`Densidad ${densidadNum}`);
       }
-      try {
-        await insertarEventoTraza({
-          userId,
-          bodegaId,
-          campaniaId,
-          entityType: "CONTAINER",
-          entityId: `${contenedorTipo}:${contenedorId}`,
-          eventType: "ADDITION",
-          qtyValue: 0,
-          qtyUnit: "L",
-          srcRef: contenedorTipo,
-          dstRef: String(contenedorId),
-          note: JSON.stringify({
-            origen: "express",
-            tipo: "medicion",
-            densidad: densidadNum,
-            temperatura_c: temperaturaNum,
-            nota: nota || "",
-          }),
-        });
-      } catch (traceErr) {
-        console.warn("No se pudo registrar traza de medición express:", traceErr);
+      if (temperaturaNum !== null && !!Number.isFinite(temperaturaNum)) {
+        partes.push(`Temperatura ${temperaturaNum}°C`);
       }
+      if (nota) partes.push(String(nota).trim());
+      const texto = partes.filter(Boolean).join(" · ") || "Medición registrada";
+      const scopeData = resolverScopeBitacoraPorContenedor(contenedorTipo, contenedorId);
+      const noteType =
+        densidadNum !== null || temperaturaNum !== null ? "medicion" : "hecho";
+      await registrarBitacoraEntry({
+        userId,
+        bodegaId,
+        text: texto,
+        scope: scopeData.scope,
+        origin: "express",
+        note_type: noteType,
+        deposito_id: scopeData.deposito_id,
+        madera_id: scopeData.madera_id,
+        created_at: fecha,
+      });
+
+      await insertarEventoTraza({
+        userId,
+        bodegaId,
+        campaniaId,
+        entityType: "CONTAINER",
+        entityId: `${contenedorTipo}:${contenedorId}`,
+        eventType: "ADDITION",
+        qtyValue: 0,
+        qtyUnit: "L",
+        srcRef: contenedorTipo,
+        dstRef: String(contenedorId),
+        note: JSON.stringify({
+          origen: "express",
+          tipo: "medicion",
+          densidad: densidadNum,
+          temperatura_c: temperaturaNum,
+          nota: nota || "",
+        }),
+      });
+
       return res.json({ ok: true, id: stmt.lastID });
     }
 
@@ -7479,7 +7421,7 @@ app.post("/api/registro-express", async (req, res) => {
       perdida_litros !== undefined && perdida_litros !== null && perdida_litros !== ""
         ? Number(perdida_litros)
         : null;
-    if (perdidaNum !== null && Number.isNaN(perdidaNum)) {
+    if (perdidaNum !== null && (!Number.isFinite(perdidaNum) || perdidaNum < 0)) {
       return res.status(400).json({ error: "Pérdida inválida" });
     }
 
@@ -7491,7 +7433,7 @@ app.post("/api/registro-express", async (req, res) => {
     if (!origenTipo) {
       return res.status(400).json({ error: "Tipo de origen inválido" });
     }
-    if (!Number.isFinite(origenId) || origenId <= 0) {
+    if (!Number.isSafeInteger(origenId) || origenId <= 0) {
       return res.status(400).json({ error: "ID de origen inválido" });
     }
     const destinoTipo = destino_tipo ? normalizarTipoContenedor(destino_tipo) : null;
@@ -7502,7 +7444,7 @@ app.post("/api/registro-express", async (req, res) => {
     if (destino_tipo && !destinoTipo) {
       return res.status(400).json({ error: "Tipo de destino inválido" });
     }
-    if (destinoTipo && (!Number.isFinite(destinoId) || destinoId <= 0)) {
+    if (destinoTipo && (!Number.isSafeInteger(destinoId) || destinoId <= 0)) {
       return res.status(400).json({ error: "ID de destino inválido" });
     }
     if (movimientoTipo === "trasiego" && (!destinoTipo || destinoId == null)) {
@@ -7525,6 +7467,19 @@ app.post("/api/registro-express", async (req, res) => {
       const bloqueoDestino = resolverBloqueoPorAnada(destino.anada_creacion, anioActivo);
       if (bloqueoDestino) {
         return res.status(bloqueoDestino.status).json({ error: bloqueoDestino.error });
+      }
+    }
+
+    const disponibles = await obtenerLitrosActuales(origenTipo, origenId, bodegaId, userId);
+    if (disponibles != null && litrosNum > disponibles + 0.0001) {
+      return res.status(400).json({ error: `El contenedor origen solo tiene ${disponibles.toFixed(2)} L disponibles` });
+    }
+    if (destinoTipo && destinoId != null) {
+      const destino = await obtenerContenedor(destinoTipo, destinoId, bodegaId, userId);
+      const capacidad = destinoTipo === "barrica" ? Number(destino.capacidad_l) : Number(destino.capacidad_hl) * 100;
+      const actuales = await obtenerLitrosActuales(destinoTipo, destinoId, bodegaId, userId);
+      if (capacidad > 0 && actuales + litrosNum > capacidad + 0.0001) {
+        return res.status(400).json({ error: `Superas la capacidad del destino (${capacidad} L)` });
       }
     }
 
@@ -7551,7 +7506,6 @@ app.post("/api/registro-express", async (req, res) => {
 
     const fecha = new Date().toISOString();
     let stmt;
-    await db.run("BEGIN");
     try {
       stmt = await db.run(
         `INSERT INTO movimientos_vino
@@ -7571,7 +7525,7 @@ app.post("/api/registro-express", async (req, res) => {
         bodegaId,
         userId
       );
-      await recalcularCantidad(origenTipo, origenId, bodegaId, userId);
+      await recalcularSaldoMovimiento(origenTipo, origenId, bodegaId, userId);
       const mismoContenedor =
         destinoTipo &&
         destinoId != null &&
@@ -7580,67 +7534,59 @@ app.post("/api/registro-express", async (req, res) => {
         destinoTipo === origenTipo &&
         destinoId === origenId;
       if (destinoTipo && destinoId != null && !mismoContenedor) {
-        await recalcularCantidad(destinoTipo, destinoId, bodegaId, userId);
+        await recalcularSaldoMovimiento(destinoTipo, destinoId, bodegaId, userId);
       }
       await ajustarOcupacionContenedor(origenTipo, origenId, bodegaId, userId, partidaId);
       if (destinoTipo && destinoId != null && !mismoContenedor) {
         await ajustarOcupacionContenedor(destinoTipo, destinoId, bodegaId, userId, partidaId);
       }
-      await db.run("COMMIT");
     } catch (err) {
-      await db.run("ROLLBACK");
       throw err;
     }
-    try {
-      await registrarBitacoraMovimiento({
-        userId,
-        bodegaId,
-        origen_tipo: origenTipo,
-        origen_id: origenId,
-        destino_tipo: destinoTipo,
-        destino_id: destinoId,
-        tipo_movimiento: movimientoTipo,
+    await registrarBitacoraMovimiento({
+      userId,
+      bodegaId,
+      origen_tipo: origenTipo,
+      origen_id: origenId,
+      destino_tipo: destinoTipo,
+      destino_id: destinoId,
+      tipo_movimiento: movimientoTipo,
+      litros: litrosNum,
+      perdida_litros: perdidaNum,
+      nota,
+      origin: "express",
+      partida_id: partidaId,
+      created_at: fecha,
+    });
+
+    await insertarEventoTraza({
+      userId,
+      bodegaId,
+      campaniaId,
+      entityType: "CONTAINER",
+      entityId: `${origenTipo}:${origenId}`,
+      eventType: "MOVE",
+      qtyValue: litrosNum,
+      qtyUnit: "L",
+      srcRef: `${origenTipo}:${origenId}`,
+      dstRef: destinoTipo && destinoId != null ? `${destinoTipo}:${destinoId}` : movimientoTipo,
+      note: JSON.stringify({
+        origen: "express",
+        tipo: "movimiento",
+        movimiento_tipo: movimientoTipo,
         litros: litrosNum,
         perdida_litros: perdidaNum,
-        nota,
-        origin: "express",
-        partida_id: partidaId,
-        created_at: fecha,
-      });
-    } catch (err) {
-      console.warn("No se pudo registrar bitácora de movimiento:", err);
-    }
-    try {
-      await insertarEventoTraza({
-        userId,
-        bodegaId,
-        campaniaId,
-        entityType: "CONTAINER",
-        entityId: `${origenTipo}:${origenId}`,
-        eventType: "MOVE",
-        qtyValue: litrosNum,
-        qtyUnit: "L",
-        srcRef: `${origenTipo}:${origenId}`,
-        dstRef: destinoTipo && destinoId != null ? `${destinoTipo}:${destinoId}` : movimientoTipo,
-        note: JSON.stringify({
-          origen: "express",
-          tipo: "movimiento",
-          movimiento_tipo: movimientoTipo,
-          litros: litrosNum,
-          perdida_litros: perdidaNum,
-          nota: nota || "",
-        }),
-        reason: movimientoTipo === "ajuste" ? "AJUSTE_EXPRESS" : null,
-      });
-    } catch (traceErr) {
-      console.warn("No se pudo registrar traza de movimiento express:", traceErr);
-    }
+        nota: nota || "",
+      }),
+      reason: movimientoTipo === "ajuste" ? "AJUSTE_EXPRESS" : null,
+    });
+
     return res.json({ ok: true, id: stmt.lastID });
   } catch (err) {
     console.error("Error en registro express:", err);
-    return res.status(500).json({ error: "No se pudo guardar el registro" });
+    return res.status(err.status || 500).json({ error: err.status ? err.message : "No se pudo guardar el registro" });
   }
-});
+}));
 
 // ===================================================
 //  REGISTRO ANALÍTICO (EXPRESS)
@@ -9864,7 +9810,15 @@ app.get("/api/movimientos", async (req, res) => {
 });
 
 // Crear movimiento nuevo (trasiego, merma, ajuste, embotellado…)
-app.post("/api/movimientos", async (req, res) => {
+async function recalcularSaldoMovimiento(tipo, id, bodegaId, userId) {
+  const cantidad = await recalcularCantidad(tipo, id, bodegaId, userId);
+  if (!Number.isFinite(cantidad) || cantidad < -0.0001) {
+    throw Object.assign(new Error("La operación dejaría un contenedor con saldo negativo"), { status: 409 });
+  }
+  return cantidad;
+}
+
+app.post("/api/movimientos", databaseContext.jsonRoute(async (req, res) => {
   const {
     fecha, // string tipo "2025-11-07T12:00"
     tipo, // 'trasiego', 'merma', 'ajuste', 'embotellado', 'prensado'
@@ -9879,7 +9833,7 @@ app.post("/api/movimientos", async (req, res) => {
 
   const fechaReal = fecha || new Date().toISOString();
   const litrosNum = Number(litros);
-  if (!litrosNum || Number.isNaN(litrosNum) || litrosNum <= 0) {
+  if (!Number.isFinite(litrosNum) || litrosNum <= 0) {
     return res.status(400).json({ error: "Los litros deben ser mayores que 0" });
   }
 
@@ -9887,7 +9841,7 @@ app.post("/api/movimientos", async (req, res) => {
     perdida_litros != null && perdida_litros !== ""
       ? Number(perdida_litros)
       : null;
-  if (perdidaValor != null && (Number.isNaN(perdidaValor) || perdidaValor < 0)) {
+  if (perdidaValor != null && (!Number.isFinite(perdidaValor) || perdidaValor < 0)) {
     return res.status(400).json({ error: "La pérdida debe ser un número válido o dejarse vacía" });
   }
 
@@ -9906,6 +9860,26 @@ app.post("/api/movimientos", async (req, res) => {
   if (esPrensado) {
     origenTipo = null;
     origenId = null;
+  }
+
+  if (typeof tipo !== "string" || !tipo.trim()) {
+    return res.status(400).json({ error: "Tipo de movimiento obligatorio" });
+  }
+  for (const [contenedorTipo, contenedorId, rawId] of [
+    [origenTipo, origenId, esPrensado ? null : origen_id],
+    [destinoTipo, destinoId, destino_id],
+  ]) {
+    const tieneId = rawId !== undefined && rawId !== null && rawId !== "";
+    if ((contenedorTipo && !TIPOS_CONTENEDOR.has(contenedorTipo)) ||
+        (tieneId && (!Number.isSafeInteger(contenedorId) || contenedorId <= 0)) ||
+        Boolean(contenedorTipo) !== tieneId) {
+      return res.status(400).json({ error: "Tipo e identificador de contenedor inválidos" });
+    }
+  }
+  if ((!origenTipo && !destinoTipo) ||
+      (tipo === "trasiego" && (!origenTipo || !destinoTipo)) ||
+      (esPrensado && !destinoTipo)) {
+    return res.status(400).json({ error: "Indica los contenedores del movimiento" });
   }
 
   try {
@@ -9986,7 +9960,6 @@ app.post("/api/movimientos", async (req, res) => {
       }
     }
 
-    await db.run("BEGIN");
     try {
       await db.run(
         `INSERT INTO movimientos_vino
@@ -10009,7 +9982,7 @@ app.post("/api/movimientos", async (req, res) => {
         ]
       );
       if (origenTipo && origenId != null) {
-        await recalcularCantidad(origenTipo, origenId, bodegaId, userId);
+        await recalcularSaldoMovimiento(origenTipo, origenId, bodegaId, userId);
       }
       const mismoContenedor =
         destinoTipo &&
@@ -10019,7 +9992,7 @@ app.post("/api/movimientos", async (req, res) => {
         destinoTipo === origenTipo &&
         destinoId === origenId;
       if (destinoTipo && destinoId != null && !mismoContenedor) {
-        await recalcularCantidad(destinoTipo, destinoId, bodegaId, userId);
+        await recalcularSaldoMovimiento(destinoTipo, destinoId, bodegaId, userId);
       }
       if (origenTipo && origenId != null) {
         await ajustarOcupacionContenedor(origenTipo, origenId, bodegaId, userId, partidaId);
@@ -10027,68 +10000,88 @@ app.post("/api/movimientos", async (req, res) => {
       if (destinoTipo && destinoId != null && !mismoContenedor) {
         await ajustarOcupacionContenedor(destinoTipo, destinoId, bodegaId, userId, partidaId);
       }
-      await db.run("COMMIT");
     } catch (err) {
-      await db.run("ROLLBACK");
       throw err;
     }
-    try {
-      const origenRaw = (req.body?.origin || req.body?.origen || req.body?.fuente || "")
-        .toString()
-        .trim()
-        .toLowerCase();
-      let origenBitacora = "";
-      if (origenRaw === "control") {
-        origenBitacora = "mapa_nodos";
-      } else if (BITACORA_ORIGINS.has(origenRaw)) {
-        origenBitacora = origenRaw;
-      }
-      if (!origenBitacora) {
-        const tipoBase = origenTipo || destinoTipo;
-        origenBitacora = tipoBase === "barrica" ? "maderas" : "depositos";
-      }
-      await registrarBitacoraMovimiento({
-        userId,
-        bodegaId,
-        origen_tipo: origenTipo,
-        origen_id: origenId,
-        destino_tipo: destinoTipo,
-        destino_id: destinoId,
-        tipo_movimiento: tipo,
-        litros: litrosNum,
-        perdida_litros: perdidaValor,
-        nota,
-        origin: origenBitacora,
-        partida_id: partidaId,
-        created_at: fechaReal,
-      });
-    } catch (err) {
-      console.warn("No se pudo registrar bitácora de movimiento:", err);
+    const origenRaw = (req.body?.origin || req.body?.origen || req.body?.fuente || "")
+      .toString()
+      .trim()
+      .toLowerCase();
+    let origenBitacora = "";
+    if (origenRaw === "control") {
+      origenBitacora = "mapa_nodos";
+    } else if (BITACORA_ORIGINS.has(origenRaw)) {
+      origenBitacora = origenRaw;
     }
+    if (!origenBitacora) {
+      const tipoBase = origenTipo || destinoTipo;
+      origenBitacora = tipoBase === "barrica" ? "maderas" : "depositos";
+    }
+    await registrarBitacoraMovimiento({
+      userId,
+      bodegaId,
+      origen_tipo: origenTipo,
+      origen_id: origenId,
+      destino_tipo: destinoTipo,
+      destino_id: destinoId,
+      tipo_movimiento: tipo,
+      litros: litrosNum,
+      perdida_litros: perdidaValor,
+      nota,
+      origin: origenBitacora,
+      partida_id: partidaId,
+      created_at: fechaReal,
+    });
 
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al crear movimiento:", err);
-    res.status(500).json({ error: "Error al crear movimiento" });
+    res.status(err.status || 500).json({ error: err.status ? err.message : "Error al crear movimiento" });
   }
-});
+}));
 
-app.delete("/api/movimientos", async (req, res) => {
+app.delete("/api/movimientos", databaseContext.jsonRoute(async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
+    const vinculado = await db.get(
+      "SELECT e.id FROM embotellados e JOIN movimientos_vino m ON m.id=e.movimiento_id WHERE m.bodega_id=? AND m.user_id=? AND m.campania_id=? LIMIT 1",
+      bodegaId, userId, req.campaniaId
+    );
+    if (vinculado) return res.status(409).json({ error: "Anula primero el embotellado asociado desde su apartado" });
+    const movimientos = await db.all(
+      "SELECT origen_tipo, origen_id, destino_tipo, destino_id, partida_id FROM movimientos_vino WHERE bodega_id = ? AND user_id = ? AND campania_id = ?",
+      bodegaId, userId, req.campaniaId
+    );
+    const afectados = new Map();
+    for (const movimiento of movimientos) {
+      for (const prefijo of ["origen", "destino"]) {
+        const tipo = movimiento[`${prefijo}_tipo`];
+        const id = movimiento[`${prefijo}_id`];
+        if (tipo && id != null) afectados.set(`${tipo}:${id}`, { tipo, id, partidaId: movimiento.partida_id });
+      }
+    }
     await db.run("DELETE FROM movimientos_vino WHERE bodega_id = ? AND user_id = ? AND campania_id = ?", bodegaId, userId, req.campaniaId);
+    for (const { tipo, id, partidaId } of afectados.values()) {
+      await recalcularSaldoMovimiento(tipo, id, bodegaId, userId);
+      await ajustarOcupacionContenedor(tipo, id, bodegaId, userId, partidaId);
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al limpiar movimientos:", err);
-    res.status(500).json({ error: "Error al limpiar movimientos" });
+    res.status(err.status || 500).json({ error: err.status ? err.message : "Error al limpiar movimientos" });
   }
-});
+}));
 
-app.delete("/api/movimientos/:id", async (req, res) => {
+app.delete("/api/movimientos/:id", databaseContext.jsonRoute(async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
+    const vinculado = await db.get(
+      "SELECT id FROM embotellados WHERE movimiento_id=? AND bodega_id=? AND user_id=? AND campania_id=? LIMIT 1",
+      req.params.id, bodegaId, userId, req.campaniaId
+    );
+    if (vinculado) return res.status(409).json({ error: "Anula el embotellado asociado desde su apartado" });
     const movimiento = await db.get(
       `SELECT origen_tipo, origen_id, destino_tipo, destino_id, partida_id
        FROM movimientos_vino
@@ -10098,7 +10091,6 @@ app.delete("/api/movimientos/:id", async (req, res) => {
       userId,
       req.campaniaId
     );
-    await db.run("BEGIN");
     try {
       await db.run(
         "DELETE FROM movimientos_vino WHERE id = ? AND bodega_id = ? AND user_id = ? AND campania_id = ?",
@@ -10108,7 +10100,7 @@ app.delete("/api/movimientos/:id", async (req, res) => {
         req.campaniaId
       );
       if (movimiento?.origen_tipo && movimiento?.origen_id != null) {
-        await recalcularCantidad(movimiento.origen_tipo, movimiento.origen_id, bodegaId, userId);
+        await recalcularSaldoMovimiento(movimiento.origen_tipo, movimiento.origen_id, bodegaId, userId);
       }
       const mismoContenedor =
         movimiento?.destino_tipo &&
@@ -10118,7 +10110,7 @@ app.delete("/api/movimientos/:id", async (req, res) => {
         movimiento.destino_tipo === movimiento.origen_tipo &&
         movimiento.destino_id === movimiento.origen_id;
       if (movimiento?.destino_tipo && movimiento?.destino_id != null && !mismoContenedor) {
-        await recalcularCantidad(movimiento.destino_tipo, movimiento.destino_id, bodegaId, userId);
+        await recalcularSaldoMovimiento(movimiento.destino_tipo, movimiento.destino_id, bodegaId, userId);
       }
       if (movimiento?.origen_tipo && movimiento?.origen_id != null) {
         await ajustarOcupacionContenedor(
@@ -10138,17 +10130,15 @@ app.delete("/api/movimientos/:id", async (req, res) => {
           movimiento.partida_id
         );
       }
-      await db.run("COMMIT");
     } catch (err) {
-      await db.run("ROLLBACK");
       throw err;
     }
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al borrar movimiento:", err);
-    res.status(500).json({ error: "Error al borrar movimiento" });
+    res.status(err.status || 500).json({ error: err.status ? err.message : "Error al borrar movimiento" });
   }
-});
+}));
 
 app.get("/api/export/movimientos", async (req, res) => {
   try {
@@ -10642,22 +10632,16 @@ async function ensureAdminUser() {
     [ADMIN_USER]
   );
 
-  const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-
   if (existing) {
     const bodegaId = await ensureBodegaParaUsuario(existing.id, ADMIN_BODEGA_NOMBRE);
     await db.run("UPDATE usuarios SET bodega_id = ? WHERE id = ?", bodegaId, existing.id);
-    let match = false;
-    try {
-      match = await bcrypt.compare(ADMIN_PASSWORD, existing.password_hash);
-    } catch (err) {
-      match = false;
-    }
-    if (!match) {
-      await db.run("UPDATE usuarios SET password_hash = ? WHERE id = ?", hash, existing.id);
-    }
     return;
   }
+
+  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) {
+    throw new Error("Configura ADMIN_PASSWORD con al menos 8 caracteres para crear el primer administrador.");
+  }
+  const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
   const resultadoUsuario = await db.run(
     "INSERT INTO usuarios (usuario, password_hash) VALUES (?, ?)",
@@ -10847,6 +10831,7 @@ runCliIfNeeded()
     if (!handled) {
       startServer().catch((err) => {
         console.error("Error al iniciar el servidor:", err);
+        process.exit(1);
       });
     }
   })
@@ -10854,6 +10839,3 @@ runCliIfNeeded()
     console.error("Error en CLI:", err);
     process.exit(1);
   });
-
-
-

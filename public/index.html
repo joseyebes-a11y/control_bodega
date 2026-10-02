@@ -6885,6 +6885,11 @@ label {
         </section>
         <!-- SECCIÓN FLUJO -->
         <section id="flujo" class="card" style="display:none;">
+            <div role="status" aria-live="polite" style="margin-bottom:12px;">
+                <span id="flowSaveStatus">Comprobando el mapa guardado…</span>
+                <button type="button" class="btnSecundario" onclick="descargarCopiaLocalFlujo()">Descargar copia del mapa</button>
+                <button type="button" class="btnSecundario" id="flowUseServerBtn" onclick="usarVersionServidorFlujo()" hidden>Cargar versión del servidor</button>
+            </div>
 	            <h1><span class="h1-emoji">🗺</span>Mapa de nodos de vinificación</h1>
 	            <p>Diseña visualmente el recorrido de cada partida: arrastra nodos, conéctalos y edita la información con doble clic.</p>
 		            <div class="flow-toolbar">
@@ -7986,6 +7991,7 @@ label {
 
     </div> <!-- fin .content -->
 
+  <script src="/js/flowPersistence.js"></script>
   <script>
 // ---- Mostrar secciones del menú lateral ---
 function mostrarSeccion(id) {
@@ -9397,6 +9403,18 @@ let flowWarningsDebug = false;
 let flowMovementEditingId = null;
 let flowTimelineSyncInit = false;
 let flowTimelineRefreshTimer = null;
+const flowPersistence = new window.FlowPersistence({
+  fetch: (...args) => window.fetch(...args),
+  storage: localStorage,
+  onError: message => mostrarAviso(message, "error"),
+  onState: () => actualizarEstadoGuardadoFlujo(),
+});
+let flowEditorLoadPromise = null;
+window.addEventListener("beforeunload", event => {
+  if (!flowPersistence.dirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 // =========================
 // FLOW_CORE (único bloque)
@@ -10719,17 +10737,11 @@ async function restaurarSnapshotPorId(backupId, fechaTxt = "") {
   const ok = confirm(`Vas a restaurar el snapshot de: ${fechaTxt || backupId}. ¿Continuar?`);
   if (!ok) return;
   try {
-    const res = await fetch("/api/flujo/restore", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(backupId ? { backup_id: backupId } : {}),
-    });
-    if (!res.ok) {
-      mostrarAviso("No se pudo restaurar el snapshot.", "error");
-      return;
+    if (temporizadorGuardadoFlujo) {
+      clearTimeout(temporizadorGuardadoFlujo);
+      temporizadorGuardadoFlujo = null;
     }
-    const data = await res.json();
-    const raw = data.flow ?? data.nodos ?? data;
+    const raw = await flowPersistence.restore(backupId);
     const normalizado = migrarSnapshotLegacy(raw);
     flujoNodos = normalizado.nodes;
     flowMovements = normalizado.movements;
@@ -12590,8 +12602,8 @@ function getNodosPorId() {
   const enMemoria = Array.isArray(flujoNodos) ? flujoNodos : [];
   let nodos = enMemoria;
   if (!nodos.length) {
-    const guardado = JSON.parse(localStorage.getItem("flowNodes") || "null");
-    const normalizado = migrarSnapshotLegacy(guardado);
+    const guardado = JSON.parse((flowPersistence.key ? localStorage.getItem(flowPersistence.key) : null) || "null");
+    const normalizado = migrarSnapshotLegacy(guardado?.flow);
     nodos = normalizado.nodes;
   }
   return Object.fromEntries(nodos.map(n => [n.id, n]));
@@ -20322,19 +20334,38 @@ function eliminarNodoActivo() {
   eliminarNodoPorId(nodoEnEdicion.id);
 }
 
-function guardarEstadoNodos() {
+function actualizarEstadoGuardadoFlujo() {
+  const status = document.getElementById("flowSaveStatus");
+  if (status) status.textContent = flowPersistence.blocked
+    ? "Guardado bloqueado. Revisa la conexión o los cambios pendientes."
+    : flowPersistence.dirty ? "Cambios pendientes de guardar en el servidor." : "Mapa guardado en el servidor.";
+  const button = document.getElementById("flowUseServerBtn");
+  if (button) button.hidden = !flowPersistence.blocked || !flowPersistence.scope;
+}
+
+function descargarCopiaLocalFlujo() {
+  const data = { scope: flowPersistence.scope, baseRevision: flowPersistence.revision, flow: sanitizarFlowParaGuardar() };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `mapa-${flowPersistence.scope?.campaniaId || "pendiente"}-${Date.now()}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function usarVersionServidorFlujo() {
+  if (!confirm("¿Cargar la versión del servidor? Tu copia local actual quedará archivada en este navegador. Puedes descargarla antes de continuar.")) return;
   try {
-    const flow = sanitizarFlowParaGuardar();
-    localStorage.setItem("flowNodes", JSON.stringify(flow));
-    if (flowDebugActivo()) {
-      console.debug("[flow][persist]", { destino: "localStorage", nodos: flow.nodes.length });
-    }
+    await flowPersistence.useServerVersion();
+    location.reload();
   } catch (err) {
-    console.warn("No se pudo guardar nodos en localStorage:", err);
+    mostrarAviso(err.message || "No se pudo cargar la versión del servidor.", "error");
   }
-  if (temporizadorGuardadoFlujo) {
-    clearTimeout(temporizadorGuardadoFlujo);
-  }
+}
+
+function guardarEstadoNodos() {
+  flowPersistence.stage(sanitizarFlowParaGuardar(), flowAllowShrinkOnce);
+  if (temporizadorGuardadoFlujo) clearTimeout(temporizadorGuardadoFlujo);
   temporizadorGuardadoFlujo = setTimeout(() => {
     temporizadorGuardadoFlujo = null;
     guardarFlujoEnServidor();
@@ -20342,87 +20373,32 @@ function guardarEstadoNodos() {
 }
 
 async function cargarNodosGuardados() {
-  try {
-    const res = await fetch("/api/flujo");
-    if (res.ok) {
-      const data = await res.json();
-      const raw = data.flow ?? data.nodos ?? data;
+  if (flowEditorLoadPromise) return flowEditorLoadPromise;
+  flowEditorLoadPromise = (async () => {
+    try {
+      const raw = await flowPersistence.load();
       const normalizado = migrarSnapshotLegacy(raw);
-        if (Array.isArray(normalizado.nodes)) {
-        flujoNodos = normalizado.nodes;
-        flowExpandedIds = new Set();
-        flowMovements = normalizado.movements;
-        flowEdges = normalizado.edges || [];
-        flowCompositions = normalizado.compositions || [];
-        flowSchemaVersion = normalizado.schemaVersion;
-        hidratarNodosContenedor(flujoNodos);
-        flowCompositionsDirty = true;
-        const migrado = flowCoreMigrated;
-        flowCoreMigrated = false;
-        flowBalancesDirty = true;
-        normalizarFlujoNodos();
-        recalcularBalancesFlow();
-        if (flowDebugActivo()) {
-          console.log(
-            "[flow][load]",
-            {
-              schemaVersion: flowSchemaVersion,
-              nodes: flujoNodos.length,
-              edges: flowEdges.length,
-              movements: flowMovements.length,
-              warnings: flowWarnings.length,
-            }
-          );
-        }
-        if (migrado) {
-          guardarEstadoNodos();
-        }
-        return;
-      }
-    }
-  } catch (err) {
-    console.warn("No se pudo cargar flujo del servidor:", err);
-    if (!avisoServidorFlujoMostrado) {
-      avisoServidorFlujoMostrado = true;
-      mostrarAviso("Servidor no disponible. Se usa la copia local del mapa.", "info");
-    }
-  }
-  try {
-    const guardados = JSON.parse(localStorage.getItem("flowNodes"));
-    const normalizado = migrarSnapshotLegacy(guardados);
-    if (Array.isArray(normalizado.nodes)) {
-        flujoNodos = normalizado.nodes;
-        flowExpandedIds = new Set();
-        flowMovements = normalizado.movements;
-        flowEdges = normalizado.edges || [];
-        flowCompositions = normalizado.compositions || [];
-        flowSchemaVersion = normalizado.schemaVersion;
-        hidratarNodosContenedor(flujoNodos);
+      flujoNodos = normalizado.nodes;
+      flowExpandedIds = new Set();
+      flowMovements = normalizado.movements || [];
+      flowEdges = normalizado.edges || [];
+      flowCompositions = normalizado.compositions || [];
+      flowSchemaVersion = normalizado.schemaVersion;
+      hidratarNodosContenedor(flujoNodos);
       flowCompositionsDirty = true;
       const migrado = flowCoreMigrated;
       flowCoreMigrated = false;
       flowBalancesDirty = true;
       normalizarFlujoNodos();
       recalcularBalancesFlow();
-      if (flowDebugActivo()) {
-        console.log(
-          "[flow][load]",
-          {
-            schemaVersion: flowSchemaVersion,
-            nodes: flujoNodos.length,
-            edges: flowEdges.length,
-            movements: flowMovements.length,
-            warnings: flowWarnings.length,
-            }
-          );
-      }
-      if (migrado) {
-        guardarEstadoNodos();
-      }
+      if (migrado && !flowPersistence.blocked) guardarEstadoNodos();
+      else if (flowPersistence.pending) guardarFlujoEnServidor();
+    } catch (err) {
+      console.error("No se pudo cargar el mapa:", err);
+      mostrarAviso("No se pudo verificar el mapa de esta añada. Recarga con conexión antes de editar.", "error");
     }
-  } catch (err) {
-    flujoNodos = [];
-  }
+  })();
+  return flowEditorLoadPromise;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -20436,40 +20412,10 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function guardarFlujoEnServidor() {
-  try {
-    const flow = sanitizarFlowParaGuardar();
-    const res = await fetch("/api/flujo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...flow, force: flowAllowShrinkOnce }),
-    });
-    if (res.status === 409) {
-      let msg = "Guardado bloqueado: el mapa se ha reducido. Confirma la eliminación.";
-      try {
-        const data = await res.json();
-        if (data?.previo != null && data?.nuevo != null) {
-          msg = `Guardado bloqueado: mapa reducido (${data.nuevo}/${data.previo}).`;
-        }
-      } catch (e) {
-        // noop
-      }
-      mostrarAviso(msg, "error");
-      return;
-    }
-    if (flowDebugActivo()) {
-      console.debug("[flow][persist]", {
-        destino: "servidor",
-        ok: res.ok,
-        status: res.status,
-        nodos: flow.nodes.length,
-      });
-    }
-    if (res.ok) {
-      flowAllowShrinkOnce = false;
-    }
-  } catch (err) {
-    console.warn("No se pudo sincronizar el flujo con el servidor:", err);
-  }
+  if (!flowPersistence.pending && !flowPersistence.dirty) return true;
+  const ok = await flowPersistence.flush();
+  if (ok) flowAllowShrinkOnce = false;
+  return ok;
 }
 
 function limpiarNodosFlujo() {
@@ -21055,6 +21001,13 @@ async function cargarTopbarFechaYAnada() {
       const anio = Number(valor);
       if (!Number.isFinite(anio)) return;
       sel.disabled = true;
+      if (!(await guardarFlujoEnServidor())) {
+        sel.value = prevValue;
+        sel.disabled = false;
+        ajustarAnchoSelectAnada(sel);
+        setTopbarAnadaMsg("Hay cambios del mapa pendientes de guardar.", "error");
+        return;
+      }
       setTopbarAnadaMsg("Actualizando añada...");
       ajustarAnchoSelectAnada(sel);
       try {
@@ -23802,14 +23755,17 @@ function renderResumenParcelas() {
             if (!confirm("¿Seguro que quieres borrar esta entrada de uva?")) return;
             try {
                 const res = await fetch(`/api/entradas-uva/${id}`, { method: "DELETE" });
-                if (!res.ok) throw new Error();
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data?.error || "No se pudo borrar la entrada.");
+                }
                 if (entradaEditandoId === id) {
                     cancelarEdicionEntrada();
                 }
                 await Promise.all([cargarEntradas(), cargarResumen(), cargarDepositos(), cargarBarricas(), cargarMovimientos()]);
             } catch (err) {
                 console.error("Error borrando entrada:", err);
-                alert("No se pudo borrar la entrada.");
+                alert(err?.message || "No se pudo borrar la entrada.");
             }
         }
 // ---------- Depósitos (con edición de volumen, contenido y fecha) ----------
