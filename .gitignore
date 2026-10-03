@@ -8,3 +8,5 @@ uploads/
 *.db-shm
 *.sqlite
 *.sqlite.pending
+dist-desktop/
+*.exe

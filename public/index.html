@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bodega serie -INDÓMITO-</title>
+    <title>MicroCellerStudio</title>
 
     <style>
         :root {
@@ -6231,8 +6231,8 @@ label {
 	    <style id="modernUiTheme"></style>
     <!-- Librerías para exportar PDF de la tabla de control -->
     <!-- Integridad eliminada por fallo SRI; pendiente fijar hash correcto o self-host -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js" referrerpolicy="no-referrer"></script>
+    <script src="/vendor/jspdf.umd.min.js" referrerpolicy="no-referrer"></script>
+    <script src="/vendor/jspdf.plugin.autotable.min.js" referrerpolicy="no-referrer"></script>
 </head>
 <script type="module" src="/js/app.js"></script>
 
@@ -7991,6 +7991,8 @@ label {
 
     </div> <!-- fin .content -->
 
+  <link rel="stylesheet" href="/css/form-save-guard.css">
+  <script src="/js/form-save-guard.js"></script>
   <script src="/js/flowPersistence.js"></script>
   <script>
 // ---- Mostrar secciones del menú lateral ---
@@ -16796,7 +16798,7 @@ function exportarNodosComoImagen() {
 
   // Cargar html2canvas al vuelo si no está disponible
   const script = document.createElement("script");
-  script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+  script.src = "/vendor/html2canvas.min.js";
   script.onload = () => hacerCaptura();
   script.onerror = () => mostrarAviso("No se pudo exportar la imagen. Intenta con otra captura.", "error");
   document.body.appendChild(script);
@@ -18176,8 +18178,8 @@ async function asegurarJsPDF() {
       script.onerror = resolve;
       document.head.appendChild(script);
     });
-  await cargar("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-  await cargar("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js");
+  await cargar("/vendor/jspdf.umd.min.js");
+  await cargar("/vendor/jspdf.plugin.autotable.min.js");
   return window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : null;
 }
 
@@ -20338,7 +20340,7 @@ function actualizarEstadoGuardadoFlujo() {
   const status = document.getElementById("flowSaveStatus");
   if (status) status.textContent = flowPersistence.blocked
     ? "Guardado bloqueado. Revisa la conexión o los cambios pendientes."
-    : flowPersistence.dirty ? "Cambios pendientes de guardar en el servidor." : "Mapa guardado en el servidor.";
+    : flowPersistence.dirty ? "Cambios pendientes de guardar." : "Mapa guardado.";
   const button = document.getElementById("flowUseServerBtn");
   if (button) button.hidden = !flowPersistence.blocked || !flowPersistence.scope;
 }
@@ -21307,13 +21309,28 @@ function poblarSelectContenedorCrianza(select, tipoPreferido = "", valorId = "")
   }
 }
 
-async function manejarRespuesta(res, mensajeError) {
-  if (res.ok) return true;
+async function manejarRespuesta(res, mensajeError, guard = null) {
+  if (res.ok && !res.redirected) {
+    if (res.status === 204) return true;
+    try {
+      if (!(res.headers.get("content-type") || "").includes("application/json")) throw new Error("Respuesta inesperada");
+      const result = await res.clone().json();
+      if (result?.ok === false || result?.error) throw new Error(result.error || "Guardado rechazado");
+      return true;
+    } catch (_error) {
+      const mensaje = "No se pudo confirmar el guardado. Comprueba el historial antes de repetirlo.";
+      guard?.reject(mensaje);
+      mostrarAviso(mensaje, "error");
+      return false;
+    }
+  }
   let info = null;
   try {
     info = await res.json();
   } catch (e) {}
-  mostrarAviso((info && info.error) || mensajeError, "error");
+  const mensaje = res.redirected ? "La sesión ha terminado. Vuelve a entrar antes de guardar." : (info && info.error) || mensajeError;
+  guard?.reject(mensaje);
+  mostrarAviso(mensaje, "error");
   return false;
 }
 
@@ -23522,7 +23539,11 @@ function renderResumenParcelas() {
             actualizarResumenAdministracion();
         }
 
-        async function crearEntradaUva(ev) {
+        function crearEntradaUva(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formEntradaUva"), guard => crearEntradaUvaSinBloqueo(ev, guard));
+}
+async function crearEntradaUvaSinBloqueo(ev, guard) {
             ev.preventDefault();
             setFormFeedback("feedbackEntradaUva", "");
             const fecha = document.getElementById("entradaFecha").value;
@@ -23672,6 +23693,9 @@ function renderResumenParcelas() {
                     throw new Error(mensaje);
                 }
 
+                if (!await manejarRespuesta(res, mensajePorDefecto, guard)) return;
+                const mensajeGuardado = entradaEditandoId ? "Entrada actualizada." : "Entrada registrada.";
+                guard.confirm(mensajeGuardado);
                 cancelarEdicionEntrada();
                 await Promise.all([
                     cargarEntradas(),
@@ -23680,9 +23704,10 @@ function renderResumenParcelas() {
                     cargarBarricas(),
                     cargarMovimientos(),
                 ]);
-                setFormFeedback("feedbackEntradaUva", "Entrada registrada correctamente.", "success");
-                mostrarAviso("Entrada registrada en la bodega.", "success");
+                setFormFeedback("feedbackEntradaUva", mensajeGuardado, "success");
+                mostrarAviso(mensajeGuardado, "success");
             } catch (err) {
+                guard.fail(err);
                 console.error("Error creando entrada:", err);
                 const mensaje = err?.message || "Error al registrar la entrada de uva.";
                 setFormFeedback("feedbackEntradaUva", mensaje, "error");
@@ -23691,6 +23716,10 @@ function renderResumenParcelas() {
         }
 
         async function editarEntradaUva(id) {
+            if (MicroCellerFormSave.isBusy(document.getElementById("formEntradaUva"))) {
+                mostrarAviso("Espera a que termine el guardado de la entrada actual.", "info");
+                return;
+            }
             const entrada = cacheEntradas.find(e => e.id === id);
             if (!entrada) {
                 mostrarAviso("No encuentro esa entrada.", "error");
@@ -24025,7 +24054,11 @@ async function usarContenedorExistenteEnUI(tipo, existing) {
   }
 }
 
-async function crearDeposito(ev) {
+function crearDeposito(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formDeposito"), guard => crearDepositoSinBloqueo(ev, guard));
+}
+async function crearDepositoSinBloqueo(ev, guard) {
   ev.preventDefault();
   setFormFeedback("feedbackDepositos", "");
 
@@ -24090,8 +24123,9 @@ async function crearDeposito(ev) {
         return;
       }
     }
-    const ok = await manejarRespuesta(res, "Error creando depósito");
+    const ok = await manejarRespuesta(res, "Error creando depósito", guard);
     if (!ok) return;
+                guard.confirm("Contenedor guardado.");
 
     // Limpia el formulario
     document.getElementById("formDeposito").reset();
@@ -24100,6 +24134,7 @@ async function crearDeposito(ev) {
     setFormFeedback("feedbackDepositos", "Contenedor creado correctamente.", "success");
     mostrarAviso("Nuevo contenedor registrado.", "success");
   } catch (err) {
+                guard.fail(err);
     console.error("Error creando depósito:", err);
     setFormFeedback("feedbackDepositos", "Error creando depósito.", "error");
     mostrarAviso("No se pudo crear el contenedor.", "error");
@@ -24602,7 +24637,11 @@ function cerrarModalCata() {
   setFormFeedback("feedbackCata", "");
 }
 
-async function guardarCata(ev) {
+function guardarCata(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formCata"), guard => guardarCataSinBloqueo(ev, guard));
+}
+async function guardarCataSinBloqueo(ev, guard) {
   ev.preventDefault();
   setFormFeedback("feedbackCata", "");
   const contenedor_tipo = document.getElementById("cataTipo").value;
@@ -24638,12 +24677,14 @@ async function guardarCata(ev) {
         nota,
       }),
     });
-    const ok = await manejarRespuesta(res, "No se pudo guardar la cata.");
+    const ok = await manejarRespuesta(res, "No se pudo guardar la cata.", guard);
     if (!ok) return;
+                guard.confirm("Cata guardada.");
     cerrarModalCata();
     await cargarCatas();
     mostrarAviso("Cata registrada.", "success");
   } catch (err) {
+                guard.fail(err);
     console.error("Error guardando cata:", err);
     setFormFeedback("feedbackCata", "Error al guardar la cata.", "error");
   }
@@ -25512,7 +25553,11 @@ async function construirHistorialLocal(tipo, id) {
             }
         }
 
-        async function crearBarrica(ev) {
+        function crearBarrica(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formBarrica"), guard => crearBarricaSinBloqueo(ev, guard));
+}
+async function crearBarricaSinBloqueo(ev, guard) {
             ev.preventDefault();
             const codigo = document.getElementById("barCodigo").value;
             const capacidad_l = parseFloat(document.getElementById("barCapacidad").value || "0");
@@ -25550,13 +25595,15 @@ async function construirHistorialLocal(tipo, id) {
                         return;
                     }
                 }
-                const ok = await manejarRespuesta(res, "Error al crear la barrica.");
+                const ok = await manejarRespuesta(res, "Error al crear la barrica.", guard);
                 if (!ok) return;
+                guard.confirm("Barrica guardada.");
 
                 document.getElementById("formBarrica").reset();
                 cargarBarricas();
                 cargarResumen();
             } catch (err) {
+                guard.fail(err);
                 console.error("Error creando barrica:", err);
             }
         }
@@ -25598,7 +25645,11 @@ async function construirHistorialLocal(tipo, id) {
             }
         }
 
-        async function crearProductoLimpieza(ev) {
+        function crearProductoLimpieza(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formLimpieza"), guard => crearProductoLimpiezaSinBloqueo(ev, guard));
+}
+async function crearProductoLimpiezaSinBloqueo(ev, guard) {
             ev.preventDefault();
             const nombre = document.getElementById("limNombre").value.trim();
             const lote = document.getElementById("limLote").value.trim();
@@ -25617,11 +25668,13 @@ async function construirHistorialLocal(tipo, id) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ nombre, lote, cantidad, unidad, nota }),
                 });
-                const ok = await manejarRespuesta(res, "Error al registrar el producto.");
+                const ok = await manejarRespuesta(res, "Error al registrar el producto.", guard);
                 if (!ok) return;
+                guard.confirm("Producto de limpieza guardado.");
                 document.getElementById("formLimpieza").reset();
                 cargarLimpieza();
             } catch (err) {
+                guard.fail(err);
                 console.error("Error creando producto de limpieza:", err);
             }
         }
@@ -25735,7 +25788,11 @@ async function construirHistorialLocal(tipo, id) {
             modal.classList.add("visible");
         }
 
-        async function guardarUsoProducto(ev) {
+        function guardarUsoProducto(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formUsoProducto"), guard => guardarUsoProductoSinBloqueo(ev, guard));
+}
+async function guardarUsoProductoSinBloqueo(ev, guard) {
             ev.preventDefault();
             if (!usoProductoContexto) return;
             const meta = obtenerMetaUsoProducto(usoProductoContexto.tipo);
@@ -25775,12 +25832,14 @@ async function construirHistorialLocal(tipo, id) {
                         nota,
                     }),
                 });
-                const ok = await manejarRespuesta(res, "Error al registrar el consumo.");
+                const ok = await manejarRespuesta(res, "Error al registrar el consumo.", guard);
                 if (!ok) return;
+                guard.confirm("Consumo guardado.");
                 cerrarModalUsoProducto();
                 await meta.refrescar();
                 mostrarAviso("Consumo registrado.", "success");
             } catch (err) {
+                guard.fail(err);
                 console.error("Error registrando consumo:", err);
                 setFormFeedback("feedbackUsoProducto", "No se pudo registrar el consumo.", "error");
             }
@@ -25826,7 +25885,11 @@ async function construirHistorialLocal(tipo, id) {
             }
         }
 
-        async function crearProductoEnologico(ev) {
+        function crearProductoEnologico(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formEnologicos"), guard => crearProductoEnologicoSinBloqueo(ev, guard));
+}
+async function crearProductoEnologicoSinBloqueo(ev, guard) {
             ev.preventDefault();
             const nombre = document.getElementById("enoNombre").value.trim();
             const lote = document.getElementById("enoLote").value.trim();
@@ -25845,11 +25908,13 @@ async function construirHistorialLocal(tipo, id) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ nombre, lote, cantidad, unidad, nota }),
                 });
-                const ok = await manejarRespuesta(res, "Error al registrar el producto.");
+                const ok = await manejarRespuesta(res, "Error al registrar el producto.", guard);
                 if (!ok) return;
+                guard.confirm("Producto enológico guardado.");
                 document.getElementById("formEnologicos").reset();
                 cargarEnologicos();
             } catch (err) {
+                guard.fail(err);
                 console.error("Error creando producto enológico:", err);
             }
         }
@@ -25906,7 +25971,11 @@ async function registrarUsoEnologico(id) {
             }
         }
 
-        async function crearMovimiento(ev) {
+        function crearMovimiento(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formMovimiento"), guard => crearMovimientoSinBloqueo(ev, guard));
+}
+async function crearMovimientoSinBloqueo(ev, guard) {
             ev.preventDefault();
             let fecha = document.getElementById("movFecha").value;
             if (!fecha) {
@@ -26021,8 +26090,9 @@ async function registrarUsoEnologico(id) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(body),
                 });
-                const ok = await manejarRespuesta(res, "Error al guardar el movimiento.");
+                const ok = await manejarRespuesta(res, "Error al guardar el movimiento.", guard);
                 if (!ok) return;
+                guard.confirm("Movimiento guardado.");
 
                 document.getElementById("formMovimiento").reset();
                 actualizarCamposMovimiento();
@@ -26035,6 +26105,7 @@ async function registrarUsoEnologico(id) {
                 setFormFeedback("feedbackMovimientos", "Movimiento registrado.", "success");
                 mostrarAviso("Movimiento registrado.", "success");
             } catch (err) {
+                guard.fail(err);
                 console.error("Error creando movimiento:", err);
                 setFormFeedback("feedbackMovimientos", "No se pudo crear el movimiento.", "error");
                 mostrarAviso("Error al crear el movimiento.", "error");
@@ -27514,7 +27585,11 @@ async function registrarUsoEnologico(id) {
 	            }
 	        }
 
-        async function crearEmbotellado(ev) {
+        function crearEmbotellado(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formEmbotellado"), guard => crearEmbotelladoSinBloqueo(ev, guard));
+}
+async function crearEmbotelladoSinBloqueo(ev, guard) {
             ev.preventDefault();
             const fecha = document.getElementById("embFecha").value;
             const contenedor_tipo = document.getElementById("embTipo").value;
@@ -27583,8 +27658,9 @@ async function registrarUsoEnologico(id) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(body),
                 });
-                const ok = await manejarRespuesta(res, "Error al registrar el embotellado.");
+                const ok = await manejarRespuesta(res, "Error al registrar el embotellado.", guard);
                 if (!ok) return;
+                guard.confirm("Embotellado guardado.");
                 document.getElementById("formEmbotellado").reset();
                 limpiarFormatosEmbotelladoFormulario();
                 await Promise.all([
@@ -27596,12 +27672,17 @@ async function registrarUsoEnologico(id) {
                     cargarAlmacenVino(),
                 ]);
             } catch (err) {
+                guard.fail(err);
                 console.error("Error creando embotellado:", err);
             }
         }
 
         // ---------- Registros analíticos ----------
-        async function crearRegistroAnalitico(ev) {
+        function crearRegistroAnalitico(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formAnalitico"), guard => crearRegistroAnaliticoSinBloqueo(ev, guard));
+}
+async function crearRegistroAnaliticoSinBloqueo(ev, guard) {
             ev.preventDefault();
             const contenedor_tipo = document.getElementById("regTipo").value;
             const contenedorValor = document.getElementById("regId").value.trim();
@@ -27637,7 +27718,9 @@ async function registrarUsoEnologico(id) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(body),
                 });
-                if (!res.ok) throw new Error();
+                const ok = await manejarRespuesta(res, "No se pudo guardar el registro analítico.", guard);
+                if (!ok) return;
+                guard.confirm("Registro analítico guardado.");
 
                 document.getElementById("formAnalitico").reset();
                 cargarResumen();
@@ -27646,6 +27729,7 @@ async function registrarUsoEnologico(id) {
                 programarActualizacionCopiloto(true);
                 alert("Registro analítico guardado.");
             } catch (err) {
+                guard.fail(err);
                 console.error("Error guardando registro analítico:", err);
                 alert("Error al guardar el registro analítico.");
             }
@@ -27721,7 +27805,11 @@ async function registrarUsoEnologico(id) {
         }
 
         // ---------- Análisis Laboratorio ----------
-        async function crearAnalisisLab(ev) {
+        function crearAnalisisLab(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formAnalisisLab"), guard => crearAnalisisLabSinBloqueo(ev, guard));
+}
+async function crearAnalisisLabSinBloqueo(ev, guard) {
             ev.preventDefault();
             const contenedor_tipo = document.getElementById("labTipoContenedor").value;
             const depositoValor = document.getElementById("labDeposito").value.trim();
@@ -27763,16 +27851,18 @@ async function registrarUsoEnologico(id) {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(body),
                 });
-                const ok = await manejarRespuesta(res, "Error al subir el análisis.");
+                const ok = await manejarRespuesta(res, "Error al subir el análisis.", guard);
                 if (!ok) {
                     mensaje.textContent = "No se pudo guardar.";
                     return;
                 }
+                guard.confirm("Análisis y PDF guardados.");
                 document.getElementById("formAnalisisLab").reset();
                 mensaje.textContent = "Análisis guardado correctamente.";
                 await cargarAnalisisLab(filtroAnalisisDeposito);
                 setTimeout(() => (mensaje.textContent = ""), 3000);
             } catch (err) {
+                guard.fail(err);
                 console.error("Error subiendo PDF:", err);
                 mensaje.textContent = "Error al guardar el análisis.";
             }
@@ -27801,6 +27891,7 @@ async function registrarUsoEnologico(id) {
                 renderAnalisisLab();
             } catch (err) {
                 console.error("Error cargando análisis:", err);
+                const tbody = document.getElementById("tablaAnalisisLab");
                 if (tbody) {
                     tbody.innerHTML = '<tr><td colspan="5">No se pudieron cargar los análisis.</td></tr>';
                 }
@@ -29998,7 +30089,11 @@ function leerArchivoBase64(file) {
             }
         }
 
-        async function expressMxHandleSave() {
+        function expressMxHandleSave(event) {
+  event?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("express-fab-modal"), guard => expressMxHandleSaveSinBloqueo(guard));
+}
+async function expressMxHandleSaveSinBloqueo(guard) {
             try {
                 expressMxSetStatus("Guardando...", "info");
                 if (EXPRESS_MX.tab === "uva") {
@@ -30010,9 +30105,11 @@ function leerArchivoBase64(file) {
                 } else if (EXPRESS_MX.tab === "botellas") {
                     await expressMxGuardarBotellas();
                 }
+                guard.confirm("Operación guardada.");
                 expressMxSetStatus("Guardado correctamente.", "success");
                 await Promise.all([expressMxLoadLotes(), expressMxLoadRecent()]);
             } catch (err) {
+                guard.fail(err);
                 expressMxSetStatus(err.message || "No se pudo guardar.", "error");
             } finally {
                 expressMxUpdateImpact();

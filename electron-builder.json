@@ -1,0 +1,27 @@
+{
+  "appId": "com.microcellerstudio.desktop",
+  "productName": "MicroCellerStudio",
+  "directories": { "output": "dist-desktop" },
+  "files": [
+    "desktop/**", "public/**", "services/**", "rules/**",
+    "schema.sql", "server.js", "package.json"
+  ],
+  "asar": true,
+  "asarUnpack": ["**/node_modules/sqlite3/**"],
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "signAndEditExecutable": false,
+    "artifactName": "MicroCellerStudio-${version}-Windows-${arch}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "MicroCellerStudio",
+    "deleteAppDataOnUninstall": false,
+    "installerLanguages": ["es_ES"],
+    "displayLanguageSelector": false
+  }
+}

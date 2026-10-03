@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self';">
+<title>MicroCellerStudio · Primer inicio</title><link rel="stylesheet" href="setup.css"></head>
+<body><main><span class="brand">MicroCellerStudio</span><h1>Tu bodega, en tu ordenador.</h1>
+<p>Crea tu acceso para empezar. Los registros y los archivos se guardarán en este ordenador.</p>
+<form id="setup"><label for="username">Usuario</label><input id="username" autocomplete="username" value="admin" required maxlength="100">
+<label for="password">Contraseña</label><input id="password" type="password" autocomplete="new-password" minlength="8" required>
+<label for="repeat">Repite la contraseña</label><input id="repeat" type="password" autocomplete="new-password" minlength="8" required>
+<p class="hint">Utiliza al menos 8 caracteres y conserva tu contraseña.</p><button id="submit">Preparar mi bodega</button>
+<p id="feedback" role="status" aria-live="polite"></p></form>
+<p class="hint">Después podrás guardar una copia completa desde Archivo → Guardar copia completa.</p></main>
+<script src="setup.js"></script></body></html>

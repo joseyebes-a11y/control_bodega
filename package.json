@@ -1,14 +1,19 @@
 {
   "name": "bodega-control",
-  "version": "1.0.0",
-  "main": "server.js",
+  "version": "1.2.0",
+  "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "test:integrity": "node --test tests/dataIntegrity.test.mjs tests/flowPersistence.test.mjs tests/flowHttp.test.mjs tests/movementIntegrity.test.mjs tests/bottlingIntegrity.test.mjs tests/entryProductIntegrity.test.mjs",
-    "test:smoke": "node scripts/smoke-checks.mjs"
+    "test:smoke": "node scripts/smoke-checks.mjs",
+    "desktop:assets": "node scripts/desktop-assets.mjs",
+    "desktop": "npm run desktop:assets && electron .",
+    "build:win": "npm run desktop:assets && node scripts/build-windows.cjs",
+    "test:desktop": "node --test tests/desktop.test.mjs tests/desktopRecovery.test.mjs"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "express": "^4.19.0",
@@ -16,6 +21,17 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7"
-  }
+    "sqlite3": "^5.1.7",
+    "yauzl": "3.2.0"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
+    "html2canvas": "1.4.1",
+    "jspdf": "2.5.1",
+    "jspdf-autotable": "3.5.28"
+  },
+  "productName": "MicroCellerStudio",
+  "description": "Gestión local de bodega con registros y copias de seguridad",
+  "author": "MicroCellerStudio"
 }
