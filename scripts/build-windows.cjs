@@ -42,5 +42,5 @@ NsisTarget.prototype.executeMakensis = function (defines, commands, script) {
   return executeMakensis.call(this, defines, commands,
     script.replace('!include "installUtil.nsh"', `!include "${utilityPath}"`));
 };
-build({ projectDir: root, config: JSON.parse(fs.readFileSync(path.join(root, "electron-builder.json"), "utf8")),
+build({ projectDir: root, publish: 'never', config: JSON.parse(fs.readFileSync(path.join(root, "electron-builder.json"), "utf8")),
   targets: Platform.WINDOWS.createTarget("nsis", Arch.x64) }).catch(error => { console.error(error); process.exitCode = 1; });

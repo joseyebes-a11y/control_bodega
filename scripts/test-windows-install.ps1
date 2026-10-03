@@ -8,6 +8,7 @@ $installDir = Join-Path $env:RUNNER_TEMP 'MicroCeller Installer Test'
 $dataDir = Join-Path $env:APPDATA 'MicroCellerStudio'
 $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 function Get-AppRegistration {
+  if (!(Test-Path $uninstallRoot)) { return }
   @(Get-ChildItem $uninstallRoot | Get-ItemProperty | Where-Object { $_.DisplayName -eq 'MicroCellerStudio' })
 }
 function Run-Setup {
