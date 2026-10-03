@@ -20,7 +20,8 @@
   }
 
   async function run(form, action) {
-    if (!form || active.has(form)) return false;
+    if (!form || active.has(form) || window.MicroCellerUnsaved?.isBlocked(form)) return false;
+    const submission = window.MicroCellerUnsaved?.capture(form);
     const started = Date.now();
     const inert = form.inert, busy = form.getAttribute("aria-busy");
     const buttons = [...form.querySelectorAll('button:not([type]), button[type="submit"], input[type="submit"], #expressMxSave')];
@@ -28,7 +29,9 @@
       text: button.tagName === "INPUT" ? button.value : button.textContent }));
     const state = {
       confirmed: false, failed: false,
-      confirm(text) { this.confirmed = true; status(form, text, "success"); },
+      confirm(text) { this.confirmed = true;
+        if (submission) window.MicroCellerUnsaved.confirmed(submission);
+        status(form, text, "success"); },
       reject(text) {
         this.failed = true;
         status(form, "Guardado no confirmado: " + text + " El formulario conserva los datos.", "error");

@@ -41,6 +41,18 @@ Prueba previa en Electron: un doble envío produjo una entrada de 100 kg; la mis
 
 Tras recuperar el código se repitieron las 78 pruebas de integridad y escritorio, además de smoke y flowEngine. Se comprobó el formulario real de limpieza en un DOM: doble envío, bloqueo del botón sin atributo type, cierre durante guardado, conservación de campos ante fallos de red, 503, HTML y JSON ilegible, reinicio tras éxito y aviso cuando falla la vista después de guardar. El constructor y los tests reconstruidos quedan guardados con el código; no se generó un instalador nuevo en esta revisión.
 
+## Avisos de cambios sin guardar
+
+Los formularios de registro protegidos por el bloqueo de guardado, las ediciones de depósitos y barricas, catas y consumos avisan antes de abandonar campos modificados. Cancelar conserva los valores y el contenedor o entrada que se está editando. Cerrar o sustituir una edición pide confirmar el descarte; cambiar de sección mantiene los campos mientras la página siga abierta. Recargar o cerrar la ventana avisa también si hay un formulario pendiente en una sección oculta. Estos campos no constituyen un borrador persistente después de cerrar la aplicación.
+
+Cambiar de añada o cerrar sesión pide confirmar antes de enviar la petición que cambia el contexto del servicio. Durante la petición se bloquean los campos; si falla, se conservan los datos y se vuelve a permitir la edición. Cargar una entrada mixta bloquea el formulario hasta recibir sus líneas para evitar sustituir o modificar una edición a medio cargar.
+
+Los valores iniciales, fechas y opciones cargadas automáticamente no cuentan como cambios del usuario. Se comprueban texto, selecciones, casillas, archivos y líneas dinámicas; volver a los valores iniciales elimina el aviso. Una respuesta rechazada o no confirmada mantiene la protección. Solo un guardado confirmado acepta los valores enviados; un fallo posterior de la vista no vuelve a marcar esa operación como pendiente ni limpia cambios posteriores al envío.
+
+Express conserva borradores independientes por pestaña. Cambiar de pestaña o acción y cerrar su ventana avisa antes de ocultar datos pendientes. Reabrir Express conserva esos campos; guardar una operación acepta únicamente la pestaña y los campos de la acción visible, manteniendo el aviso de otros borradores. El editor de nodos sigue utilizando su mecanismo propio de persistencia; los diálogos de almacén aún no forman parte de esta protección de formularios.
+
+Se añadieron 16 pruebas de navegación, cierre, sustitución, valores iniciales, líneas dinámicas, archivos, errores, guardados confirmados, solicitudes de añada y sesión y borradores de Express. Las funciones y controles reales se comprobaron además en un DOM: depósitos y barricas, conflictos 409, cancelación, cambio de sección, registro de producto y Express con borradores en dos pestañas. El aviso nativo de cierre queda pendiente de comprobación en Windows con el próximo instalador. No se generó otro instalador en esta revisión.
+
 ## Edición de depósitos y barricas
 
 La edición de depósitos, mastelones y barricas guarda los datos, el ajuste de litros y su bitácora en una sola transacción. Si falla cualquier parte, se conserva el estado anterior. El volumen enviado es una cantidad final; el servidor calcula el ajuste dentro de la operación, sin un segundo envío del formulario. Los litros de esta edición proceden del historial guardado, aunque el mapa muestre otra cifra; una modificación de nombre no copia automáticamente la cifra del mapa.
@@ -91,10 +103,10 @@ En Linux el constructor utiliza el lector de desinstaladores de electron-builder
 
 ## Verificación de esta versión
 
-- 136 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
+- 152 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
 - Interfaz Electron ejecutada en Linux: configuración inicial, acceso, registro, copia desde el menú, cierre y reapertura, conservación de datos y puerto estable; sin errores de página. Copia automática inicial, restauración desde menú, conservación de dos registros posteriores en la copia previa, limpieza de borradores antiguos y recuperación ante fallo simulado del servicio restaurado. Importación en una instalación nueva probada.
 - El bloqueo de instancia única se sustituye únicamente en la prueba Linux por las restricciones de sockets del entorno de pruebas. El producto conserva el bloqueo real.
 - Pendiente ejecutar el instalador, la aplicación y el bloqueo de instancia única en un equipo Windows real.
-- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 149 pruebas aprobadas.
+- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 165 pruebas aprobadas.
 
 El instalador no tiene firma digital. Esta entrega es una versión inicial para comprobar en Windows; no constituye una certificación de todas las funciones existentes de la aplicación.

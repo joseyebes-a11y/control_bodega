@@ -8018,12 +8018,14 @@ label {
 
   <link rel="stylesheet" href="/css/form-save-guard.css">
   <script src="/js/form-save-guard.js"></script>
+  <script src="/js/unsaved-form-guard.js"></script>
   <script src="/js/flowPersistence.js"></script>
   <script src="/js/volumeConsistency.js"></script>
   <script src="/js/containerArchive.js"></script>
   <script>
 // ---- Mostrar secciones del menú lateral ---
 function mostrarSeccion(id) {
+  if (!MicroCellerUnsaved.canNavigate(id)) return false;
   const secciones = document.querySelectorAll("section.card, section#bitacora");
   secciones.forEach(sec => {
     const esObjetivo = sec.id === id;
@@ -8061,6 +8063,7 @@ function mostrarSeccion(id) {
   links.forEach(link => {
     link.classList.toggle("activo", link.dataset.section === id);
   });
+  return true;
 }
 let cacheEntradas = [];
 let cacheDepositos = [];
@@ -21110,17 +21113,20 @@ async function cargarTopbarFechaYAnada() {
       const valor = sel.value;
       const anio = Number(valor);
       if (!Number.isFinite(anio)) return;
+      const finishNavigation = MicroCellerUnsaved.beginNavigation();
+      if (!finishNavigation) { sel.value = prevValue; ajustarAnchoSelectAnada(sel); return; }
       sel.disabled = true;
-      if (!(await guardarFlujoEnServidor())) {
-        sel.value = prevValue;
-        sel.disabled = false;
-        ajustarAnchoSelectAnada(sel);
-        setTopbarAnadaMsg("Hay cambios del mapa pendientes de guardar.", "error");
-        return;
-      }
-      setTopbarAnadaMsg("Actualizando añada...");
-      ajustarAnchoSelectAnada(sel);
       try {
+        if (!(await guardarFlujoEnServidor())) {
+          finishNavigation(false);
+          sel.value = prevValue;
+          sel.disabled = false;
+          ajustarAnchoSelectAnada(sel);
+          setTopbarAnadaMsg("Hay cambios del mapa pendientes de guardar.", "error");
+          return;
+        }
+        setTopbarAnadaMsg("Actualizando añada...");
+        ajustarAnchoSelectAnada(sel);
         const payload = { anio };
         const res = await fetch("/api/campanias/activa", {
           method: "POST",
@@ -21129,6 +21135,7 @@ async function cargarTopbarFechaYAnada() {
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
+          finishNavigation(false);
           sel.value = prevValue;
           localStorage.setItem("bodega_campania_activa", prevValue);
           setTopbarAnadaMsg("No se pudo cambiar la añada.", "error");
@@ -21138,8 +21145,10 @@ async function cargarTopbarFechaYAnada() {
         }
         prevValue = valor;
         localStorage.setItem("bodega_campania_activa", prevValue);
+        finishNavigation(true);
         location.reload();
       } catch (err) {
+        finishNavigation(false);
         sel.value = prevValue;
         localStorage.setItem("bodega_campania_activa", prevValue);
         setTopbarAnadaMsg("No se pudo cambiar la añada.", "error");
@@ -21184,7 +21193,7 @@ async function cargarUsuarioActivo() {
 }
 
 function irAFormulario(seccion, campo) {
-  mostrarSeccion(seccion);
+  if (mostrarSeccion(seccion) === false) return;
   setTimeout(() => {
     const elemento = document.getElementById(campo);
     if (elemento) {
@@ -21257,18 +21266,23 @@ document.addEventListener("DOMContentLoaded", () => {
   if (navLogout) {
     navLogout.addEventListener("click", async event => {
       event.preventDefault();
+      const finishNavigation = MicroCellerUnsaved.beginNavigation();
+      if (!finishNavigation) return;
       cerrarNavMenu();
       try {
         const res = await fetch("/logout", { method: "POST", credentials: "same-origin" });
         if (!res.ok) {
+          finishNavigation(false);
           mostrarAviso("No se pudo cerrar la sesión.", "error");
           return;
         }
       } catch (err) {
+        finishNavigation(false);
         console.error("Error cerrando sesión:", err);
         mostrarAviso("No se pudo cerrar la sesión.", "error");
         return;
       }
+      finishNavigation(true);
       window.location.assign("/login");
     });
   }
@@ -22905,7 +22919,8 @@ function renderResumenParcelas() {
             });
         }
 
-        function cancelarEdicionEntrada() {
+        function cancelarEdicionEntrada(force = false) {
+            if (force !== true && !MicroCellerUnsaved.canLeave(document.getElementById("formEntradaUva"))) return false;
             entradaEditandoId = null;
             const form = document.getElementById("formEntradaUva");
             if (form) form.reset();
@@ -23739,7 +23754,7 @@ async function crearEntradaUvaSinBloqueo(ev, guard) {
                 if (!await manejarRespuesta(res, mensajePorDefecto, guard)) return;
                 const mensajeGuardado = entradaEditandoId ? "Entrada actualizada." : "Entrada registrada.";
                 guard.confirm(mensajeGuardado);
-                cancelarEdicionEntrada();
+                cancelarEdicionEntrada(true);
                 await Promise.all([
                     cargarEntradas(),
                     cargarResumen(),
@@ -23768,59 +23783,64 @@ async function crearEntradaUvaSinBloqueo(ev, guard) {
                 mostrarAviso("No encuentro esa entrada.", "error");
                 return;
             }
-            entradaEditandoId = id;
-            const campoFecha = document.getElementById("entradaFecha");
-            if (campoFecha) {
-                campoFecha.disabled = false;
-                campoFecha.value = formatearFechaParaInput(entrada.fecha);
-            }
-            document.getElementById("entradaVariedad").value = entrada.variedad || "";
-            document.getElementById("entradaParcela").value = entrada.parcela || "";
-            document.getElementById("entradaViticultor").value = entrada.viticultor || "";
-            document.getElementById("entradaViticultorNif").value = entrada.viticultor_nif || "";
-            const contactoProveedor = descomponerContactoProveedor(entrada.viticultor_contacto || "");
-            document.getElementById("entradaViticultorTelefono").value = contactoProveedor.telefono || "";
-            document.getElementById("entradaViticultorEmail").value = contactoProveedor.email || "";
-            document.getElementById("entradaRc").value = normalizarRc(entrada.catastro_rc || "");
-            document.getElementById("entradaProvincia").value = entrada.catastro_provincia || "";
-            document.getElementById("entradaMunicipio").value = entrada.catastro_municipio || "";
-            document.getElementById("entradaPoligono").value = entrada.catastro_poligono || "";
-            document.getElementById("entradaParcelaCat").value = entrada.catastro_parcela || "";
-            document.getElementById("entradaRecinto").value = entrada.catastro_recinto || "";
-            document.getElementById("entradaSuelo").value = entrada.tipo_suelo || "";
-            document.getElementById("entradaAnosVid").value = entrada.anos_vid || "";
-            document.getElementById("entradaKilos").value = entrada.kilos ?? "";
-            document.getElementById("entradaCajas").value = entrada.cajas_total ?? entrada.cajas ?? "";
-            document.getElementById("entradaDensidad").value = entrada.densidad ?? "";
-            document.getElementById("entradaTemperatura").value = entrada.temperatura ?? "";
-            document.getElementById("entradaPh").value = entrada.ph ?? "";
-            document.getElementById("entradaAcidezTotal").value = entrada.acidez_total ?? "";
-            document.getElementById("entradaObservaciones").value = entrada.observaciones || "";
-            document.getElementById("entradaTipoCaja").value = "";
+            const finishLoad = MicroCellerUnsaved.beginLoad(document.getElementById("formEntradaUva"));
+            if (!finishLoad) return;
+            try {
+                entradaEditandoId = id;
+                const campoFecha = document.getElementById("entradaFecha");
+                if (campoFecha) {
+                    campoFecha.disabled = false;
+                    campoFecha.value = formatearFechaParaInput(entrada.fecha);
+                }
+                document.getElementById("entradaVariedad").value = entrada.variedad || "";
+                document.getElementById("entradaParcela").value = entrada.parcela || "";
+                document.getElementById("entradaViticultor").value = entrada.viticultor || "";
+                document.getElementById("entradaViticultorNif").value = entrada.viticultor_nif || "";
+                const contactoProveedor = descomponerContactoProveedor(entrada.viticultor_contacto || "");
+                document.getElementById("entradaViticultorTelefono").value = contactoProveedor.telefono || "";
+                document.getElementById("entradaViticultorEmail").value = contactoProveedor.email || "";
+                document.getElementById("entradaRc").value = normalizarRc(entrada.catastro_rc || "");
+                document.getElementById("entradaProvincia").value = entrada.catastro_provincia || "";
+                document.getElementById("entradaMunicipio").value = entrada.catastro_municipio || "";
+                document.getElementById("entradaPoligono").value = entrada.catastro_poligono || "";
+                document.getElementById("entradaParcelaCat").value = entrada.catastro_parcela || "";
+                document.getElementById("entradaRecinto").value = entrada.catastro_recinto || "";
+                document.getElementById("entradaSuelo").value = entrada.tipo_suelo || "";
+                document.getElementById("entradaAnosVid").value = entrada.anos_vid || "";
+                document.getElementById("entradaKilos").value = entrada.kilos ?? "";
+                document.getElementById("entradaCajas").value = entrada.cajas_total ?? entrada.cajas ?? "";
+                document.getElementById("entradaDensidad").value = entrada.densidad ?? "";
+                document.getElementById("entradaTemperatura").value = entrada.temperatura ?? "";
+                document.getElementById("entradaPh").value = entrada.ph ?? "";
+                document.getElementById("entradaAcidezTotal").value = entrada.acidez_total ?? "";
+                document.getElementById("entradaObservaciones").value = entrada.observaciones || "";
+                document.getElementById("entradaTipoCaja").value = "";
 
-            const esMixto = Number(entrada.mixto || 0) === 1 || String(entrada.variedad || "").toUpperCase() === "MIXTO";
-            const modo = entrada.modo_kilos || "total";
-            const checkMixto = document.getElementById("entradaMixto");
-            if (checkMixto) checkMixto.checked = esMixto;
-            const selectModo = document.getElementById("entradaModoKilos");
-            if (selectModo) selectModo.value = modo;
+                const esMixto = Number(entrada.mixto || 0) === 1 || String(entrada.variedad || "").toUpperCase() === "MIXTO";
+                const modo = entrada.modo_kilos || "total";
+                const checkMixto = document.getElementById("entradaMixto");
+                if (checkMixto) checkMixto.checked = esMixto;
+                const selectModo = document.getElementById("entradaModoKilos");
+                if (selectModo) selectModo.value = modo;
 
-            if (esMixto) {
-                await cargarLineasEntradaUI(id);
-            } else {
-                limpiarLineasEntrada();
-            }
-            actualizarEntradaMixtoUI();
-            recalcularResumenLineas();
+                if (esMixto) {
+                    await cargarLineasEntradaUI(id);
+                } else {
+                    limpiarLineasEntrada();
+                }
+                actualizarEntradaMixtoUI();
+                recalcularResumenLineas();
 
-            const btnGuardar = document.getElementById("btnGuardarEntrada");
-            if (btnGuardar) btnGuardar.textContent = "Actualizar entrada";
-            const btnCancelar = document.getElementById("btnCancelarEdicionEntrada");
-            if (btnCancelar) btnCancelar.style.display = "inline-flex";
-            document.getElementById("entradas").scrollIntoView({ behavior: "smooth", block: "start" });
-            actualizarAnadaEntrada();
-            actualizarCatastroUI();
-            actualizarResumenAdministracion();
+                const btnGuardar = document.getElementById("btnGuardarEntrada");
+                if (btnGuardar) btnGuardar.textContent = "Actualizar entrada";
+                const btnCancelar = document.getElementById("btnCancelarEdicionEntrada");
+                if (btnCancelar) btnCancelar.style.display = "inline-flex";
+                document.getElementById("entradas").scrollIntoView({ behavior: "smooth", block: "start" });
+                actualizarAnadaEntrada();
+                actualizarCatastroUI();
+                actualizarResumenAdministracion();
+                MicroCellerUnsaved.clean(document.getElementById("formEntradaUva"));
+            } finally { finishLoad(); }
         }
 
         async function eliminarEntradaUva(id) {
@@ -24160,6 +24180,7 @@ function editarDepositoDatos(id) {
 }
 
 function abrirModalDeposito(dep) {
+  if (!MicroCellerUnsaved.canLeave(document.getElementById("formEditarDeposito"))) return;
   if (MicroCellerFormSave.isBusy(document.getElementById("formEditarDeposito"))) return;
   depositoEditando = { ...dep };
   const modal = document.getElementById("modalDeposito");
@@ -24207,10 +24228,12 @@ function abrirModalDeposito(dep) {
     }
   }
   setFormFeedback("feedbackEditarDeposito", "");
+  MicroCellerUnsaved.clean(document.getElementById("formEditarDeposito"));
   modal.classList.add("visible");
 }
 
 function cerrarModalDeposito(force = false) {
+  if (force !== true && !MicroCellerUnsaved.canLeave(document.getElementById("formEditarDeposito"))) return;
   if (force !== true && MicroCellerFormSave.isBusy(document.getElementById("formEditarDeposito"))) {
     mostrarAviso("Espera a que termine el guardado.", "info");
     return;
@@ -24575,6 +24598,7 @@ async function exportarCataPDF(cata, contenedorRef) {
 }
 
 function abrirModalCata(tipo, id) {
+  if (!MicroCellerUnsaved.canLeave(document.getElementById("formCata"))) return;
   const modal = document.getElementById("modalCata");
   if (!modal) return;
   const info = obtenerInfoContenedor(tipo, id);
@@ -24597,10 +24621,12 @@ function abrirModalCata(tipo, id) {
   if (tipoInput) tipoInput.value = tipo;
   if (idInput) idInput.value = id;
   setFormFeedback("feedbackCata", "");
+  MicroCellerUnsaved.clean(form);
   modal.classList.add("visible");
 }
 
-function cerrarModalCata() {
+function cerrarModalCata(force = false) {
+  if (force !== true && !MicroCellerUnsaved.canLeave(document.getElementById("formCata"))) return;
   const modal = document.getElementById("modalCata");
   if (modal) modal.classList.remove("visible");
   const form = document.getElementById("formCata");
@@ -24653,7 +24679,7 @@ async function guardarCataSinBloqueo(ev, guard) {
     const ok = await manejarRespuesta(res, "No se pudo guardar la cata.", guard);
     if (!ok) return;
                 guard.confirm("Cata guardada.");
-    cerrarModalCata();
+    cerrarModalCata(true);
     await cargarCatas();
     mostrarAviso("Cata registrada.", "success");
   } catch (err) {
@@ -24664,6 +24690,7 @@ async function guardarCataSinBloqueo(ev, guard) {
 }
 
 function abrirModalBarrica(bar) {
+  if (!MicroCellerUnsaved.canLeave(document.getElementById("formEditarBarrica"))) return;
   if (MicroCellerFormSave.isBusy(document.getElementById("formEditarBarrica"))) return;
   barricaEditando = { ...bar };
   const modal = document.getElementById("modalBarrica");
@@ -24685,10 +24712,12 @@ function abrirModalBarrica(bar) {
     if (input) input.value = valor ?? "";
   });
   setFormFeedback("feedbackEditarBarrica", "");
+  MicroCellerUnsaved.clean(document.getElementById("formEditarBarrica"));
   modal.classList.add("visible");
 }
 
 function cerrarModalBarrica(force = false) {
+  if (force !== true && !MicroCellerUnsaved.canLeave(document.getElementById("formEditarBarrica"))) return;
   if (force !== true && MicroCellerFormSave.isBusy(document.getElementById("formEditarBarrica"))) {
     mostrarAviso("Espera a que termine el guardado.", "info");
     return;
@@ -25661,7 +25690,8 @@ async function crearProductoLimpiezaSinBloqueo(ev, guard) {
             selectDestino.disabled = opciones.length === 0;
         }
 
-        function cerrarModalUsoProducto() {
+        function cerrarModalUsoProducto(force = false) {
+            if (force !== true && !MicroCellerUnsaved.canLeave(document.getElementById("formUsoProducto"))) return;
             usoProductoContexto = null;
             const modal = document.getElementById("modalUsoProducto");
             if (modal) modal.classList.remove("visible");
@@ -25680,6 +25710,7 @@ async function crearProductoLimpiezaSinBloqueo(ev, guard) {
         }
 
         function abrirModalUsoProducto(tipo, id) {
+            if (!MicroCellerUnsaved.canLeave(document.getElementById("formUsoProducto"))) return;
             const meta = obtenerMetaUsoProducto(tipo);
             if (!meta) return;
             const prod = meta.cache.find(p => p.id === id);
@@ -25709,6 +25740,7 @@ async function crearProductoLimpiezaSinBloqueo(ev, guard) {
             if (nota) nota.value = "";
             actualizarOpcionesDestinoUsoProducto();
             setFormFeedback("feedbackUsoProducto", "");
+            MicroCellerUnsaved.clean(document.getElementById("formUsoProducto"));
             modal.classList.add("visible");
         }
 
@@ -25759,7 +25791,7 @@ async function guardarUsoProductoSinBloqueo(ev, guard) {
                 const ok = await manejarRespuesta(res, "Error al registrar el consumo.", guard);
                 if (!ok) return;
                 guard.confirm("Consumo guardado.");
-                cerrarModalUsoProducto();
+                cerrarModalUsoProducto(true);
                 await meta.refrescar();
                 mostrarAviso("Consumo registrado.", "success");
             } catch (err) {
@@ -29547,6 +29579,7 @@ function leerArchivoBase64(file) {
         }
 
         function expressMxSetTab(tab) {
+            if (tab !== EXPRESS_MX.tab && !MicroCellerUnsaved.canLeave(document.querySelector(".express-mx-pane.is-active"), true)) return;
             EXPRESS_MX.tab = tab;
             document.querySelectorAll(".express-mx-tab").forEach(btn => {
                 btn.classList.toggle("is-active", btn.dataset.tab === tab);
@@ -29559,6 +29592,7 @@ function leerArchivoBase64(file) {
         }
 
         function expressMxSetAction(tab, action) {
+            if (action !== EXPRESS_MX.action[tab] && !MicroCellerUnsaved.canLeave(document.querySelector(`.express-mx-pane[data-tab-pane="${tab}"]`), true)) return;
             EXPRESS_MX.action[tab] = action;
             document.querySelectorAll(`.express-mx-action[data-tab="${tab}"]`).forEach(btn => {
                 btn.classList.toggle("is-active", btn.dataset.action === action);
@@ -30048,10 +30082,12 @@ async function expressMxHandleSaveSinBloqueo(guard) {
                 btn.addEventListener("click", () => expressMxSetAction(btn.dataset.tab, btn.dataset.action));
             });
             document.getElementById("expressMxClose")?.addEventListener("click", () => {
+                if (!MicroCellerUnsaved.canLeave(document.getElementById("express-fab-modal"), true)) return;
                 document.getElementById("express-fab-overlay").style.display = "none";
             });
             document.getElementById("express-fab-overlay")?.addEventListener("click", e => {
                 if (e.target && e.target.id === "express-fab-overlay") {
+                    if (!MicroCellerUnsaved.canLeave(document.getElementById("express-fab-modal"), true)) return;
                     e.currentTarget.style.display = "none";
                 }
             });
@@ -30070,6 +30106,7 @@ async function expressMxHandleSaveSinBloqueo(guard) {
 
             document.getElementById("express-fab")?.addEventListener("click", async () => {
                 document.getElementById("express-fab-overlay").style.display = "flex";
+                if (MicroCellerUnsaved.isDirty(document.getElementById("express-fab-modal"))) return;
                 expressMxPopulateContainerSelect("expressCtrlContenedor", { onlyWithWine: true });
                 expressMxPopulateContainerSelect("expressMovOrigen", { onlyWithWine: true });
                 expressMxPopulateContainerSelect("expressMovDestino", { onlyWithWine: false });
@@ -30277,6 +30314,7 @@ async function expressMxHandleSaveSinBloqueo(guard) {
             `;
             document.body.appendChild(fab);
             document.body.appendChild(overlay);
+            overlay.querySelectorAll(".express-mx-pane").forEach(pane => MicroCellerUnsaved.register(pane, `Express: ${pane.dataset.tabPane}`));
             expressMxBindEvents();
 
             const recalcBotellas = () => {
