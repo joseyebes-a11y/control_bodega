@@ -9472,6 +9472,7 @@ let flowCoreWarnings = [];
 let flowCoreMigrated = false;
 let flowWarningsDebug = false;
 let flowMovementEditingId = null;
+let flowStockBaseline = new Map();
 let flowTimelineSyncInit = false;
 let flowTimelineRefreshTimer = null;
 const flowPersistence = new window.FlowPersistence({
@@ -9479,6 +9480,15 @@ const flowPersistence = new window.FlowPersistence({
   storage: localStorage,
   onError: message => mostrarAviso(message, "error"),
   onState: () => actualizarEstadoGuardadoFlujo(),
+  onSaved: async (data, flow) => {
+    for (const item of flow.stockVolumes || []) flowStockBaseline.set(item.key, item.litros);
+    for (const update of data.stockUpdates || []) {
+      const list = update.kind === "barrica" ? cacheBarricas : [...cacheDepositos, ...cacheMastelones];
+      const item = list.find(item => Number(item.id) === update.id);
+      if (item) Object.assign(item, { litros_actuales: update.litros, litros_registrados: update.litros, edit_revision: update.revision });
+    }
+    if (data.stockUpdates?.length) await Promise.all([cargarDepositos(), cargarBarricas(), cargarResumen(), cargarMovimientos()]);
+  },
 });
 let flowEditorLoadPromise = null;
 window.addEventListener("beforeunload", event => {
@@ -12327,7 +12337,8 @@ function obtenerDiagnosticoVolumenContenedor(nodo) {
   const tipoCarga = tipo === "barrica" ? "barricas" : "depositos";
   const verificable = actual && estadoCargaVolumen[tipoCarga] === "listo" && !flowPersistence.blocked;
   const balance = obtenerBalanceNodo(nodo.id);
-  const mapa = Number.isFinite(balance) ? balance : obtenerVolumenNumericoNodo(nodo);
+  const visual = obtenerVolumenNumericoNodo(nodo);
+  const mapa = Number.isFinite(visual) ? visual : balance;
   const diagnostico = MicroCellerVolumes.compare(mapa, verificable ? info : null);
   return { ...diagnostico, fuente: "mapa", actual, verificable };
 }
@@ -20497,8 +20508,43 @@ async function usarVersionServidorFlujo() {
   }
 }
 
+function recogerLitrosFisicosMapa() {
+  const volumes = [];
+  if (Object.values(estadoCargaVolumen).some(state => state !== "listo")) return volumes;
+  for (const [kind, items] of [["deposito", [...cacheDepositos, ...cacheMastelones]], ["barrica", cacheBarricas]]) {
+    for (const item of items) {
+      const node = obtenerNodoVolumenActualContenedor(kind, item);
+      if (!node) continue;
+      const visited = new Set(), pending = [node];
+      let hasEntry = false;
+      while (pending.length) {
+        const ancestor = pending.pop();
+        if (!ancestor || visited.has(ancestor.id)) continue;
+        visited.add(ancestor.id);
+        if (ancestor.tipo === "entrada") hasEntry = true;
+        pending.push(...obtenerPredecesores(ancestor.id));
+      }
+      if (!hasEntry) continue;
+      const litros = obtenerVolumenNumericoNodo(node);
+      if (!Number.isFinite(litros) || litros < 0) continue;
+      volumes.push({ key: `${kind}:${item.id}`, nodeId: String(node.id), litros, base_revision: item.edit_revision,
+        registered: MicroCellerVolumes.registered(item) });
+    }
+  }
+  return volumes;
+}
+
 function guardarEstadoNodos() {
-  flowPersistence.stage(sanitizarFlowParaGuardar(), flowAllowShrinkOnce);
+  flowEdges = construirEdgesDesdeTargets(flujoNodos);
+  const stockVolumes = recogerLitrosFisicosMapa();
+  const stockTargets = stockVolumes.flatMap(item => {
+    const previous = flowStockBaseline.get(item.key);
+    const changed = previous != null && Math.abs(previous - item.litros) > 1e-7;
+    const initial = previous == null || item.registered === 0;
+    return (changed || initial) && item.registered !== null && Math.abs(item.registered - item.litros) > 1e-7
+      ? [{ ...item, initialize: !changed }] : [];
+  });
+  flowPersistence.stage({ ...sanitizarFlowParaGuardar(), stockTargets, stockVolumes }, flowAllowShrinkOnce);
   if (temporizadorGuardadoFlujo) clearTimeout(temporizadorGuardadoFlujo);
   temporizadorGuardadoFlujo = setTimeout(() => {
     temporizadorGuardadoFlujo = null;
@@ -30372,6 +30418,8 @@ async function expressMxHandleSaveSinBloqueo(guard) {
 	                cargarAnalisisLab(),
 	                cargarCatas(),
 	            ]);
+            flowStockBaseline = new Map(recogerLitrosFisicosMapa().map(item => [item.key, item.litros]));
+            if (!flowPersistence.blocked && recogerLitrosFisicosMapa().some(item => item.registered === 0 && item.litros > 0)) guardarEstadoNodos();
             initBitacoraIndomitaUI();
             cargarBitacora();
             inicializarCopilotoUI();

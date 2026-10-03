@@ -70,7 +70,7 @@ function decodeSnapshot(snapshot) {
 
 // Each operation owns its SQLite connection. BEGIN/COMMIT cannot become part
 // of another HTTP request's transaction on the legacy shared connection.
-export function createFlowStore(filename) {
+export function createFlowStore(filename, { transaction: sharedTransaction, syncStock } = {}) {
   async function withConnection(action) {
     const database = await open({ filename, driver: sqlite3.Database });
     try {
@@ -86,6 +86,7 @@ export function createFlowStore(filename) {
     ...params(scope)
   );
   async function transaction(action) {
+    if (sharedTransaction) return sharedTransaction(action);
     return withConnection(async database => {
       await database.exec("BEGIN IMMEDIATE");
       try {
@@ -132,7 +133,7 @@ export function createFlowStore(filename) {
         return { flow: decodeSnapshot(row?.snapshot), revision: revision(row) };
       });
     },
-    async save(scope, flow, { baseRevision, force = false } = {}) {
+    async save(scope, flow, { baseRevision, force = false, stockTargets } = {}) {
       validateFlow(flow);
       return transaction(async database => {
         const row = await getRow(database, scope);
@@ -142,7 +143,9 @@ export function createFlowStore(filename) {
         if (previous.nodes.some(n => !ids.has(String(n.id))) && force !== true) {
           fail(409, "FLOW_SHRINK", "Guardado bloqueado: confirma la eliminación de nodos.", { previo: previous.nodes.length, nuevo: flow.nodes.length });
         }
-        return persist(database, scope, row, { ...previous, ...flow }, "autosave");
+        const stockUpdates = syncStock && stockTargets?.length
+          ? await syncStock(database, scope, flow, stockTargets) : [];
+        return { ...await persist(database, scope, row, { ...previous, ...flow }, "autosave"), stockUpdates };
       });
     },
     async restore(scope, { backupId, baseRevision } = {}) {

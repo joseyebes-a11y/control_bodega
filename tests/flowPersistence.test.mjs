@@ -146,3 +146,31 @@ test("choosing the server version archives a conflicting local draft without wri
   assert.equal(persistence.dirty, false);
   assert.equal(requests.filter(r => r.options.method === "POST").length, 0);
 });
+
+test('queued map stock edits use the acknowledged container revision without reinitializing wine', async () => {
+  let release;
+  const sent = [];
+  const { persistence } = client({ post: async (_url, opts) => {
+    const body = JSON.parse(opts.body); sent.push(body);
+    if (sent.length === 1) await new Promise(resolve => { release = resolve; });
+    return response({ revision: `map-${sent.length}`, stockUpdates: [{ nodeId: 'tank', previous_revision: 'tank-old', revision: 'tank-new', litros: 100 }] });
+  } });
+  await persistence.load();
+  persistence.stage({ ...flow('first'), stockTargets: [{ nodeId: 'tank', litros: 100, base_revision: 'tank-old', initialize: true }] });
+  const saving = persistence.flush();
+  persistence.stage({ ...flow('next'), stockTargets: [{ nodeId: 'tank', litros: 80, base_revision: 'tank-old', initialize: true }] });
+  release();
+  assert.equal(await saving, true);
+  assert.equal(sent[1].stockTargets[0].base_revision, 'tank-new');
+  assert.equal(sent[1].stockTargets[0].initialize, false);
+  assert.equal(sent[1].stockTargets[0].litros, 80);
+});
+
+test('a failed view refresh cannot turn a confirmed stock write into an unsaved operation', async () => {
+  const { persistence, errors } = client(); await persistence.load();
+  persistence.onSaved = () => { throw new Error('refresh failed'); };
+  persistence.stage(flow('saved'));
+  assert.equal(await persistence.flush(), true);
+  assert.equal(persistence.dirty, false);
+  assert.match(errors[0], /están guardados/);
+});

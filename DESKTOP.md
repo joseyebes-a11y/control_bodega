@@ -128,3 +128,13 @@ En Linux el constructor utiliza el lector de desinstaladores de electron-builder
 - El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 168 pruebas aprobadas.
 
 El instalador no tiene firma digital. Esta entrega es una versión inicial para comprobar en Windows; no constituye una certificación de todas las funciones existentes de la aplicación.
+
+## Corrección 1.2.2: litros del mapa en la ficha física
+
+El editor envía los litros calculados por el recorrido de la entrada de bodega, junto con el ID real del contenedor y la revisión de su ficha. El servidor valida bodega, propietario, entrada, añada activa, capacidad, saldo e historial antes de registrar el ajuste de litros. Mapa, respaldo, histórico, movimiento, saldo, ocupación y bitácora del movimiento se confirman en una sola transacción. Las fichas, el plano y el resumen se refrescan después de la confirmación.
+
+El envío utiliza cantidades finales y revisiones de mapa y contenedor: repetir un guardado no suma otra vez el vino, y una ficha obsoleta no sobrescribe movimientos posteriores. Los cambios pendientes durante un guardado conservan sus cantidades y reciben únicamente la revisión del contenedor que ese guardado confirmó. Un fallo de refresco de la vista no convierte una operación confirmada en una pendiente de repetir.
+
+Al abrir un mapa antiguo puede registrarse su vino en una ficha a cero que nunca haya tenido entradas ni movimientos. Un contenedor que fue vaciado mediante su historial no se vuelve a llenar automáticamente al abrir ese mapa: la diferencia se bloquea y conserva ambos registros para revisión. Las modificaciones de posición no reemplazan saldos manuales existentes. Quitar un nodo o vaciar el dibujo no elimina vino del historial físico. Los ajustes del mapa quedan identificados como tales en el historial; esta corrección no cambia la conversión entre kilos y volumen que ya utiliza el motor del mapa.
+
+Validación añadida: recorrido con las funciones reales del editor y HTTP hasta catálogo y resumen; guardados repetidos; decimales; revisión obsoleta; respuesta perdida; errores inyectados en histórico y bitácora; capacidad; referencias inválidas; añada; dibujo eliminado; protección de contenedores vaciados y actualizaciones pendientes. Las pruebas utilizan cuentas y bases temporales. Sigue pendiente ejecutar esta versión en un equipo Windows real.

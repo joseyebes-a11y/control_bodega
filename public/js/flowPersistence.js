@@ -1,11 +1,12 @@
 // Persistence is independent of the editor: one user, winery and vintage per
 // page, with ordered saves and a recoverable local draft until acknowledgement.
 class FlowPersistence {
-  constructor({ fetch, storage, onError, onState = () => {} }) {
+  constructor({ fetch, storage, onError, onState = () => {}, onSaved = () => {} }) {
     this.fetch = fetch;
     this.storage = storage;
     this.onError = onError;
     this.onState = onState;
+    this.onSaved = onSaved;
     this.revision = null;
     this.blocked = true;
     this.dirty = false;
@@ -112,7 +113,17 @@ class FlowPersistence {
           throw new Error(data.error || "No se pudo guardar el mapa en el servidor.");
         }
         this.revision = data.revision;
+        for (const update of data.stockUpdates || []) {
+          for (const target of this.pending?.flow?.stockTargets || []) {
+            if (target.nodeId === update.nodeId && target.base_revision === update.previous_revision) {
+              target.base_revision = update.revision;
+              target.initialize = false;
+            }
+          }
+        }
         this.cache(this.pending?.flow || current.flow, Boolean(this.pending), this.pending?.force);
+        try { await this.onSaved(data, current.flow); }
+        catch (_) { this.onError("El mapa y sus litros están guardados, pero no se pudo actualizar la vista. Recarga para ver el saldo confirmado."); }
       } catch (err) {
         this.pending = this.pending || current;
         this.cache(this.pending.flow, true, this.pending.force);

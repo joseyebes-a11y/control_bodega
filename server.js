@@ -245,7 +245,10 @@ async function initDB() {
   databaseContext.initialize(database, dbPath);
 
   await db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA synchronous = FULL;");
-  flowStore = createFlowStore(dbPath);
+  flowStore = createFlowStore(dbPath, {
+    transaction: action => databaseContext.transaction(() => action(db)),
+    syncStock: sincronizarLitrosMapa,
+  });
   if (existed) {
     const backupDirectory = process.env.BACKUP_DIR
       ? path.resolve(process.env.BACKUP_DIR)
@@ -4060,6 +4063,78 @@ function sendFlowError(res, err) {
   });
 }
 
+// The map requests absolute quantities with the catalog revision it observed.
+// Map, movement history, balances and audit are committed under the same lock.
+async function sincronizarLitrosMapa(database, scope, flow, targets) {
+  const reject = (message, status = 409) => { throw Object.assign(new Error(message), { status, code: "FLOW_STOCK_CONFLICT" }); };
+  if (!Array.isArray(targets) || targets.length > flow.nodes.length) reject("Asignaciones del mapa no válidas.", 400);
+  if (Number(scope.campaniaId) !== await obtenerAnioCampaniaActiva(scope.bodegaId)) reject("Abre la añada activa antes de registrar litros desde el mapa.");
+  const byId = new Map(flow.nodes.map(n => [String(n.id), n]));
+  const edges = flow.nodes.flatMap(n => (n.targets || []).map(to => ({ from: String(n.id), to: String(to) })));
+  const seen = new Set(), plans = [];
+  for (const target of targets) {
+    const node = byId.get(String(target?.nodeId));
+    if (!node || !["deposito", "barrica"].includes(node.tipo)) reject("El contenedor no pertenece al mapa.", 400);
+    const data = node.datos || {};
+    const rawType = node.tipo === "barrica" ? String(data.contenedor_tipo || "barrica").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "deposito";
+    const kind = rawType === "barrica" ? "barrica" : "deposito";
+    const id = Number(node.tipo === "barrica" ? data.contenedor_id ?? data.id_ref : data.id_ref ?? data.contenedor_id);
+    if (!Number.isSafeInteger(id) || id <= 0 || !["deposito", "mastelone", "barrica"].includes(rawType)) reject("Selecciona una ficha válida para el contenedor.", 400);
+    const key = `${kind}:${id}`;
+    if (seen.has(key)) reject("El mismo contenedor está asignado más de una vez.", 400);
+    seen.add(key);
+    const ancestors = new Set(), pending = [String(node.id)];
+    while (pending.length) {
+      const next = pending.pop();
+      if (ancestors.has(next)) continue;
+      ancestors.add(next);
+      for (const edge of edges) if (edge.to === next) pending.push(edge.from);
+    }
+    const sources = [...ancestors].map(id => byId.get(id)).filter(n => n?.tipo === "entrada");
+    if (!sources.length) reject("Falta la entrada de bodega que origina este vino.", 400);
+    for (const source of sources) {
+      const entryId = Number(source.datos?.entradaId ?? source.datos?.entryId ?? source.datos?.id_ref);
+      if (!Number.isSafeInteger(entryId) || !await database.get("SELECT id FROM entradas_uva WHERE id=? AND user_id=? AND bodega_id=? AND campania_id=?", entryId, scope.userId, scope.bodegaId, scope.campaniaId)) reject("La entrada de bodega no está disponible en esta añada.");
+    }
+    const table = kind === "barrica" ? "barricas" : "depositos";
+    const actual = await database.get(`SELECT * FROM ${table} WHERE id=? AND bodega_id=? AND user_id=? AND activo=1`, id, scope.bodegaId, scope.userId);
+    if (!actual) reject("El contenedor está archivado o no está disponible.");
+    const type = kind === "barrica" ? "barrica" : normalizarClaseDeposito(actual.clase);
+    if (kind === "deposito" && type === "barrica") reject("Revisa la clase de este contenedor antes de registrar litros.");
+    const state = await obtenerEstadoContenedor(type, id, scope.bodegaId, scope.userId);
+    const current = { ...actual, litros_actuales: Number(state?.cantidad ?? 0), partida_id_actual: state?.partida_id_actual ?? null };
+    const { target: quantity } = prepareContainerEdit(kind, current, { litros_actuales: target.litros, base_revision: target.base_revision });
+    if (target.initialize === true && Math.abs(quantity - current.litros_actuales) > 1e-7) {
+      const used = await database.get(`SELECT 1 AS used FROM movimientos_vino WHERE user_id=? AND bodega_id=? AND
+        ((origen_tipo=? AND origen_id=?) OR (destino_tipo=? AND destino_id=?)) LIMIT 1`, scope.userId, scope.bodegaId, type, id, type, id)
+        || await database.get("SELECT 1 AS used FROM entradas_destinos WHERE user_id=? AND bodega_id=? AND contenedor_tipo=? AND contenedor_id=? LIMIT 1", scope.userId, scope.bodegaId, type, id);
+      if (used || current.litros_actuales !== 0) reject("Este contenedor ya tiene historial de vino. Revisa la diferencia con el mapa antes de registrar otro saldo; los datos se conservan.");
+    }
+    const historical = await calcularCantidadDesdeHistorial(type, id, scope.bodegaId, scope.userId);
+    if (Math.abs(historical - current.litros_actuales) > 1e-7) reject("El saldo no coincide con el historial del contenedor. Los datos anteriores se conservan.");
+    plans.push({ kind, type, id, quantity, current, delta: quantity - current.litros_actuales, nodeId: String(node.id) });
+  }
+  // Releases precede fills, so a redistribution cannot fail on an intermediate capacity.
+  for (const plan of [...plans].sort((a, b) => a.delta - b.delta)) {
+    if (Math.abs(plan.delta) < 1e-7) continue;
+    const reply = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+    await crearMovimientoVino({ session: { userId: scope.userId, bodegaId: scope.bodegaId }, campaniaId: scope.campaniaId, body: {
+      tipo: "ajuste", litros: Math.abs(plan.delta), origin: "control",
+      origen_tipo: plan.delta < 0 ? plan.type : null, origen_id: plan.delta < 0 ? plan.id : null,
+      destino_tipo: plan.delta > 0 ? plan.type : null, destino_id: plan.delta > 0 ? plan.id : null,
+      nota: `Litros desde mapa de nodos ${plan.nodeId}: ${plan.current.litros_actuales} → ${plan.quantity} L`,
+    } }, reply);
+    if (!reply.body || reply.statusCode >= 400) reject(reply.body?.error || "No se pudo registrar el vino del mapa.", reply.statusCode >= 400 ? reply.statusCode : 500);
+  }
+  const updates = [];
+  for (const plan of plans) {
+    const row = await fichaCicloContenedor(plan.kind, plan.current);
+    updates.push({ nodeId: plan.nodeId, kind: plan.kind, id: plan.id, litros: row.litros_registrados,
+      previous_revision: containerEditRevision(plan.kind, plan.current), revision: containerEditRevision(plan.kind, row) });
+  }
+  return updates;
+}
+
 app.post("/api/flujo", async (req, res) => {
   const body = req.body || {};
   const input = body.flow || body;
@@ -4071,9 +4146,11 @@ app.post("/api/flujo", async (req, res) => {
     compositions: input.compositions,
   };
   try {
+    if (body.stockTargets != null && !Array.isArray(body.stockTargets)) throw Object.assign(new Error("Asignaciones del mapa no válidas."), { status: 400 });
     const saved = await flowStore.save(flowScope(req), flow, {
       baseRevision: body.baseRevision,
       force: body.force === true,
+      stockTargets: body.stockTargets,
     });
     if (saved.changed) {
       try {
@@ -4085,7 +4162,7 @@ app.post("/api/flujo", async (req, res) => {
         console.warn("El mapa y su histórico están guardados; no se pudo registrar la bitácora:", err);
       }
     }
-    res.json({ ok: true, revision: saved.revision });
+    res.json({ ok: true, revision: saved.revision, stockUpdates: saved.stockUpdates });
   } catch (err) {
     sendFlowError(res, err);
   }
