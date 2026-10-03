@@ -117,7 +117,7 @@ npm run build:win
 
 La construcción usa Electron 44.5.1 y electron-builder 26.15.3. Copia localmente las versiones existentes de jsPDF, AutoTable y html2canvas con sus licencias. El paquete incluye únicamente el código y las dependencias de ejecución; excluye bases de datos, archivos de usuarios, credenciales y copias históricas del proyecto.
 
-En Linux el constructor utiliza el lector de desinstaladores de electron-builder para extraer el desinstalador NSIS intermedio sin ejecutar ese archivo Windows. Este ajuste está limitado al ejecutable intermedio de este proyecto y a la versión fijada del constructor. La compilación cruzada reemplaza el complemento SQLite en node_modules por su versión Windows; ejecutar `npm rebuild sqlite3` antes de volver a probar el servidor en Linux.
+En Linux el constructor reconstruye el desinstalador NSIS intermedio aplicando también el bloque de recursos que utiliza WriteUninstaller. Comprueba el CRC original antes de incorporarlo al instalador. El lector anterior omitía esas modificaciones y generaba un desinstalador con CRC inválido. La integración de reparación queda limitada a electron-builder 26.15.3 y detiene la construcción si cambia el punto de inserción esperado. La compilación cruzada reemplaza el complemento SQLite en node_modules por su versión Windows; ejecutar `npm rebuild sqlite3` antes de volver a probar el servidor en Linux.
 
 ## Verificación de esta versión
 
@@ -138,3 +138,15 @@ El envío utiliza cantidades finales y revisiones de mapa y contenedor: repetir 
 Al abrir un mapa antiguo puede registrarse su vino en una ficha a cero que nunca haya tenido entradas ni movimientos. Un contenedor que fue vaciado mediante su historial no se vuelve a llenar automáticamente al abrir ese mapa: la diferencia se bloquea y conserva ambos registros para revisión. Las modificaciones de posición no reemplazan saldos manuales existentes. Quitar un nodo o vaciar el dibujo no elimina vino del historial físico. Los ajustes del mapa quedan identificados como tales en el historial; esta corrección no cambia la conversión entre kilos y volumen que ya utiliza el motor del mapa.
 
 Validación añadida: recorrido con las funciones reales del editor y HTTP hasta catálogo y resumen; guardados repetidos; decimales; revisión obsoleta; respuesta perdida; errores inyectados en histórico y bitácora; capacidad; referencias inválidas; añada; dibujo eliminado; protección de contenedores vaciados y actualizaciones pendientes. Las pruebas utilizan cuentas y bases temporales. Sigue pendiente ejecutar esta versión en un equipo Windows real.
+
+## Instalación y desinstalación corregidas (1.2.3)
+
+El desinstalador entregado en 1.2.2 tenía CRC inválido: el lector utilizado en Linux copiaba el ejecutable sin aplicar las modificaciones del icono. La 1.2.3 reproduce la operación WriteUninstaller de NSIS y verifica el CRC emitido por el compilador, sin desactivarlo ni recalcularlo para ocultar el error.
+
+Al actualizar instalaciones de 1.1.0 a 1.2.2 con la misma identidad y la ruta registrada esperada, el instalador usa temporalmente el desinstalador verificado de la nueva entrega. Conserva el procedimiento atómico de actualización del constructor y no reemplaza primero el desinstalador instalado. Una ruta inesperada detiene la actualización. Para actualizar, cerrar MicroCellerStudio y ejecutar la 1.2.3 encima: no desinstalar antes la versión defectuosa.
+
+La comprobación de procesos utiliza nsProcess y pide cerrar la aplicación manualmente; no fuerza la terminación de Electron ni del servicio SQLite. En ejecución silenciosa, una aplicación abierta o una comprobación fallida detienen la operación. La desinstalación ordinaria conserva la carpeta de datos. El parámetro --delete-app-data se rechaza explícitamente.
+
+Pruebas locales: cuatro comprobaciones del instalador y 16 de escritorio/recuperación aprobadas. La regresión compila instaladores NSIS reales con y sin compresión, demuestra el CRC inválido del lector anterior y verifica el CRC original del desinstalador corregido. Se rechazan archivos truncados, bytes alterados y parches fuera de rango.
+
+La comprobación Windows aislada en GitHub Actions cubre instalación, registro, reparación de una instalación con CRC dañado, reinstalación, rechazo de borrado de datos, desinstalación y conservación byte a byte de configuración, base, adjunto y copia. scripts/test-windows-install.ps1 se niega a ejecutarse fuera del entorno Windows de CI. El resultado de esa ejecución debe consultarse antes de darla por aprobada.
