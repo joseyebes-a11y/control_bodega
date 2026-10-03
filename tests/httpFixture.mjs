@@ -34,7 +34,9 @@ export async function httpFixture(t, name, { desktop = false, extraEnv = {} } = 
   });
   await new Promise((resolve, reject) => {
     let output = "";
-    const timer = setTimeout(() => reject(new Error(`Startup timeout: ${output}`)), 10000);
+    // Windows hosted runners need more time for initial SQLite migrations and
+    // password hashing. Keep a bounded deadline below the desktop's 120 s.
+    const timer = setTimeout(() => reject(new Error(`Startup timeout: ${output}`)), process.platform === "win32" ? 60000 : 10000);
     const read = chunk => {
       output += chunk;
       if (output.includes("Servidor iniciado")) { clearTimeout(timer); resolve(); }
