@@ -61,7 +61,8 @@ async function unpackBackup(filename, directory) {
           } });
           await pipeline(input, check, fs.createWriteStream(target, { flags: "wx", mode: 0o600 }));
           if (bytes !== entry.uncompressedSize || checksum !== entry.crc32) throw new Error("La copia está incompleta o tiene un archivo dañado.");
-          const fd = await fsp.open(target, "r");
+          // Preserve the extracted bytes and permit the Windows disk flush.
+          const fd = await fsp.open(target, "r+");
           try { await fd.sync(); } finally { await fd.close(); }
           if (name !== "manifest.json") files[name] = { bytes, sha256: hash.digest("hex") };
         }

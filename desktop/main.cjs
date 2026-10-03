@@ -9,6 +9,7 @@ const { pathsFor, readSettings, writeSettings, newSettings, backendEnvironment }
 const { archiveSnapshot } = require("./archive.cjs");
 const { unpackBackup, validateDatabase, beginRestore, commitRestore, recoverInterruptedRestore, transactionPaths } = require("./recovery.cjs");
 const { RETAIN, backupDue, backupFilename, checkBackupDirectory, pruneBackups } = require("./backup-policy.cjs");
+const { writeStartupDiagnostic } = require("./startup-diagnostic.cjs");
 
 app.setName("MicroCellerStudio");
 app.setAppUserModelId("com.microcellerstudio.desktop");
@@ -169,7 +170,11 @@ async function startBackend(password) {
         ready = false; if (backend === worker) backend = null; clearTimeout(timer);
         for (const waiter of backupWaiters.values()) waiter.reject(new Error("Se ha detenido el servicio local."));
         backupWaiters.clear();
-        if (!startupComplete) reject(new Error(`No se pudo preparar la base local. ${output.includes("EADDRINUSE") ? "Otro programa ocupa el puerto reservado. Ciérralo y vuelve a abrir MicroCellerStudio." : "Revisa las copias y la configuración antes de volver a intentarlo."}`));
+        if (!startupComplete) {
+          const diagnostic = writeStartupDiagnostic(locations.root, { output, code, version: app.getVersion(),
+            secrets: [token, settings.sessionSecret, password] });
+          reject(new Error(`No se pudo preparar la base local. ${output.includes("EADDRINUSE") ? "Otro programa ocupa el puerto reservado. Ciérralo y vuelve a abrir MicroCellerStudio." : "Se conservan tus datos. Revisa el diagnóstico antes de volver a intentarlo."}${diagnostic ? `\n\nDetalle del error: ${diagnostic}` : ""}`));
+        }
         else if (!stopping) dialog.showErrorBox("MicroCellerStudio se ha detenido", "No se pueden guardar operaciones en este momento. Conserva cualquier borrador pendiente y vuelve a abrir la aplicación.");
       });
     });

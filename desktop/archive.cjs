@@ -15,7 +15,8 @@ async function archiveSnapshot(directory, destination) {
     const transfer = pipeline(archive, output);
     archive.directory(directory, false);
     await Promise.all([transfer, archive.finalize()]);
-    const descriptor = fs.openSync(pending, "r");
+    // FlushFileBuffers on Windows needs a writable, non-truncating handle.
+    const descriptor = fs.openSync(pending, "r+");
     try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
     await fsp.rename(pending, destination);
     if (process.platform !== "win32") {

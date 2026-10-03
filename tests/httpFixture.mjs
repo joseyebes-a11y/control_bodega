@@ -9,7 +9,7 @@ import { once } from "node:events";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 
-export async function httpFixture(t, name, { desktop = false } = {}) {
+export async function httpFixture(t, name, { desktop = false, extraEnv = {} } = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), `microceller-${name}-`));
   const filename = path.join(dir, "bodega.db");
   const reservation = net.createServer();
@@ -22,7 +22,7 @@ export async function httpFixture(t, name, { desktop = false } = {}) {
   const desktopToken = crypto.randomBytes(32).toString("hex");
   const child = spawn(process.execPath, ["server.js"], {
     cwd: new URL("..", import.meta.url),
-    env: { ...process.env, NODE_ENV: "test", DATA_DIR: dir, DB_PATH: filename, BACKUP_DIR: path.join(dir, "backups"), PORT: String(port), ADMIN_USER: username, ADMIN_PASSWORD: password,
+    env: { ...process.env, ...extraEnv, NODE_ENV: "test", DATA_DIR: dir, DB_PATH: filename, BACKUP_DIR: path.join(dir, "backups"), PORT: String(port), ADMIN_USER: username, ADMIN_PASSWORD: password,
       ...(desktop ? { MICROCELLER_DESKTOP: "1", MICROCELLER_DESKTOP_TOKEN: desktopToken, HOST: "127.0.0.1" } : {}) },
     stdio: ["ignore", "pipe", "pipe", "ipc"],
   });

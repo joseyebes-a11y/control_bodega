@@ -23,7 +23,9 @@ export async function createDatabaseBackup(database, directory) {
     await copy.close();
     copy = null;
     // VACUUM INTO may not fsync its output on every SQLite version.
-    const descriptor = fs.openSync(pending, "r");
+    // Windows FlushFileBuffers requires write access. r+ keeps the validated
+    // snapshot intact while allowing the durable flush before its rename.
+    const descriptor = fs.openSync(pending, "r+");
     try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
     fs.renameSync(pending, destination);
     // Windows cannot open directories through fs.open; the snapshot file has

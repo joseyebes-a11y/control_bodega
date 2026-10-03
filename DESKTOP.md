@@ -1,6 +1,6 @@
 # MicroCellerStudio para Windows
 
-Versión de escritorio, 1.2.0, para Windows de 64 bits. Ejecuta la aplicación y SQLite en el equipo del usuario. No requiere Render ni conexión a internet para registrar datos, generar PDF o exportar copias.
+Versión de escritorio, 1.2.1, para Windows de 64 bits. Ejecuta la aplicación y SQLite en el equipo del usuario. No requiere Render ni conexión a internet para registrar datos, generar PDF o exportar copias.
 
 ## Uso
 
@@ -29,7 +29,15 @@ Después de una recuperación correcta se borran las sesiones y las cachés del 
 
 La misma opción de restauración está disponible en la pantalla inicial de una instalación nueva, para trasladar una copia completa a otro ordenador. Si falta una base ya configurada se muestra una pantalla de recuperación, sin crear una base vacía. Una configuración dañada detiene el arranque y conserva los archivos para revisión.
 
-Antes de actualizar desde 1.1.0, usar Archivo → Guardar copia completa. Cerrar la aplicación y ejecutar el nuevo instalador. La versión 1.2.0 utiliza la misma carpeta de datos, usuario y puerto; la configuración anterior sin opciones de copia sigue siendo compatible.
+Antes de actualizar desde 1.1.0 o 1.2.0, usar Archivo → Guardar copia completa si la aplicación abre. Cerrar la aplicación y ejecutar el nuevo instalador. La versión 1.2.1 utiliza la misma carpeta de datos, usuario y puerto; la configuración anterior sin opciones de copia sigue siendo compatible. Si el arranque falla, conservar la carpeta de datos y actualizar sin desinstalar ni crear otra base.
+
+## Corrección del arranque en Windows (1.2.1)
+
+La copia SQLite previa a las migraciones, el ZIP exportado y los archivos extraídos durante una recuperación se abren con lectura y escritura antes de confirmar su escritura en disco. Windows exige acceso de escritura para FlushFileBuffers; el descriptor de solo lectura utilizado antes podía detener el arranque de una base existente con un error EPERM. El modo r+ conserva los bytes, mantiene la comprobación de integridad y no omite la copia previa.
+
+Una prueba reproduce la restricción de Windows sin sustituir SQLite ni las operaciones de archivo. El código anterior falla en cada uno de los tres puntos; la corrección permite crear la copia completa, exportarla, recuperarla y reabrir una base existente conservando cantidades, credenciales y adjuntos. Esta prueba emulada no equivale a una ejecución del instalador en Windows real.
+
+Si el servicio termina antes de abrir la aplicación, se guarda un diagnóstico limitado en `%APPDATA%\\MicroCellerStudio\\arranque-error.txt`, cuya ruta aparece en el aviso. Se eliminan del texto la clave local, el secreto de sesión y la contraseña de configuración. Si el archivo no se puede escribir, se conserva el aviso original y no se modifica la base.
 
 ## Protección del guardado en formularios
 
@@ -113,10 +121,10 @@ En Linux el constructor utiliza el lector de desinstaladores de electron-builder
 
 ## Verificación de esta versión
 
-- 152 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
+- 152 pruebas de integridad y 16 de escritorio, recuperación y compatibilidad aprobadas; smoke checks y flowEngine aprobados.
 - Interfaz Electron ejecutada en Linux: configuración inicial, acceso, registro, copia desde el menú, cierre y reapertura, conservación de datos y puerto estable; sin errores de página. Copia automática inicial, restauración desde menú, conservación de dos registros posteriores en la copia previa, limpieza de borradores antiguos y recuperación ante fallo simulado del servicio restaurado. Importación en una instalación nueva probada.
 - El bloqueo de instancia única se sustituye únicamente en la prueba Linux por las restricciones de sockets del entorno de pruebas. El producto conserva el bloqueo real.
 - Pendiente ejecutar el instalador, la aplicación y el bloqueo de instancia única en un equipo Windows real.
-- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 165 pruebas aprobadas.
+- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 168 pruebas aprobadas.
 
 El instalador no tiene firma digital. Esta entrega es una versión inicial para comprobar en Windows; no constituye una certificación de todas las funciones existentes de la aplicación.
