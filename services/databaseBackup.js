@@ -26,8 +26,12 @@ export async function createDatabaseBackup(database, directory) {
     const descriptor = fs.openSync(pending, "r");
     try { fs.fsyncSync(descriptor); } finally { fs.closeSync(descriptor); }
     fs.renameSync(pending, destination);
-    const dirDescriptor = fs.openSync(directory, "r");
-    try { fs.fsyncSync(dirDescriptor); } finally { fs.closeSync(dirDescriptor); }
+    // Windows cannot open directories through fs.open; the snapshot file has
+    // already been flushed before its atomic rename on that platform.
+    if (process.platform !== "win32") {
+      const dirDescriptor = fs.openSync(directory, "r");
+      try { fs.fsyncSync(dirDescriptor); } finally { fs.closeSync(dirDescriptor); }
+    }
     return destination;
   } catch (err) {
     if (copy) await copy.close();

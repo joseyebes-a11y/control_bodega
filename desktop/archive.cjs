@@ -6,6 +6,7 @@ const { pipeline, finished } = require("node:stream/promises");
 const archiver = require("archiver");
 
 async function archiveSnapshot(directory, destination) {
+  if (!(await fsp.lstat(directory)).isDirectory()) throw new Error("No se encuentra la carpeta de la copia completa.");
   const pending = `${destination}.${crypto.randomUUID()}.pending`;
   const output = fs.createWriteStream(pending, { flags: "wx", mode: 0o600 });
   const archive = archiver("zip", { zlib: { level: 6 } });

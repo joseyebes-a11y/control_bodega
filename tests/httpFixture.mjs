@@ -9,7 +9,7 @@ import { once } from "node:events";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 
-export async function httpFixture(t, name) {
+export async function httpFixture(t, name, { desktop = false } = {}) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), `microceller-${name}-`));
   const filename = path.join(dir, "bodega.db");
   const reservation = net.createServer();
@@ -19,10 +19,12 @@ export async function httpFixture(t, name) {
   await new Promise(resolve => reservation.close(resolve));
   const password = crypto.randomUUID();
   const username = `${name}_test`;
+  const desktopToken = crypto.randomBytes(32).toString("hex");
   const child = spawn(process.execPath, ["server.js"], {
     cwd: new URL("..", import.meta.url),
-    env: { ...process.env, NODE_ENV: "test", DATA_DIR: dir, DB_PATH: filename, BACKUP_DIR: path.join(dir, "backups"), PORT: String(port), ADMIN_USER: username, ADMIN_PASSWORD: password },
-    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, NODE_ENV: "test", DATA_DIR: dir, DB_PATH: filename, BACKUP_DIR: path.join(dir, "backups"), PORT: String(port), ADMIN_USER: username, ADMIN_PASSWORD: password,
+      ...(desktop ? { MICROCELLER_DESKTOP: "1", MICROCELLER_DESKTOP_TOKEN: desktopToken, HOST: "127.0.0.1" } : {}) },
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
   });
   let database;
   t.after(async () => {
@@ -41,12 +43,13 @@ export async function httpFixture(t, name) {
     child.once("exit", code => { clearTimeout(timer); reject(new Error(`Server exited ${code}: ${output}`)); });
   });
   const base = `http://127.0.0.1:${port}`;
-  const login = await fetch(`${base}/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usuario: username, password }) });
+  const tokenHeaders = desktop ? { "x-microceller-desktop-token": desktopToken } : {};
+  const login = await fetch(`${base}/login`, { method: "POST", headers: { "Content-Type": "application/json", ...tokenHeaders }, body: JSON.stringify({ usuario: username, password }) });
   assert.equal(login.status, 200);
   const cookie = login.headers.get("set-cookie").split(";")[0];
   async function request(url, { method = "GET", body, campaign = "2026" } = {}) {
     const response = await fetch(`${base}${url}`, { method,
-      headers: { Cookie: cookie, "Content-Type": "application/json", "x-campania-id": campaign },
+      headers: { Cookie: cookie, "Content-Type": "application/json", "x-campania-id": campaign, ...tokenHeaders },
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
     return { status: response.status, data: await response.json() };
@@ -55,5 +58,5 @@ export async function httpFixture(t, name) {
   database = await open({ filename, driver: sqlite3.Database });
   await database.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000");
   const user = (await request("/api/me")).data;
-  return { database, request, user };
+  return { database, request, user, child, base, dir, filename, username, cookie, tokenHeaders };
 }

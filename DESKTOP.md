@@ -37,7 +37,9 @@ Las entradas, contenedores nuevos, catas, productos, consumos, movimientos, embo
 
 Los campos se conservan ante errores. Un éxito se confirma después de recibir la respuesta del servicio; una respuesta HTML o JSON ilegible no se interpreta como guardado. Si falla la conexión, se avisa de que debe comprobarse el historial antes de repetir, porque una respuesta perdida no demuestra que el servicio no haya recibido la operación. Los formularios y los avisos existentes siguen validando los datos antes del envío.
 
-Prueba real en Electron: un doble envío produjo una entrada de 100 kg; la misma protección en Express produjo una sola entrada adicional; los fallos de conexión y un error 503 conservaron nombre y nota del producto; una respuesta HTML 200 conservó el formulario y no mostró éxito; la respuesta válida guardó el producto, confirmó el resultado y limpió los campos. Sin errores de página.
+Prueba previa en Electron: un doble envío produjo una entrada de 100 kg; la misma protección en Express produjo una sola entrada adicional; los fallos de conexión y un error 503 conservaron nombre y nota del producto; una respuesta HTML 200 conservó el formulario y no mostró éxito; la respuesta válida guardó el producto, confirmó el resultado y limpió los campos. Sin errores de página.
+
+Tras recuperar el código se repitieron las 78 pruebas de integridad y escritorio, además de smoke y flowEngine. Se comprobó el formulario real de limpieza en un DOM: doble envío, bloqueo del botón sin atributo type, cierre durante guardado, conservación de campos ante fallos de red, 503, HTML y JSON ilegible, reinicio tras éxito y aviso cuando falla la vista después de guardar. El constructor y los tests reconstruidos quedan guardados con el código; no se generó un instalador nuevo en esta revisión.
 
 ## Desarrollo y construcción
 

@@ -20,6 +20,7 @@ import { evaluar as evaluarReglas } from "./rules/rulesEngine.js";
 import { createFlowStore, normalizarFlowSnapshot } from "./services/flowStore.js";
 import { createDatabaseBackup } from "./services/databaseBackup.js";
 import { createDatabaseContext } from "./services/databaseContext.js";
+import { createDesktopSnapshot } from "./services/desktopSnapshot.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,7 +30,19 @@ const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toStr
 if (process.env.NODE_ENV === "production" && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.length < 32)) {
   throw new Error("Configura SESSION_SECRET con al menos 32 caracteres antes de iniciar en producción.");
 }
- const app = express();
+const desktopMode = process.env.MICROCELLER_DESKTOP === "1";
+const desktopToken = process.env.MICROCELLER_DESKTOP_TOKEN;
+if (desktopMode && (!desktopToken || desktopToken.length < 32)) throw new Error("Falta la clave del arranque local.");
+const app = express();
+if (desktopMode) app.use((req, res, next) => {
+  const supplied = req.get("x-microceller-desktop-token") || "";
+  const expected = Buffer.from(desktopToken);
+  const actual = Buffer.from(supplied);
+  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
+    return res.status(403).json({ error: "Abre MicroCellerStudio desde su aplicación de escritorio." });
+  }
+  next();
+});
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
@@ -10626,6 +10639,7 @@ app.post("/api/campanias/activa", async (req, res) => {
 }
 
 const PORT = process.env.PORT || 3001;
+const HOST = desktopMode ? "127.0.0.1" : (process.env.HOST || "0.0.0.0");
 async function ensureAdminUser() {
   const existing = await db.get(
     "SELECT id, bodega_id, password_hash FROM usuarios WHERE usuario = ?",
@@ -10801,6 +10815,59 @@ async function runCliIfNeeded() {
   return true;
 }
 
+let httpServer;
+let boundPort;
+let runtimeQueue = Promise.resolve();
+function sendRuntimeMessage(message) {
+  if (process.parentPort) process.parentPort.postMessage(message);
+  else if (process.send) process.send(message);
+}
+function listenHttp(port) {
+  return new Promise((resolve, reject) => {
+    httpServer = app.listen(port, HOST, () => {
+      boundPort = httpServer.address().port;
+      console.log(`🔥 Servidor iniciado en el puerto ${boundPort}`);
+      resolve();
+    });
+    httpServer.once("error", reject);
+  });
+}
+async function pauseHttp() {
+  if (!httpServer?.listening) return;
+  const current = httpServer;
+  await new Promise((resolve, reject) => {
+    current.close(error => error ? reject(error) : resolve());
+    current.closeIdleConnections?.();
+  });
+}
+async function handleDesktopControl(message) {
+  if (!desktopMode || !message || typeof message !== "object") return;
+  if (message.type === "desktop-backup") {
+    let result;
+    try {
+      await pauseHttp();
+      await createDesktopSnapshot(db, message.directory, dataDir, ADMIN_USER);
+      result = { type: "desktop-backup-result", requestId: message.requestId, ok: true };
+    } catch (error) {
+      result = { type: "desktop-backup-result", requestId: message.requestId, ok: false, error: error.message };
+    } finally {
+      await listenHttp(boundPort);
+    }
+    sendRuntimeMessage(result);
+  } else if (message.type === "desktop-stop") {
+    await pauseHttp();
+    await db.close();
+    sendRuntimeMessage({ type: "desktop-stopped" });
+    process.exit(0);
+  }
+}
+function enqueueDesktopControl(message) {
+  runtimeQueue = runtimeQueue.then(() => handleDesktopControl(message)).catch(error => {
+    console.error("Error en operación de escritorio:", error);
+    sendRuntimeMessage({ type: "desktop-failed", error: error.message });
+  });
+}
+
 async function startServer() {
   await initDB();
   await migrateFlujoNodos();
@@ -10820,10 +10887,12 @@ async function startServer() {
   await logTenantStats();
   registerRoutes();
 
-  // 👇 IMPORTANTE: forzar 0.0.0.0 para Render
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🔥 Servidor iniciado en el puerto ${PORT}`);
-  });
+  await listenHttp(Number(PORT));
+  if (desktopMode) {
+    process.parentPort?.on("message", event => enqueueDesktopControl(event.data));
+    process.on("message", enqueueDesktopControl);
+    sendRuntimeMessage({ type: "desktop-ready", port: boundPort });
+  }
 }
 
 runCliIfNeeded()
