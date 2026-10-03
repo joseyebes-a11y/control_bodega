@@ -12301,9 +12301,12 @@ function obtenerVolumenNumericoNodo(nodo) {
 function tipoFichaVolumenNodo(nodo) {
   if (nodo?.tipo === "deposito") return "deposito";
   if (nodo?.tipo !== "barrica") return null;
-  const tipo = String(nodo.datos?.contenedor_tipo || "barrica").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  if (["deposito", "mastelone"].includes(tipo)) return "deposito";
-  return tipo === "barrica" ? "barrica" : null;
+  // Legacy maps stored the full label (e.g. "Barrica 225 L Francés")
+  // in type/contenedor_tipo. Read only an explicit container-kind prefix.
+  const tipo = String(nodo.datos?.contenedor_tipo || nodo.datos?.type || "barrica").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const clase = tipo.match(/^(barrica|deposito|mastelone)(?:$|[\s·:,(])/u)?.[1];
+  if (["deposito", "mastelone"].includes(clase)) return "deposito";
+  return clase === "barrica" ? "barrica" : null;
 }
 
 function resolverFichaVolumenNodo(nodo) {
@@ -12311,11 +12314,11 @@ function resolverFichaVolumenNodo(nodo) {
   if (!tipo) return null;
   const lista = tipo === "barrica" ? cacheBarricas : [...cacheDepositos, ...cacheMastelones];
   const datos = nodo.datos || {};
-  const referencia = nodo.tipo === "barrica" ? datos.contenedor_id ?? datos.id_ref : datos.id_ref ?? datos.contenedor_id;
+  const referencia = nodo.tipo === "barrica" ? datos.contenedor_id ?? datos.id_ref ?? datos.containerId : datos.id_ref ?? datos.contenedor_id ?? datos.containerId;
   if (referencia != null && referencia !== "") {
     return lista.find(item => String(item.id) === String(referencia)) || null;
   }
-  const codigo = String(datos.codigo || nodo.titulo || "").trim().toLowerCase();
+  const codigo = String(datos.codigo || datos.name || nodo.titulo || "").trim().toLowerCase();
   const coincidencias = lista.filter(item => String(item.codigo || "").trim().toLowerCase() === codigo);
   return codigo && coincidencias.length === 1 ? coincidencias[0] : null;
 }
@@ -12666,19 +12669,8 @@ function buscarBarricaPorCodigo(codigo) {
 }
 
 function resolverInfoBarricaDesdeNodo(nodo) {
-  if (!nodo || nodo.tipo !== "barrica") return null;
-  const datos = nodo.datos || {};
-  let info = null;
-  if (datos.contenedor_id) {
-    info = buscarBarricaPorId(datos.contenedor_id);
-  }
-  if (!info && datos.codigo) {
-    info = buscarBarricaPorCodigo(datos.codigo);
-  }
-  if (!info && nodo.titulo) {
-    info = buscarBarricaPorCodigo(nodo.titulo);
-  }
-  return info;
+  if (tipoFichaVolumenNodo(nodo) !== "barrica") return null;
+  return resolverFichaVolumenNodo(nodo);
 }
 
 function obtenerContenedorPorIdRef(idRef) {
@@ -20515,6 +20507,15 @@ function recogerLitrosFisicosMapa() {
     for (const item of items) {
       const node = obtenerNodoVolumenActualContenedor(kind, item);
       if (!node) continue;
+      // The displayed legacy code can resolve a catalog row without an ID.
+      // Persist its verified identity before sending stockTargets to the API.
+      // Never substitute a different row for an invalid explicit ID.
+      node.datos = node.datos || {};
+      Object.assign(node.datos, { containerId: item.id, id_ref: item.id, contenedor_id: item.id });
+      if (node.tipo === "barrica") {
+        node.datos.contenedor_tipo = kind;
+        node.datos.type = kind;
+      }
       const visited = new Set(), pending = [node];
       let hasEntry = false;
       while (pending.length) {

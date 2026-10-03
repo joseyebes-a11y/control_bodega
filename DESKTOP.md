@@ -150,3 +150,7 @@ La comprobación de procesos utiliza nsProcess y pide cerrar la aplicación manu
 Pruebas locales: cuatro comprobaciones del instalador y 16 de escritorio/recuperación aprobadas. La regresión compila instaladores NSIS reales con y sin compresión, demuestra el CRC inválido del lector anterior y verifica el CRC original del desinstalador corregido. Se rechazan archivos truncados, bytes alterados y parches fuera de rango.
 
 La comprobación Windows aislada en GitHub Actions cubre instalación, registro, reparación de una instalación con CRC dañado, reinstalación, rechazo de borrado de datos, desinstalación y conservación byte a byte de configuración, base, adjunto y copia. scripts/test-windows-install.ps1 se niega a ejecutarse fuera del entorno Windows de CI. El resultado de esa ejecución debe consultarse antes de darla por aprobada.
+
+## Maderas en 1.2.4
+
+Los mapas antiguos de crianza reconocen las descripciones de barrica y vinculan el código exacto y único a su ficha antes de registrar litros. Se conservan los controles de revisión e historial, y un identificador desconocido nunca se sustituye por otra ficha. Los trasiegos desde depósitos actualizan los litros de Maderas y el resumen sin duplicar movimientos al guardar de nuevo.

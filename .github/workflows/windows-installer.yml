@@ -18,6 +18,7 @@ jobs:
       - run: npm ci
       - run: npm run test:installer
       - run: npm run test:desktop
+      - run: node --test tests/mapStockClient.test.mjs tests/mapStockIntegrity.test.mjs tests/volumeConsistency.test.mjs
       - run: npm run build:win
       - name: Install, repair legacy update, uninstall, reinstall and preserve data
         shell: pwsh
