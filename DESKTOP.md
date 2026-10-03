@@ -41,6 +41,16 @@ Prueba previa en Electron: un doble envío produjo una entrada de 100 kg; la mis
 
 Tras recuperar el código se repitieron las 78 pruebas de integridad y escritorio, además de smoke y flowEngine. Se comprobó el formulario real de limpieza en un DOM: doble envío, bloqueo del botón sin atributo type, cierre durante guardado, conservación de campos ante fallos de red, 503, HTML y JSON ilegible, reinicio tras éxito y aviso cuando falla la vista después de guardar. El constructor y los tests reconstruidos quedan guardados con el código; no se generó un instalador nuevo en esta revisión.
 
+## Edición de depósitos y barricas
+
+La edición de depósitos, mastelones y barricas guarda los datos, el ajuste de litros y su bitácora en una sola transacción. Si falla cualquier parte, se conserva el estado anterior. El volumen enviado es una cantidad final; el servidor calcula el ajuste dentro de la operación, sin un segundo envío del formulario. Los litros de esta edición proceden del historial guardado, aunque el mapa muestre otra cifra; una modificación de nombre no copia automáticamente la cifra del mapa.
+
+Los formularios conservan los decimales originales al abrirse y admiten cantidades con más de una cifra decimal. Comprueban capacidad y volumen, bloquean un segundo envío y evitan cerrar o sustituir la edición mientras se guarda. Un conflicto, un fallo de red o una respuesta inesperada conservan los campos; el éxito se confirma tras terminar la operación completa.
+
+Una revisión de los datos, los litros y la partida detecta cambios desde que se abrió el formulario. Una revisión ausente o desactualizada impide ajustar el volumen. Los cambios entre la campaña seleccionada y la activa también se rechazan. Una discrepancia entre el saldo consolidado y el historial detiene la edición sin intentar corregir los datos. Los campos de metadata no enviados, como ubicación o marca, se conservan.
+
+Pruebas HTTP con depósitos, mastelones y barricas: aumento, reducción y vaciado; precisión decimal; conservación de metadata; fallos inyectados en actualización, movimiento, saldo y bitácora; dos ediciones concurrentes; reenvío después de una respuesta perdida; movimientos simultáneos; errores de capacidad, cantidad, clase y estado; aislamiento de bodega y conflictos de campaña. Ambos formularios se comprobaron en un DOM con los controles y funciones reales: un solo PUT, doble clic, bloqueo del cierre y de la sustitución del contenedor durante el guardado, conservación de campos ante 409/red/HTML y cierre tras éxito confirmado.
+
 ## Desarrollo y construcción
 
 ```sh
@@ -59,10 +69,10 @@ En Linux el constructor utiliza el lector de desinstaladores de electron-builder
 
 ## Verificación de esta versión
 
-- 65 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
+- 85 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
 - Interfaz Electron ejecutada en Linux: configuración inicial, acceso, registro, copia desde el menú, cierre y reapertura, conservación de datos y puerto estable; sin errores de página. Copia automática inicial, restauración desde menú, conservación de dos registros posteriores en la copia previa, limpieza de borradores antiguos y recuperación ante fallo simulado del servicio restaurado. Importación en una instalación nueva probada.
 - El bloqueo de instancia única se sustituye únicamente en la prueba Linux por las restricciones de sockets del entorno de pruebas. El producto conserva el bloqueo real.
 - Pendiente ejecutar el instalador, la aplicación y el bloqueo de instancia única en un equipo Windows real.
-- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 78 pruebas aprobadas.
+- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 98 pruebas aprobadas.
 
 El instalador no tiene firma digital. Esta entrega es una versión inicial para comprobar en Windows; no constituye una certificación de todas las funciones existentes de la aplicación.

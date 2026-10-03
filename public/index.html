@@ -7373,8 +7373,8 @@ label {
                     <label>Capacidad (L)</label>
                     <input type="number" id="depCapacidadEdit" min="0" step="0.1" required>
 
-                    <label>Volumen actual (L)</label>
-                    <input type="number" id="depVolumenEdit" min="0" step="0.1" required>
+                    <label>Volumen registrado (L)</label>
+                    <input type="number" id="depVolumenEdit" min="0" step="any" required>
 
                     <label>Tipo</label>
                     <select id="depTipoEdit" required></select>
@@ -7471,8 +7471,8 @@ label {
                     <label>Capacidad (L)</label>
                     <input type="number" id="barEditCapacidad" min="1" step="0.1" required>
 
-                    <label>Volumen actual (L)</label>
-                    <input type="number" id="barEditVolumen" min="0" step="0.1" required>
+                    <label>Volumen registrado (L)</label>
+                    <input type="number" id="barEditVolumen" min="0" step="any" required>
 
                     <label>Tipo de roble</label>
                     <input type="text" id="barEditTipoRoble" placeholder="Francés, americano...">
@@ -24152,6 +24152,7 @@ function editarDepositoDatos(id) {
 }
 
 function abrirModalDeposito(dep) {
+  if (MicroCellerFormSave.isBusy(document.getElementById("formEditarDeposito"))) return;
   depositoEditando = { ...dep };
   const modal = document.getElementById("modalDeposito");
   if (!modal) return;
@@ -24164,7 +24165,7 @@ function abrirModalDeposito(dep) {
   const campos = {
     depCodigoEdit: dep.codigo || "",
     depCapacidadEdit: capacidad || "",
-    depVolumenEdit: dep.litros_actuales != null ? Number(dep.litros_actuales).toFixed(1) : "0",
+    depVolumenEdit: String(Number(dep.litros_registrados ?? dep.litros_actuales ?? 0)),
   };
   Object.entries(campos).forEach(([id, valor]) => {
     const input = document.getElementById(id);
@@ -24201,7 +24202,11 @@ function abrirModalDeposito(dep) {
   modal.classList.add("visible");
 }
 
-function cerrarModalDeposito() {
+function cerrarModalDeposito(force = false) {
+  if (force !== true && MicroCellerFormSave.isBusy(document.getElementById("formEditarDeposito"))) {
+    mostrarAviso("Espera a que termine el guardado.", "info");
+    return;
+  }
   depositoEditando = null;
   const modal = document.getElementById("modalDeposito");
   if (modal) {
@@ -24218,7 +24223,11 @@ function cerrarModalDeposito() {
   setFormFeedback("feedbackEditarDeposito", "");
 }
 
-async function guardarEdicionDeposito(ev) {
+function guardarEdicionDeposito(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formEditarDeposito"), guard => guardarEdicionDepositoSinBloqueo(ev, guard));
+}
+async function guardarEdicionDepositoSinBloqueo(ev, guard) {
   ev.preventDefault();
   if (!depositoEditando) return;
   const codigo = document.getElementById("depCodigoEdit").value.trim();
@@ -24227,22 +24236,27 @@ async function guardarEdicionDeposito(ev) {
   const tipo = document.getElementById("depTipoEdit").value;
   const material = document.getElementById("depMaterialEdit").value;
   const estado = document.getElementById("depEstadoEdit").value || "vacio";
-  const vinoTipo = volumenNuevo > 0 ? depositoEditando.vino_tipo : "";
+  const volumenRegistrado = Number(depositoEditando.litros_registrados ?? depositoEditando.litros_actuales ?? 0);
+  const vinoTipo = volumenNuevo === 0 && volumenRegistrado > 0 ? "" : depositoEditando.vino_tipo;
 
   if (!codigo) {
     setFormFeedback("feedbackEditarDeposito", "El código es obligatorio.", "error");
     return;
   }
-  if (!capacidad_l || capacidad_l <= 0) {
+  if (!Number.isFinite(capacidad_l) || capacidad_l <= 0) {
     setFormFeedback("feedbackEditarDeposito", "Introduce una capacidad válida.", "error");
     return;
   }
-  if (Number.isNaN(volumenNuevo) || volumenNuevo < 0) {
+  if (!Number.isFinite(volumenNuevo) || volumenNuevo < 0) {
     setFormFeedback("feedbackEditarDeposito", "El volumen debe ser un número positivo.", "error");
     return;
   }
   if (!tipo) {
     setFormFeedback("feedbackEditarDeposito", "Selecciona el tipo de contenedor.", "error");
+    return;
+  }
+  if (volumenNuevo > capacidad_l) {
+    setFormFeedback("feedbackEditarDeposito", "El volumen no puede superar la capacidad del contenedor.", "error");
     return;
   }
   if (!material) {
@@ -24266,69 +24280,20 @@ async function guardarEdicionDeposito(ev) {
         fecha_uso: depositoEditando.fecha_uso,
         clase: depositoEditando.clase || "deposito",
         estado,
+        litros_actuales: volumenNuevo,
+        base_revision: depositoEditando.edit_revision,
       }),
     });
-    const ok = await manejarRespuesta(res, "No se pudo actualizar el depósito.");
+    const ok = await manejarRespuesta(res, "No se pudo actualizar el depósito.", guard);
     if (!ok) return;
-    await aplicarAjusteDeposito(
-      depositoEditando.id,
-      Number(depositoEditando.litros_actuales || 0),
-      volumenNuevo,
-      depositoEditando.clase || "deposito"
-    );
+    guard.confirm("Depósito actualizado.");
+    cerrarModalDeposito(true);
     await Promise.all([cargarDepositos(), cargarMovimientos(), cargarResumen()]);
     mostrarAviso("Depósito actualizado.", "success");
-    cerrarModalDeposito();
   } catch (err) {
+    guard.fail(err);
     console.error("Error actualizando depósito:", err);
     setFormFeedback("feedbackEditarDeposito", "No se pudo actualizar el depósito.", "error");
-  }
-}
-async function aplicarAjusteDeposito(id, volumenActual, nuevo, clase = "deposito") {
-  const delta = nuevo - volumenActual;
-  if (Math.abs(delta) < 0.0001) {
-    return;
-  }
-
-  const ahora = new Date().toISOString();
-  const tipoMovimiento = clase === "mastelone" ? "mastelone" : "deposito";
-  const etiqueta = tipoMovimiento === "mastelone" ? "mastelone" : "depósito";
-  const body = delta > 0
-    ? {
-        fecha: ahora,
-        fecha_hora: ahora,
-        tipo: "ajuste",
-        origen_tipo: null,
-        origen_id: null,
-        destino_tipo: tipoMovimiento,
-        destino_id: id,
-        litros: delta,
-        perdida_litros: null,
-        nota: `Ajuste de volumen desde edición de ${etiqueta} (antes: ${volumenActual} L, ahora: ${nuevo} L)`,
-      }
-    : {
-        fecha: ahora,
-        fecha_hora: ahora,
-        tipo: "ajuste",
-        origen_tipo: tipoMovimiento,
-        origen_id: id,
-        destino_tipo: "merma",
-        destino_id: null,
-        litros: Math.abs(delta),
-        perdida_litros: Math.abs(delta),
-        nota: `Ajuste de volumen (merma) desde edición de ${etiqueta} (antes: ${volumenActual} L, ahora: ${nuevo} L)`,
-      };
-
-  try {
-    const res = await fetch("/api/movimientos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error();
-  } catch (err) {
-    console.error("Error aplicando ajuste de volumen:", err);
-    alert("No se pudo registrar el ajuste de volumen.");
   }
 }
 
@@ -24691,6 +24656,7 @@ async function guardarCataSinBloqueo(ev, guard) {
 }
 
 function abrirModalBarrica(bar) {
+  if (MicroCellerFormSave.isBusy(document.getElementById("formEditarBarrica"))) return;
   barricaEditando = { ...bar };
   const modal = document.getElementById("modalBarrica");
   if (!modal) return;
@@ -24698,7 +24664,7 @@ function abrirModalBarrica(bar) {
     barEditId: bar.id || "",
     barEditCodigo: bar.codigo || "",
     barEditCapacidad: bar.capacidad_l != null ? Number(bar.capacidad_l) : "",
-    barEditVolumen: bar.litros_actuales != null ? Number(bar.litros_actuales).toFixed(1) : "0",
+    barEditVolumen: String(Number(bar.litros_registrados ?? bar.litros_actuales ?? 0)),
     barEditTipoRoble: bar.tipo_roble || "",
     barEditTostado: bar.tostado || "",
     barEditMarca: bar.marca || "",
@@ -24714,7 +24680,11 @@ function abrirModalBarrica(bar) {
   modal.classList.add("visible");
 }
 
-function cerrarModalBarrica() {
+function cerrarModalBarrica(force = false) {
+  if (force !== true && MicroCellerFormSave.isBusy(document.getElementById("formEditarBarrica"))) {
+    mostrarAviso("Espera a que termine el guardado.", "info");
+    return;
+  }
   barricaEditando = null;
   const modal = document.getElementById("modalBarrica");
   if (modal) modal.classList.remove("visible");
@@ -24723,7 +24693,11 @@ function cerrarModalBarrica() {
   setFormFeedback("feedbackEditarBarrica", "");
 }
 
-async function guardarEdicionBarrica(ev) {
+function guardarEdicionBarrica(ev) {
+  ev?.preventDefault();
+  return MicroCellerFormSave.run(document.getElementById("formEditarBarrica"), guard => guardarEdicionBarricaSinBloqueo(ev, guard));
+}
+async function guardarEdicionBarricaSinBloqueo(ev, guard) {
   ev.preventDefault();
   if (!barricaEditando) return;
 
@@ -24750,6 +24724,10 @@ async function guardarEdicionBarrica(ev) {
     setFormFeedback("feedbackEditarBarrica", "Introduce un volumen válido.", "error");
     return;
   }
+  if (volumenNuevo > capacidad_l) {
+    setFormFeedback("feedbackEditarBarrica", "El volumen no puede superar la capacidad del contenedor.", "error");
+    return;
+  }
 
   try {
     const res = await fetch(`/api/barricas/${barricaEditando.id}`, {
@@ -24764,19 +24742,18 @@ async function guardarEdicionBarrica(ev) {
         anio,
         vino_anio,
         vino_tipo,
+        litros_actuales: volumenNuevo,
+        base_revision: barricaEditando.edit_revision,
       }),
     });
-    const ok = await manejarRespuesta(res, "No se pudo actualizar la barrica.");
+    const ok = await manejarRespuesta(res, "No se pudo actualizar la barrica.", guard);
     if (!ok) return;
-    await aplicarAjusteBarrica(
-      barricaEditando.id,
-      Number(barricaEditando.litros_actuales || 0),
-      volumenNuevo
-    );
+    guard.confirm("Barrica actualizada.");
+    cerrarModalBarrica(true);
     await Promise.all([cargarBarricas(), cargarMovimientos(), cargarResumen()]);
     mostrarAviso("Barrica actualizada.", "success");
-    cerrarModalBarrica();
   } catch (err) {
+    guard.fail(err);
     console.error("Error actualizando barrica:", err);
     setFormFeedback("feedbackEditarBarrica", "No se pudo actualizar la barrica.", "error");
   }
@@ -24809,49 +24786,6 @@ async function eliminarBarrica(id, volumen) {
         console.error("Error borrando barrica:", err);
         mostrarAviso("No se pudo borrar la barrica.", "error");
     }
-}
-async function aplicarAjusteBarrica(id, volumenActual, nuevo) {
-  const delta = nuevo - volumenActual;
-  if (Math.abs(delta) < 0.0001) {
-    return;
-  }
-
-  const ahora = new Date().toISOString();
-  const body = delta > 0
-    ? {
-        fecha: ahora,
-        fecha_hora: ahora,
-        tipo: "ajuste",
-        origen_tipo: null,
-        origen_id: null,
-        destino_tipo: "barrica",
-        destino_id: id,
-        litros: delta,
-        nota: `Ajuste de volumen en barrica (antes: ${volumenActual} L, ahora: ${nuevo} L)`,
-      }
-    : {
-        fecha: ahora,
-        fecha_hora: ahora,
-        tipo: "ajuste",
-        origen_tipo: "barrica",
-        origen_id: id,
-        destino_tipo: "merma",
-        destino_id: null,
-        litros: Math.abs(delta),
-        nota: `Ajuste de volumen (merma) en barrica (antes: ${volumenActual} L, ahora: ${nuevo} L)`,
-      };
-
-  try {
-    const res = await fetch("/api/movimientos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error();
-  } catch (err) {
-    console.error("Error aplicando ajuste en barrica:", err);
-    mostrarAviso("No se pudo registrar el ajuste de volumen en la barrica.", "error");
-  }
 }
 
 function formatContainerLabel(item, { tipo = "", withType = false } = {}) {

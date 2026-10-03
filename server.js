@@ -21,6 +21,7 @@ import { createFlowStore, normalizarFlowSnapshot } from "./services/flowStore.js
 import { createDatabaseBackup } from "./services/databaseBackup.js";
 import { createDatabaseContext } from "./services/databaseContext.js";
 import { createDesktopSnapshot } from "./services/desktopSnapshot.js";
+import { containerEditRevision, prepareContainerEdit } from "./services/containerEdit.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -3945,6 +3946,7 @@ app.get("/api/depositos", async (req, res) => {
         d.codigo,
         d.tipo,
         d.capacidad_hl,
+        d.ubicacion,
         d.vino_anio,
         d.anada_creacion,
         d.vino_tipo,
@@ -3959,6 +3961,7 @@ app.get("/api/depositos", async (req, res) => {
         d.clase,
         d.capacidad_hl * 100 AS capacidad_l,
         COALESCE(ce.cantidad, 0) AS litros_actuales,
+        ce.partida_id_actual,
         ca.id AS alias_id,
         ca.alias AS alias,
         ca.color_tag AS alias_color_tag,
@@ -3985,7 +3988,7 @@ app.get("/api/depositos", async (req, res) => {
       campaniaId,
       bodegaId
     );
-    res.json(filas);
+    res.json(filas.map(row => ({ ...row, litros_registrados: row.litros_actuales, edit_revision: containerEditRevision("deposito", row) })));
   } catch (err) {
     console.error("Error al listar depósitos:", err);
     res.status(500).json({ error: "Error al listar depósitos" });
@@ -4283,131 +4286,76 @@ app.delete("/api/depositos/:id", async (req, res) => {
   }
 });
 
-app.put("/api/depositos/:id", async (req, res) => {
-  const {
-    codigo,
-    tipo,
-    capacidad_l,
-    ubicacion,
-    material,
-    contenido,
-    fecha_uso,
-    elaboracion,
-    vino_tipo,
-    vino_anio,
-    clase: claseEntrada,
-    estado,
-  } = req.body;
-  const capacidadNum =
-    capacidad_l !== undefined && capacidad_l !== null
-      ? Number(capacidad_l)
-      : null;
-  const capacidad_hl =
-    capacidadNum !== null && !Number.isNaN(capacidadNum)
-      ? capacidadNum / 100
-      : null;
-  const materialFinal =
-    material !== undefined && material !== null && material !== ""
-      ? material
-      : contenido ?? null;
-  const clase = claseEntrada ? normalizarClaseDeposito(claseEntrada) : null;
-  const estadoNormalizado = estado != null ? normalizarEstadoDeposito(estado) : null;
-
+async function editarContenedorCompleto(req, res, kind) {
+  const table = kind === "barrica" ? "barricas" : "depositos";
+  const label = kind === "barrica" ? "Barrica" : "Depósito";
   try {
-    const bodegaId = req.session.bodegaId;
-    const userId = req.session.userId;
-    const actual = await db.get(
-      "SELECT id, anada_creacion FROM depositos WHERE id = ? AND bodega_id = ?",
-      req.params.id,
-      bodegaId
-    );
-    if (!actual) {
-      return res.status(404).json({ error: "Depósito no encontrado" });
+    const id = Number(req.params.id), bodegaId = req.session.bodegaId, userId = req.session.userId;
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: "ID inválido" });
+    const actual = await db.get(`SELECT * FROM ${table} WHERE id=? AND bodega_id=? AND user_id=? AND activo=1`, id, bodegaId, userId);
+    if (!actual) return res.status(404).json({ error: `${label} no encontrado` });
+    const year = await obtenerAnioCampaniaActiva(bodegaId);
+    const blocked = resolverBloqueoPorAnada(actual.anada_creacion, year);
+    if (blocked) return res.status(blocked.status).json({ error: blocked.error });
+    const type = kind === "barrica" ? "barrica" : normalizarClaseDeposito(actual.clase);
+    const state = await obtenerEstadoContenedor(type, id, bodegaId, userId);
+    const current = { ...actual, litros_actuales: Number(state?.cantidad ?? 0), partida_id_actual: state?.partida_id_actual ?? null };
+    const { changes, target, combined } = prepareContainerEdit(kind, current, req.body);
+    if (combined && Number(req.campaniaId) !== year) {
+      return res.status(409).json({ error: "Abre la añada activa antes de editar el volumen del contenedor." });
     }
-    const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
-    const bloqueo = resolverBloqueoPorAnada(actual.anada_creacion, anioActivo);
-    if (bloqueo) {
-      return res.status(bloqueo.status).json({ error: bloqueo.error });
+    if (kind === "deposito" && Object.hasOwn(changes, "clase")) {
+      if (!CLASES_DEPOSITO.has(changes.clase)) return res.status(400).json({ error: "Clase de contenedor no válida." });
+      if (changes.clase !== normalizarClaseDeposito(actual.clase)) return res.status(409).json({ error: "La clase del contenedor no se puede cambiar desde esta edición." });
     }
-    if (codigo) {
-      const fila = await db.get(
-        "SELECT id FROM depositos WHERE codigo = ? AND id != ? AND bodega_id = ?",
-        codigo,
-        req.params.id,
-        bodegaId
-      );
-      if (fila) {
-        return res
-          .status(409)
-          .json({ error: `El depósito ${codigo} ya existe en esta bodega. Usa 'Seleccionar existente'.` });
+    if (kind === "deposito" && Object.hasOwn(changes, "estado")) {
+      const raw = String(changes.estado || "").toLowerCase();
+      if (!ESTADOS_DEPOSITO.some(value => value.id === raw || value.nombre.toLowerCase() === raw)) {
+        return res.status(400).json({ error: "Estado de contenedor no válido." });
+      }
+      changes.estado = normalizarEstadoDeposito(raw);
+    }
+    if (changes.codigo) {
+      const duplicate = await db.get(`SELECT id FROM ${table} WHERE codigo=? AND id!=? AND bodega_id=?`, changes.codigo, id, bodegaId);
+      if (duplicate) return res.status(409).json({ error: `El código ${changes.codigo} ya existe en esta bodega.` });
+    }
+    if (combined) {
+      if (kind === "deposito" && type === "barrica") return res.status(409).json({ error: "Revisa la clase y el historial de este contenedor antes de ajustar su volumen." });
+      const historical = await recalcularSaldoMovimiento(type, id, bodegaId, userId);
+      if (Math.abs(historical - current.litros_actuales) > 1e-7) {
+        return res.status(409).json({ error: "El volumen no coincide con el historial. Revisa el contenedor antes de modificarlo." });
       }
     }
-    const valores = [
-      codigo,
-      tipo,
-      capacidad_hl,
-      ubicacion || null,
-      materialFinal || null,
-      fecha_uso || null,
-      elaboracion || null,
-      vino_tipo || null,
-      vino_anio || null,
-    ];
-    let setClase = "";
-    let setEstado = "";
-    if (clase) {
-      setClase = ", clase = ?";
-      valores.push(clase);
+    const columns = Object.keys(changes);
+    if (columns.length) await db.run(`UPDATE ${table} SET ${columns.map(column => `${column}=?`).join(",")} WHERE id=? AND bodega_id=? AND user_id=?`, ...columns.map(column => changes[column]), id, bodegaId, userId);
+    const delta = target - current.litros_actuales;
+    if (combined && delta !== 0) {
+      const movement = {
+        tipo: "ajuste", fecha: new Date().toISOString(), litros: Math.abs(delta),
+        origen_tipo: delta < 0 ? type : null, origen_id: delta < 0 ? id : null,
+        destino_tipo: delta > 0 ? type : null, destino_id: delta > 0 ? id : null,
+        perdida_litros: delta < 0 ? Math.abs(delta) : null,
+        nota: `Ajuste desde edición de ${label.toLowerCase()} (antes: ${current.litros_actuales} L, ahora: ${target} L)`,
+      };
+      const reply = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+      await crearMovimientoVino({ ...req, body: movement }, reply);
+      if (!reply.body || reply.statusCode >= 400) throw Object.assign(new Error(reply.body?.error || "No se pudo registrar el ajuste de volumen."), { status: reply.statusCode >= 400 ? reply.statusCode : 500 });
+      const finalVolume = await obtenerLitrosActuales(type, id, bodegaId, userId);
+      if (Math.abs(finalVolume - target) > 1e-7) throw Object.assign(new Error("El ajuste no coincide con el volumen solicitado."), { status: 409 });
     }
-    if (estadoNormalizado) {
-      setEstado = ", estado = ?";
-      valores.push(estadoNormalizado);
-    }
-    valores.push(req.params.id);
-    valores.push(bodegaId);
-    await db.run(
-      `UPDATE depositos
-         SET codigo = ?,
-             tipo = ?,
-             capacidad_hl = ?,
-             ubicacion = ?,
-             contenido = ?,
-             fecha_uso = ?,
-             elaboracion = ?,
-             vino_tipo = ?,
-             vino_anio = ?${setClase}${setEstado}
-      WHERE id = ?
-        AND bodega_id = ?`,
-      ...valores
-    );
-    try {
-      const actualizado = await db.get(
-        "SELECT id, codigo, estado FROM depositos WHERE id = ? AND bodega_id = ?",
-        req.params.id,
-        bodegaId
-      );
-      if (actualizado) {
-        const partes = [`Depósito ${actualizado.codigo || actualizado.id} actualizado`];
-        if (estadoNormalizado) partes.push(`Estado ${estadoNormalizado}`);
-        await registrarBitacoraEntry({
-          userId,
-          bodegaId,
-          text: partes.join(" · "),
-          scope: "deposito",
-          origin: "depositos",
-          note_type: "accion",
-          deposito_id: String(actualizado.id),
-        });
-      }
-    } catch (err) {
-      console.warn("No se pudo registrar bitácora de depósito:", err);
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Error actualizando depósito:", err);
-    res.status(500).json({ error: "Error al actualizar depósito" });
+    await registrarBitacoraEntry({
+      userId, bodegaId, text: `${label} ${changes.codigo || actual.codigo} actualizado`,
+      scope: kind === "barrica" ? "madera" : "deposito", origin: kind === "barrica" ? "maderas" : "depositos", note_type: "accion",
+      deposito_id: kind === "deposito" ? String(id) : null, madera_id: kind === "barrica" ? String(id) : null,
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("Error guardando edición completa de contenedor:", error);
+    return res.status(error.status || 500).json({ error: error.status ? error.message : "No se pudo guardar la edición completa. Los datos anteriores se conservan." });
   }
-});
+}
+
+app.put("/api/depositos/:id", databaseContext.jsonRoute((req, res) => editarContenedorCompleto(req, res, "deposito")));
 
 app.put("/api/depositos/:id/posicion", async (req, res) => {
   const { pos_x, pos_y } = req.body;
@@ -4456,6 +4404,7 @@ app.get("/api/barricas", async (req, res) => {
       SELECT
         b.*,
         COALESCE(ce.cantidad, 0) AS litros_actuales,
+        ce.partida_id_actual,
         ca.id AS alias_id,
         ca.alias AS alias,
         ca.color_tag AS alias_color_tag,
@@ -4478,7 +4427,7 @@ app.get("/api/barricas", async (req, res) => {
       campaniaId,
       bodegaId,
     );
-    res.json(filas);
+    res.json(filas.map(row => ({ ...row, litros_registrados: row.litros_actuales, edit_revision: containerEditRevision("barrica", row) })));
   } catch (err) {
     console.error("Error al listar barricas:", err);
     res.status(500).json({ error: "Error al listar barricas" });
@@ -4620,91 +4569,7 @@ app.delete("/api/barricas/:id", async (req, res) => {
   }
 });
 
-app.put("/api/barricas/:id", async (req, res) => {
-  const { codigo, capacidad_l, tipo_roble, tostado, marca, anio, vino_anio, ubicacion, vino_tipo } =
-    req.body;
-
-  try {
-    const bodegaId = req.session.bodegaId;
-    const userId = req.session.userId;
-    const actual = await db.get(
-      "SELECT id, anada_creacion FROM barricas WHERE id = ? AND bodega_id = ?",
-      req.params.id,
-      bodegaId
-    );
-    if (!actual) {
-      return res.status(404).json({ error: "Barrica no encontrada" });
-    }
-    const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
-    const bloqueo = resolverBloqueoPorAnada(actual.anada_creacion, anioActivo);
-    if (bloqueo) {
-      return res.status(bloqueo.status).json({ error: bloqueo.error });
-    }
-    if (codigo) {
-      const fila = await db.get(
-        "SELECT id FROM barricas WHERE codigo = ? AND id != ? AND bodega_id = ?",
-        codigo,
-        req.params.id,
-        bodegaId
-      );
-      if (fila) {
-        return res
-          .status(409)
-          .json({ error: `La barrica ${codigo} ya existe en esta bodega. Usa 'Seleccionar existente'.` });
-      }
-    }
-    await db.run(
-      `UPDATE barricas
-         SET codigo = ?,
-             capacidad_l = ?,
-             tipo_roble = ?,
-             tostado = ?,
-             marca = ?,
-             anio = ?,
-             vino_anio = ?,
-             ubicacion = ?,
-             vino_tipo = ?
-      WHERE id = ?
-        AND bodega_id = ?`,
-      codigo,
-      capacidad_l,
-      tipo_roble || null,
-      tostado || null,
-      marca || null,
-      anio || null,
-      vino_anio || null,
-      ubicacion || null,
-      vino_tipo || null,
-      req.params.id,
-      bodegaId
-    );
-    try {
-      const actualizado = await db.get(
-        "SELECT id, codigo FROM barricas WHERE id = ? AND bodega_id = ?",
-        req.params.id,
-        bodegaId
-      );
-      if (actualizado) {
-        const texto = `Barrica ${actualizado.codigo || actualizado.id} actualizada`;
-        await registrarBitacoraEntry({
-          userId,
-          bodegaId,
-          text: texto,
-          scope: "madera",
-          origin: "maderas",
-          note_type: "accion",
-          madera_id: String(actualizado.id),
-        });
-      }
-    } catch (err) {
-      console.warn("No se pudo registrar bitácora de barrica:", err);
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Error actualizando barrica:", err);
-    res.status(500).json({ error: "Error al actualizar barrica" });
-  }
-});
+app.put("/api/barricas/:id", databaseContext.jsonRoute((req, res) => editarContenedorCompleto(req, res, "barrica")));
 
 app.put("/api/barricas/:id/posicion", async (req, res) => {
   const { pos_x, pos_y } = req.body;
@@ -9831,7 +9696,7 @@ async function recalcularSaldoMovimiento(tipo, id, bodegaId, userId) {
   return cantidad;
 }
 
-app.post("/api/movimientos", databaseContext.jsonRoute(async (req, res) => {
+async function crearMovimientoVino(req, res) {
   const {
     fecha, // string tipo "2025-11-07T12:00"
     tipo, // 'trasiego', 'merma', 'ajuste', 'embotellado', 'prensado'
@@ -10051,7 +9916,8 @@ app.post("/api/movimientos", databaseContext.jsonRoute(async (req, res) => {
     console.error("Error al crear movimiento:", err);
     res.status(err.status || 500).json({ error: err.status ? err.message : "Error al crear movimiento" });
   }
-}));
+}
+app.post("/api/movimientos", databaseContext.jsonRoute(crearMovimientoVino));
 
 app.delete("/api/movimientos", databaseContext.jsonRoute(async (req, res) => {
   try {
