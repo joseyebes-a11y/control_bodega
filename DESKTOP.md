@@ -51,6 +51,16 @@ Una revisión de los datos, los litros y la partida detecta cambios desde que se
 
 Pruebas HTTP con depósitos, mastelones y barricas: aumento, reducción y vaciado; precisión decimal; conservación de metadata; fallos inyectados en actualización, movimiento, saldo y bitácora; dos ediciones concurrentes; reenvío después de una respuesta perdida; movimientos simultáneos; errores de capacidad, cantidad, clase y estado; aislamiento de bodega y conflictos de campaña. Ambos formularios se comprobaron en un DOM con los controles y funciones reales: un solo PUT, doble clic, bloqueo del cierre y de la sustitución del contenedor durante el guardado, conservación de campos ante 409/red/HTML y cierre tras éxito confirmado.
 
+## Coherencia de litros registrados y mapa
+
+Las tablas, el plano y los indicadores utilizan los litros registrados de cada contenedor, incluido un cero guardado. Se conservan los decimales y las barricas con vino aparecen en el plano aunque no estén representadas en el mapa. Las cargas de catálogo ya no sustituyen estos datos por estimaciones del mapa.
+
+El resumen consulta en una sola lectura SQLite los mismos contenedores activos de la bodega que muestran los catálogos, con los mismos vínculos al saldo y sin excluir equipos por su añada de creación. Los kilos corresponden a la campaña seleccionada, igual que el listado de entradas. Un cero devuelto por el servicio se conserva; una respuesta fallida o incompleta se muestra como «Sin verificar», sin inventar un total a partir de un catálogo parcial. Una respuesta antigua no sustituye una carga más reciente.
+
+Un aviso desplegable muestra diferencias entre litros registrados y mapa, nodos sin ficha identificada, fallos de carga y cambios pendientes del mapa. Guardar el mapa y registrar movimientos son operaciones distintas. La comparación utiliza el último nodo del contenedor; excluye etapas anteriores del mismo recorrido y no asocia una referencia desconocida con otra ficha por un número del título. Un nodo de crianza en depósito se compara con ese depósito, incluso si existe una barrica con el mismo ID. Las lecturas y avisos no corrigen, sincronizan ni sobrescriben los historiales.
+
+Pruebas HTTP y de las funciones reales de la página: ceros, precisión decimal, campañas, contenedores inactivos, aislamiento de bodega y propietario del saldo, mapa discrepante guardado, lecturas sin escrituras, datos incompletos, errores de red/HTML y respuestas fuera de orden. El plano y la tabla reales se comprobaron en un DOM: depósito vacío frente a mapa con vino, mastelone con 100,125 L, barrica sin nodo con 80,075 L, total registrado de 180,2 L y avisos de diferencia separados de cambios pendientes. Esta comprobación de interfaz no sustituye la prueba pendiente en Windows.
+
 ## Desarrollo y construcción
 
 ```sh
@@ -69,10 +79,10 @@ En Linux el constructor utiliza el lector de desinstaladores de electron-builder
 
 ## Verificación de esta versión
 
-- 85 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
+- 104 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
 - Interfaz Electron ejecutada en Linux: configuración inicial, acceso, registro, copia desde el menú, cierre y reapertura, conservación de datos y puerto estable; sin errores de página. Copia automática inicial, restauración desde menú, conservación de dos registros posteriores en la copia previa, limpieza de borradores antiguos y recuperación ante fallo simulado del servicio restaurado. Importación en una instalación nueva probada.
 - El bloqueo de instancia única se sustituye únicamente en la prueba Linux por las restricciones de sockets del entorno de pruebas. El producto conserva el bloqueo real.
 - Pendiente ejecutar el instalador, la aplicación y el bloqueo de instancia única en un equipo Windows real.
-- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 98 pruebas aprobadas.
+- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 117 pruebas aprobadas.
 
 El instalador no tiene firma digital. Esta entrega es una versión inicial para comprobar en Windows; no constituye una certificación de todas las funciones existentes de la aplicación.

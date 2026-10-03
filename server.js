@@ -10070,119 +10070,32 @@ app.get("/api/resumen", async (req, res) => {
   try {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
-    const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
-    const anioCorte = Number.isFinite(anioActivo) ? anioActivo : obtenerAnioVitivinicola();
-    const dep = await db.get(
-      "SELECT COUNT(*) AS total FROM depositos WHERE activo = 1 AND COALESCE(clase, 'deposito') = 'deposito' AND bodega_id = ? AND user_id = ? AND COALESCE(anada_creacion, ?) <= ?",
-      bodegaId,
-      userId,
-      anioCorte,
-      anioCorte
-    );
-    const mast = await db.get(
-      "SELECT COUNT(*) AS total FROM depositos WHERE activo = 1 AND COALESCE(clase, 'deposito') = 'mastelone' AND bodega_id = ? AND user_id = ? AND COALESCE(anada_creacion, ?) <= ?",
-      bodegaId,
-      userId,
-      anioCorte,
-      anioCorte
-    );
-    const bar = await db.get(
-      "SELECT COUNT(*) AS total FROM barricas WHERE activo = 1 AND bodega_id = ? AND user_id = ? AND COALESCE(anada_creacion, ?) <= ?",
-      bodegaId,
-      userId,
-      anioCorte,
-      anioCorte
-    );
-    const ent = await db.get(
-      `SELECT COALESCE(SUM(kilos), 0) AS kilos
-       FROM entradas_uva
-       WHERE bodega_id = ? AND user_id = ?
-         AND COALESCE(
-           CASE
-             WHEN TRIM(anada) GLOB '[0-9][0-9][0-9][0-9]*' THEN substr(TRIM(anada), 1, 4)
-             ELSE NULL
-           END,
-           substr(fecha, 1, 4)
-         ) = ?`,
-      bodegaId,
-      userId,
-      String(anioCorte)
-    );
-    const reg = await db.get(
-      "SELECT COUNT(*) AS total FROM registros_analiticos WHERE bodega_id = ? AND user_id = ?",
-      bodegaId,
-      userId
-    );
-    const litrosDep = await db.get(
-      `
-      SELECT COALESCE(SUM(COALESCE(ce.cantidad, 0)), 0) AS litros
-      FROM depositos d
-      LEFT JOIN contenedores_estado ce
-        ON ce.contenedor_tipo = 'deposito'
-        AND ce.contenedor_id = d.id
-        AND ce.bodega_id = d.bodega_id
-        AND ce.user_id = d.user_id
-      WHERE d.activo = 1
-        AND COALESCE(d.clase, 'deposito') = 'deposito'
-        AND d.bodega_id = ?
-        AND d.user_id = ?
-        AND COALESCE(d.anada_creacion, ?) <= ?
-    `,
-      bodegaId,
-      userId,
-      anioCorte,
-      anioCorte
-    );
-    const litrosMast = await db.get(
-      `
-      SELECT COALESCE(SUM(COALESCE(ce.cantidad, 0)), 0) AS litros
-      FROM depositos d
-      LEFT JOIN contenedores_estado ce
-        ON ce.contenedor_tipo = 'mastelone'
-        AND ce.contenedor_id = d.id
-        AND ce.bodega_id = d.bodega_id
-        AND ce.user_id = d.user_id
-      WHERE d.activo = 1
-        AND COALESCE(d.clase, 'deposito') = 'mastelone'
-        AND d.bodega_id = ?
-        AND d.user_id = ?
-        AND COALESCE(d.anada_creacion, ?) <= ?
-    `,
-      bodegaId,
-      userId,
-      anioCorte,
-      anioCorte
-    );
-    const litrosBar = await db.get(
-      `
-      SELECT COALESCE(SUM(COALESCE(ce.cantidad, 0)), 0) AS litros
-      FROM barricas b
-      LEFT JOIN contenedores_estado ce
-        ON ce.contenedor_tipo = 'barrica'
-        AND ce.contenedor_id = b.id
-        AND ce.bodega_id = b.bodega_id
-        AND ce.user_id = b.user_id
-      WHERE b.activo = 1
-        AND b.bodega_id = ?
-        AND b.user_id = ?
-        AND COALESCE(b.anada_creacion, ?) <= ?
-    `,
-      bodegaId,
-      userId,
-      anioCorte,
-      anioCorte
-    );
-
-    res.json({
-      depositos: dep.total,
-      mastelones: mast.total,
-      barricas: bar.total,
-      kilos_entrados: ent.kilos,
-      registros_analiticos: reg.total,
-      litros_depositos: litrosDep?.litros ?? 0,
-      litros_mastelones: litrosMast?.litros ?? 0,
-      litros_barricas: litrosBar?.litros ?? 0,
-    });
+    const resumen = await db.get(`
+      WITH depositos_actuales AS (
+        SELECT d.clase, COALESCE(ce.cantidad, 0) litros
+        FROM depositos d LEFT JOIN contenedores_estado ce
+          ON ce.contenedor_tipo = CASE COALESCE(d.clase, 'deposito')
+            WHEN 'mastelone' THEN 'mastelone' WHEN 'barrica' THEN 'barrica' ELSE 'deposito' END
+          AND ce.contenedor_id = d.id AND ce.bodega_id = d.bodega_id AND ce.user_id = d.user_id
+        WHERE d.activo = 1 AND d.bodega_id = ?
+      ), barricas_actuales AS (
+        SELECT COALESCE(ce.cantidad, 0) litros
+        FROM barricas b LEFT JOIN contenedores_estado ce
+          ON ce.contenedor_tipo = 'barrica' AND ce.contenedor_id = b.id
+          AND ce.bodega_id = b.bodega_id AND ce.user_id = b.user_id
+        WHERE b.activo = 1 AND b.bodega_id = ?
+      )
+      SELECT
+        (SELECT COUNT(*) FROM depositos_actuales WHERE LOWER(COALESCE(clase, 'deposito')) != 'mastelone') depositos,
+        (SELECT COUNT(*) FROM depositos_actuales WHERE LOWER(COALESCE(clase, 'deposito')) = 'mastelone') mastelones,
+        (SELECT COUNT(*) FROM barricas_actuales) barricas,
+        (SELECT COALESCE(SUM(kilos), 0) FROM entradas_uva WHERE bodega_id = ? AND user_id = ? AND campania_id = ?) kilos_entrados,
+        (SELECT COUNT(*) FROM registros_analiticos WHERE bodega_id = ? AND user_id = ?) registros_analiticos,
+        (SELECT COALESCE(SUM(litros), 0) FROM depositos_actuales WHERE LOWER(COALESCE(clase, 'deposito')) != 'mastelone') litros_depositos,
+        (SELECT COALESCE(SUM(litros), 0) FROM depositos_actuales WHERE LOWER(COALESCE(clase, 'deposito')) = 'mastelone') litros_mastelones,
+        (SELECT COALESCE(SUM(litros), 0) FROM barricas_actuales) litros_barricas
+    `, bodegaId, bodegaId, bodegaId, userId, req.campaniaId, bodegaId, userId);
+    res.json(resumen);
   } catch (err) {
     console.error("Error en resumen:", err);
     res.status(500).json({ error: "Error al obtener resumen" });

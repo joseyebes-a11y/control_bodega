@@ -6227,6 +6227,10 @@ label {
 	                scroll-behavior: auto !important;
 	            }
 	        }
+        .volume-consistency { padding: 12px 16px; margin-bottom: 16px; border: 1px solid #d79a3b; border-radius: 12px; background: #fff4dd; color: #563811; }
+        .volume-consistency[hidden], .flow-discrepancia[hidden] { display: none; }
+        .volume-consistency summary { cursor: pointer; font-weight: 600; }
+        .volume-consistency p, .volume-consistency ul { margin: 10px 0 0; }
 	    </style>
 	    <style id="modernUiTheme"></style>
     <!-- Librerías para exportar PDF de la tabla de control -->
@@ -6291,6 +6295,11 @@ label {
 
     <!-- Contenido principal -->
     <div class="content">
+        <details id="volumeConsistencyPanel" class="volume-consistency" hidden>
+            <summary id="volumeConsistencySummary" role="status" aria-live="polite"></summary>
+            <p>Tablas, plano y resumen muestran los litros registrados. El mapa representa el recorrido del vino; guardar el mapa no registra movimientos de vino.</p>
+            <ul id="volumeConsistencyDetails"></ul>
+        </details>
 
         <!-- SECCIÓN BODEGA (RESUMEN GENERAL) -->
         <section id="bodega" class="card visible">
@@ -7994,6 +8003,7 @@ label {
   <link rel="stylesheet" href="/css/form-save-guard.css">
   <script src="/js/form-save-guard.js"></script>
   <script src="/js/flowPersistence.js"></script>
+  <script src="/js/volumeConsistency.js"></script>
   <script>
 // ---- Mostrar secciones del menú lateral ---
 function mostrarSeccion(id) {
@@ -8039,6 +8049,9 @@ let cacheEntradas = [];
 let cacheDepositos = [];
 let cacheBarricas  = [];
 let cacheMastelones = [];
+const estadoCargaVolumen = { depositos: "pendiente", barricas: "pendiente" };
+const secuenciaCargaVolumen = { depositos: 0, barricas: 0 };
+let secuenciaResumen = 0;
 let cacheMovimientos = [];
 let cacheLimpieza = [];
 let cacheEnologicos = [];
@@ -12219,31 +12232,96 @@ function obtenerVolumenNumericoNodo(nodo) {
   return Number.isFinite(volumen) ? Number(volumen) : null;
 }
 
-const UMBRAL_DISCREPANCIA_VOLUMEN_L = 0.5;
+function tipoFichaVolumenNodo(nodo) {
+  if (nodo?.tipo === "deposito") return "deposito";
+  if (nodo?.tipo !== "barrica") return null;
+  const tipo = String(nodo.datos?.contenedor_tipo || "barrica").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (["deposito", "mastelone"].includes(tipo)) return "deposito";
+  return tipo === "barrica" ? "barrica" : null;
+}
+
+function resolverFichaVolumenNodo(nodo) {
+  const tipo = tipoFichaVolumenNodo(nodo);
+  if (!tipo) return null;
+  const lista = tipo === "barrica" ? cacheBarricas : [...cacheDepositos, ...cacheMastelones];
+  const datos = nodo.datos || {};
+  const referencia = nodo.tipo === "barrica" ? datos.contenedor_id ?? datos.id_ref : datos.id_ref ?? datos.contenedor_id;
+  if (referencia != null && referencia !== "") {
+    return lista.find(item => String(item.id) === String(referencia)) || null;
+  }
+  const codigo = String(datos.codigo || nodo.titulo || "").trim().toLowerCase();
+  const coincidencias = lista.filter(item => String(item.codigo || "").trim().toLowerCase() === codigo);
+  return codigo && coincidencias.length === 1 ? coincidencias[0] : null;
+}
+
+function obtenerNodoVolumenActualContenedor(tipo, item) {
+  const candidatos = flujoNodos.filter(nodo => tipoFichaVolumenNodo(nodo) === tipo && resolverFichaVolumenNodo(nodo)?.id === item.id);
+  const finales = candidatos.filter(nodo => !(nodo.targets || []).some(id => {
+    const destino = obtenerNodoPorId(id);
+    return destino && TIPOS_CONTENEDOR_FLUJO.has(destino.tipo);
+  }));
+  return (finales.length ? finales : candidatos).at(-1) || null;
+}
 
 function obtenerDiagnosticoVolumenContenedor(nodo) {
-  if (!nodo || (nodo.tipo !== "deposito" && nodo.tipo !== "barrica")) return null;
-  const info =
-    nodo.tipo === "deposito"
-      ? resolverInfoDepositoDesdeNodo(nodo)
-      : resolverInfoBarricaDesdeNodo(nodo);
+  if (!nodo || !["deposito", "barrica"].includes(nodo.tipo)) return null;
+  const info = resolverFichaVolumenNodo(nodo);
+  const tipo = tipoFichaVolumenNodo(nodo);
+  const actual = info && obtenerNodoVolumenActualContenedor(tipo, info) === nodo;
+  const tipoCarga = tipo === "barrica" ? "barricas" : "depositos";
+  const verificable = actual && estadoCargaVolumen[tipoCarga] === "listo" && !flowPersistence.blocked;
   const balance = obtenerBalanceNodo(nodo.id);
-  const volumenMapa = Number.isFinite(balance) ? Number(balance) : obtenerVolumenNumericoNodo(nodo);
-  const volumenFichaRaw = info ? normalizarNumero(info.litros_actuales ?? info.volumen) : null;
-  const volumenFicha = Number.isFinite(volumenFichaRaw) ? Number(volumenFichaRaw) : null;
-  const fuente = Number.isFinite(volumenMapa) ? "mapa" : "ficha";
-  const delta =
-    Number.isFinite(volumenMapa) && Number.isFinite(volumenFicha)
-      ? Number((volumenMapa - volumenFicha).toFixed(2))
-      : null;
-  const discrepancia = delta != null ? Math.abs(delta) > UMBRAL_DISCREPANCIA_VOLUMEN_L : false;
-  return {
-    fuente,
-    volumenMapa: Number.isFinite(volumenMapa) ? Number(volumenMapa) : null,
-    volumenFicha,
-    delta,
-    discrepancia,
-  };
+  const mapa = Number.isFinite(balance) ? balance : obtenerVolumenNumericoNodo(nodo);
+  const diagnostico = MicroCellerVolumes.compare(mapa, verificable ? info : null);
+  return { ...diagnostico, fuente: "mapa", actual, verificable };
+}
+
+function actualizarCoherenciaVolumen() {
+  const panel = document.getElementById("volumeConsistencyPanel");
+  const summary = document.getElementById("volumeConsistencySummary");
+  const detalles = document.getElementById("volumeConsistencyDetails");
+  if (!panel || !summary || !detalles) return;
+  const mensajes = [];
+  const cargas = Object.values(estadoCargaVolumen);
+  if (cargas.includes("error")) mensajes.push("No se han podido actualizar los litros registrados. Las fichas conservadas pueden estar desactualizadas; vuelve a cargar la aplicación.");
+  else if (cargas.some(estado => estado !== "listo")) mensajes.push("Comprobando los litros registrados…");
+  if (flowPersistence.blocked || flowPersistence.revision === null) mensajes.push("No se ha podido verificar el mapa guardado.");
+  else {
+    if (flowPersistence.dirty) mensajes.push("El mapa tiene cambios pendientes de guardar.");
+    if (cargas.every(estado => estado === "listo")) {
+      for (const [tipo, lista] of [["deposito", [...cacheDepositos, ...cacheMastelones]], ["barrica", cacheBarricas]]) {
+        for (const item of lista) {
+          const nodo = obtenerNodoVolumenActualContenedor(tipo, item);
+          if (MicroCellerVolumes.registered(item) === null) {
+            mensajes.push(`${item.codigo || item.id}: litros registrados sin verificar.`);
+          } else if (nodo) {
+            const diag = obtenerDiagnosticoVolumenContenedor(nodo);
+            if (diag.volumenMapa === null) mensajes.push(`${item.codigo || item.id}: litros del mapa sin verificar.`);
+            else if (diag.discrepancia) mensajes.push(`${item.codigo || item.id}: registrados ${MicroCellerVolumes.format(diag.volumenFicha)} · mapa ${MicroCellerVolumes.format(diag.volumenMapa)}.`);
+          }
+        }
+      }
+      const sinFicha = flujoNodos.filter(nodo => ["deposito", "barrica"].includes(nodo.tipo) && !resolverFichaVolumenNodo(nodo));
+      if (sinFicha.length) mensajes.push(`${sinFicha.length} nodo(s) del mapa sin una ficha de contenedor identificada; no se pueden comparar sus litros.`);
+    }
+  }
+  panel.hidden = mensajes.length === 0;
+  summary.textContent = cargas.includes("error") ? "Litros registrados sin actualizar" : "Revisión de litros y mapa";
+  detalles.replaceChildren();
+  for (const mensaje of mensajes) {
+    const li = document.createElement("li");
+    li.textContent = mensaje;
+    detalles.appendChild(li);
+  }
+  document.querySelectorAll(".flow-node[data-id]").forEach(elemento => {
+    const nodo = flujoNodos.find(n => String(n.id) === elemento.dataset.id);
+    const diag = obtenerDiagnosticoVolumenContenedor(nodo);
+    const badge = elemento.querySelector(".flow-discrepancia");
+    if (badge && diag) {
+      badge.hidden = !diag.discrepancia;
+      badge.textContent = `Mapa ${MicroCellerVolumes.format(diag.volumenMapa)} · Registrados ${MicroCellerVolumes.format(diag.volumenFicha)}`;
+    }
+  });
 }
 
 function esNodoProcesoHistorico(nodo) {
@@ -16556,6 +16634,7 @@ function calcularDatosMapaFlujo() {
 
 function actualizarMapaFlujo() {
   datosEtapasFlujo = calcularDatosMapaFlujo();
+  actualizarCoherenciaVolumen();
 }
 
 function limitarZoomFlow(valor) {
@@ -17662,16 +17741,11 @@ function toggleExpandirTodosFlow() {
         fuenteEl.className = "flow-node-subtitle flow-source-badge";
         fuenteEl.textContent = `Fuente ${diagVol.fuente}`;
         body.appendChild(fuenteEl);
-        if (diagVol.discrepancia) {
-          const diffEl = document.createElement("div");
-          diffEl.className = "flow-node-subtitle flow-discrepancia";
-          const mapaTxt =
-            diagVol.volumenMapa != null ? `${Number(diagVol.volumenMapa.toFixed(0))}L` : "—";
-          const fichaTxt =
-            diagVol.volumenFicha != null ? `${Number(diagVol.volumenFicha.toFixed(0))}L` : "—";
-          diffEl.textContent = `Mapa ${mapaTxt} · Ficha ${fichaTxt}`;
-          body.appendChild(diffEl);
-        }
+        const diffEl = document.createElement("div");
+        diffEl.className = "flow-node-subtitle flow-discrepancia";
+        diffEl.hidden = !diagVol.discrepancia;
+        diffEl.textContent = `Mapa ${MicroCellerVolumes.format(diagVol.volumenMapa)} · Registrados ${MicroCellerVolumes.format(diagVol.volumenFicha)}`;
+        body.appendChild(diffEl);
       }
       const retenidoCap = obtenerVolumenRetenidoDestinoPorCapacidad(nodo);
       if (retenidoCap > 0.01) {
@@ -17816,6 +17890,7 @@ function toggleExpandirTodosFlow() {
   programarActualizacionMinimapFlow();
   aplicarHoverCadenaDOM();
   actualizarBotonExpandirTodosFlow();
+  actualizarCoherenciaVolumen();
 }
 
 function resumenNodo(nodo) {
@@ -19474,7 +19549,7 @@ async function actualizarDepositoContenido(idRef, variedad, volumen, anada) {
     if (diagVol) {
       tags.push(`Fuente volumen: ${diagVol.fuente}`);
       if (diagVol.discrepancia && diagVol.delta != null) {
-        tags.push(`Δ mapa/ficha: ${Math.abs(diagVol.delta).toFixed(1)} L`);
+        tags.push(`Diferencia mapa/registrados: ${MicroCellerVolumes.format(Math.abs(diagVol.delta))}`);
       }
     }
     if (nodo.tipo === "deposito" || nodo.tipo === "barrica") {
@@ -20343,6 +20418,7 @@ function actualizarEstadoGuardadoFlujo() {
     : flowPersistence.dirty ? "Cambios pendientes de guardar." : "Mapa guardado.";
   const button = document.getElementById("flowUseServerBtn");
   if (button) button.hidden = !flowPersistence.blocked || !flowPersistence.scope;
+  actualizarCoherenciaVolumen();
 }
 
 function descargarCopiaLocalFlujo() {
@@ -21337,82 +21413,37 @@ async function manejarRespuesta(res, mensajeError, guard = null) {
 function actualizarBarra(idBar, idLabel, valor, unidad, max) {
   const bar = document.getElementById(idBar);
   const label = document.getElementById(idLabel);
-  if (label) {
-    const rounded = Math.round(valor).toLocaleString();
-    label.textContent = `${rounded} ${unidad}`;
-  }
-  if (bar) {
-    const porcentaje = max > 0 ? Math.max(8, (valor / max) * 100) : 0;
-    bar.style.width = `${Math.min(100, porcentaje)}%`;
-  }
+  const numero = MicroCellerVolumes.quantity(valor);
+  if (label) label.textContent = numero === null ? "Sin verificar" :
+    unidad === "L" ? MicroCellerVolumes.format(numero) : `${numero.toLocaleString("es-ES", { maximumFractionDigits: 12 })} ${unidad}`;
+  if (bar) bar.style.width = `${numero !== null && max > 0 ? Math.min(100, numero / max * 100) : 0}%`;
 }
 
 function calcularLitrosResumenDesdeCaches() {
-  const sumarLitros = (lista, tipoNodo) =>
-    (lista || []).reduce((acc, item) => {
-      const capacidad = Number(item.capacidad_l ?? (item.capacidad_hl ? item.capacidad_hl * 100 : 0)) || 0;
-      const estadoVisual = tipoNodo
-        ? resolverEstadoVisualContenedor(tipoNodo, item)
-        : { volumenFinal: Number(item.litros_actuales ?? 0) || 0 };
-      const volumen = Number.isFinite(estadoVisual?.volumenFinal)
-        ? Number(estadoVisual.volumenFinal)
-        : (Number(item.litros_actuales ?? 0) || 0);
-      return { capacidad: acc.capacidad + capacidad, volumen: acc.volumen + (Number.isFinite(volumen) ? volumen : 0) };
-    }, { capacidad: 0, volumen: 0 });
-
-  const dep = sumarLitros(cacheDepositos, "deposito");
-  const mast = sumarLitros(cacheMastelones, "deposito");
-  const bar = sumarLitros(cacheBarricas, "barrica");
-  const kilos = (cacheEntradas || []).reduce((acc, e) => acc + (Number(e.kilos) || 0), 0);
-
   return {
-    kilos_entrados: kilos,
-    litros_depositos: dep.volumen,
-    litros_mastelones: mast.volumen,
-    litros_barricas: bar.volumen,
+    kilos_entrados: (cacheEntradas || []).reduce((acc, e) => acc + (Number(e.kilos) || 0), 0),
+    litros_depositos: estadoCargaVolumen.depositos === "listo" ? MicroCellerVolumes.sum(cacheDepositos) : null,
+    litros_mastelones: estadoCargaVolumen.depositos === "listo" ? MicroCellerVolumes.sum(cacheMastelones) : null,
+    litros_barricas: estadoCargaVolumen.barricas === "listo" ? MicroCellerVolumes.sum(cacheBarricas) : null,
   };
 }
 
 function refrescarGraficosResumenDesdeCaches() {
-  const chartKilos = document.getElementById("chartKilosValue");
-  const chartLitros = document.getElementById("chartLitrosValue");
-  if (!chartKilos || !chartLitros) return;
-  const calculado = calcularLitrosResumenDesdeCaches();
-  actualizarGraficosResumen(calculado);
+  // The API returns one database snapshot. Partial catalogs must not replace it.
+  void cargarResumen();
 }
 
 function actualizarGraficosResumen(data) {
-  const calculado = calcularLitrosResumenDesdeCaches();
-  const elegir = (valorApi, valorLocal) => {
-    const apiNum = Number(valorApi);
-    if (Number.isFinite(apiNum) && apiNum > 0) return apiNum;
-    const localNum = Number(valorLocal);
-    return Number.isFinite(localNum) ? localNum : 0;
-  };
-  const kilos = elegir(data?.kilos_entrados, calculado.kilos_entrados);
-  const litrosDepositos = elegir(data?.litros_depositos, calculado.litros_depositos);
-  const litrosMastelones = elegir(data?.litros_mastelones, calculado.litros_mastelones);
-  const litrosBarricas = elegir(data?.litros_barricas, calculado.litros_barricas);
-  const litrosTotales = litrosDepositos + litrosMastelones + litrosBarricas;
-  const maxValor = Math.max(kilos, litrosTotales, 1);
-
-  actualizarBarra("chartKilosBar", "chartKilosValue", kilos, "kg", maxValor);
-  actualizarBarra("chartLitrosBar", "chartLitrosValue", litrosTotales, "L", maxValor);
-
+  const kilos = MicroCellerVolumes.quantity(data?.kilos_entrados);
+  const depositos = MicroCellerVolumes.quantity(data?.litros_depositos);
+  const mastelones = MicroCellerVolumes.quantity(data?.litros_mastelones);
+  const barricas = MicroCellerVolumes.quantity(data?.litros_barricas);
+  const total = [depositos, mastelones, barricas].includes(null) ? null : depositos + mastelones + barricas;
+  const max = Math.max(kilos || 0, total || 0, 1);
+  actualizarBarra("chartKilosBar", "chartKilosValue", kilos, "kg", max);
+  actualizarBarra("chartLitrosBar", "chartLitrosValue", total, "L", max);
   const detalle = document.getElementById("chartLitrosDetalle");
-  if (detalle) {
-    const depTxt = `${Math.round(litrosDepositos).toLocaleString()} L`;
-    const mastTxt = `${Math.round(litrosMastelones).toLocaleString()} L`;
-    const barrTxt = `${Math.round(litrosBarricas).toLocaleString()} L`;
-    detalle.innerHTML = `
-      🛢 Depósitos: ${depTxt} ·
-      🪣 Mastelones: ${mastTxt} ·
-      <span style="display:inline-flex; align-items:center; gap:4px;">
-        <img src="/barricas.png" alt="Barricas" style="width:16px; height:16px; object-fit:contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); mix-blend-mode:multiply; background:transparent;">
-        Barricas: ${barrTxt}
-      </span>
-    `;
-  }
+  if (detalle) detalle.textContent = `Depósitos: ${MicroCellerVolumes.format(depositos)} · Mastelones: ${MicroCellerVolumes.format(mastelones)} · Barricas: ${MicroCellerVolumes.format(barricas)}`;
 }
 
 function formatearNumeroCorto(valor) {
@@ -21426,25 +21457,13 @@ function actualizarIndicadores() {
   const depPrincipal = document.getElementById("indicadorDepositosPrincipal");
   if (!depPrincipal) return;
 
-  const calcularTotales = (lista, tipoNodo) =>
-    (lista || []).reduce(
-      (acc, item) => {
-        const capacidad = Number(
-          item.capacidad_l ?? (item.capacidad_hl ? item.capacidad_hl * 100 : 0)
-        ) || 0;
-        const estadoVisual = tipoNodo
-          ? resolverEstadoVisualContenedor(tipoNodo, item)
-          : { volumenFinal: Number(item.litros_actuales || 0) || 0 };
-        const volumen = Number.isFinite(estadoVisual?.volumenFinal)
-          ? Number(estadoVisual.volumenFinal)
-          : (Number(item.litros_actuales || 0) || 0);
-        return {
-          capacidad: acc.capacidad + capacidad,
-          volumen: acc.volumen + volumen,
-        };
-      },
-      { capacidad: 0, volumen: 0 }
-    );
+  const calcularTotales = (lista, tipoNodo) => {
+    const listo = estadoCargaVolumen[tipoNodo === "barrica" ? "barricas" : "depositos"] === "listo";
+    return {
+      capacidad: (lista || []).reduce((acc, item) => acc + (Number(item.capacidad_l ?? item.capacidad_hl * 100) || 0), 0),
+      volumen: listo ? MicroCellerVolumes.sum(lista || []) : null,
+    };
+  };
 
   const dep = calcularTotales(cacheDepositos, "deposito");
   const depCount = document.getElementById("indicadorDepositosCount");
@@ -21452,7 +21471,7 @@ function actualizarIndicadores() {
     depCount.textContent = `${(cacheDepositos || []).length}`;
   }
   const depPorcentaje = dep.capacidad > 0 ? Math.round((dep.volumen / dep.capacidad) * 100) : 0;
-  depPrincipal.textContent = `${depPorcentaje}% ocupado`;
+  depPrincipal.textContent = dep.volumen === null ? "Sin verificar" : `${depPorcentaje}% ocupado`;
   const depDetalle = document.getElementById("indicadorDepositosDetalle");
   if (depDetalle) {
     depDetalle.textContent = `${formatearLitrosPlano(dep.volumen)} de ${formatearLitrosPlano(
@@ -21461,8 +21480,8 @@ function actualizarIndicadores() {
   }
   const depExtra = document.getElementById("indicadorDepositosExtra");
   if (depExtra) {
-    const libre = Math.max(dep.capacidad - dep.volumen, 0);
-    depExtra.textContent = libre
+    const libre = dep.volumen === null ? null : Math.max(dep.capacidad - dep.volumen, 0);
+    depExtra.textContent = libre === null ? "Sin verificar" : libre
       ? `${formatearLitrosPlano(libre)} libres`
       : "Sin capacidad libre";
   }
@@ -21476,7 +21495,7 @@ function actualizarIndicadores() {
   if (mastPrincipal) {
     const mastPorcentaje =
       mast.capacidad > 0 ? Math.round((mast.volumen / mast.capacidad) * 100) : 0;
-    mastPrincipal.textContent = `${mastPorcentaje}% ocupado`;
+    mastPrincipal.textContent = mast.volumen === null ? "Sin verificar" : `${mastPorcentaje}% ocupado`;
     const mastDetalle = document.getElementById("indicadorMastelonesDetalle");
     if (mastDetalle) {
       mastDetalle.textContent = `${formatearLitrosPlano(mast.volumen)} de ${formatearLitrosPlano(
@@ -21485,8 +21504,8 @@ function actualizarIndicadores() {
     }
     const mastExtra = document.getElementById("indicadorMastelonesExtra");
     if (mastExtra) {
-      const libre = Math.max(mast.capacidad - mast.volumen, 0);
-      mastExtra.textContent = libre
+      const libre = mast.volumen === null ? null : Math.max(mast.capacidad - mast.volumen, 0);
+      mastExtra.textContent = libre === null ? "Sin verificar" : libre
         ? `${formatearLitrosPlano(libre)} libres`
         : "Sin capacidad libre";
     }
@@ -21500,7 +21519,7 @@ function actualizarIndicadores() {
   }
   if (barPrincipal) {
     const barPorcentaje = bar.capacidad > 0 ? Math.round((bar.volumen / bar.capacidad) * 100) : 0;
-    barPrincipal.textContent = `${barPorcentaje}% ocupado`;
+    barPrincipal.textContent = bar.volumen === null ? "Sin verificar" : `${barPorcentaje}% ocupado`;
     const detalle = document.getElementById("indicadorBarricasDetalle");
     if (detalle) {
       detalle.textContent = `${formatearLitrosPlano(bar.volumen)} de ${formatearLitrosPlano(
@@ -21509,8 +21528,8 @@ function actualizarIndicadores() {
     }
     const extra = document.getElementById("indicadorBarricasExtra");
     if (extra) {
-      const libre = Math.max(bar.capacidad - bar.volumen, 0);
-      extra.textContent = libre
+      const libre = bar.volumen === null ? null : Math.max(bar.capacidad - bar.volumen, 0);
+      extra.textContent = libre === null ? "Sin verificar" : libre
         ? `${formatearLitrosPlano(libre)} libres`
         : "Barricas al máximo";
     }
@@ -22243,8 +22262,6 @@ function renderPlano() {
   const elementos = [
     ...cacheDepositos.map(d => {
       const estadoNodo = obtenerEstadoDepositoDesdeNodo(d.id);
-      const volumenNodo =
-        estadoNodo && estadoNodo.enMapa && estadoNodo.volumen != null ? Number(estadoNodo.volumen) : null;
       const variedades =
         filtrarVariedadesMultilinea(estadoNodo?.variedad || "") ||
         formatearVariedadesMultilinea(d.composicionVariedades || d.composicion_variedades) ||
@@ -22256,7 +22273,7 @@ function renderPlano() {
         pos_x: d.pos_x,
         pos_y: d.pos_y,
         capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
-        volumen: volumenNodo != null ? volumenNodo : d.litros_actuales ?? 0,
+        volumen: MicroCellerVolumes.registered(d),
         enMapa: Boolean(estadoNodo && estadoNodo.enMapa),
         variedadNodo: variedades,
         detalle: d.material || d.contenido || d.elaboracion || "",
@@ -22270,8 +22287,6 @@ function renderPlano() {
     }),
     ...cacheMastelones.map(d => {
       const estadoNodo = obtenerEstadoDepositoDesdeNodo(d.id);
-      const volumenNodo =
-        estadoNodo && estadoNodo.enMapa && estadoNodo.volumen != null ? Number(estadoNodo.volumen) : null;
       const variedades =
         filtrarVariedadesMultilinea(estadoNodo?.variedad || "") ||
         formatearVariedadesMultilinea(d.composicionVariedades || d.composicion_variedades) ||
@@ -22283,7 +22298,7 @@ function renderPlano() {
         pos_x: d.pos_x,
         pos_y: d.pos_y,
         capacidad: d.capacidad_l ?? (d.capacidad_hl ? d.capacidad_hl * 100 : null),
-        volumen: volumenNodo != null ? volumenNodo : d.litros_actuales ?? 0,
+        volumen: MicroCellerVolumes.registered(d),
         enMapa: Boolean(estadoNodo && estadoNodo.enMapa),
         variedadNodo: variedades,
         detalle: d.material || d.contenido || d.elaboracion || "",
@@ -22297,8 +22312,6 @@ function renderPlano() {
     }),
 	    ...cacheBarricas.map(b => {
 	      const estadoNodo = obtenerEstadoBarricaDesdeNodo(b.id);
-	      const volumenNodo =
-	        estadoNodo && estadoNodo.enMapa && estadoNodo.volumen != null ? Number(estadoNodo.volumen) : null;
       const variedades =
         filtrarVariedadesMultilinea(estadoNodo?.variedad || "") ||
         formatearVariedadesMultilinea(b.composicionVariedades || b.composicion_variedades) ||
@@ -22310,8 +22323,7 @@ function renderPlano() {
 	        pos_x: b.pos_x,
 	        pos_y: b.pos_y,
 	        capacidad: b.capacidad_l ?? null,
-	        // Si la barrica no está representada en el mapa de nodos, no mostramos contenido “fantasma”.
-	        volumen: volumenNodo != null ? volumenNodo : estadoNodo ? b.litros_actuales ?? 0 : 0,
+	        volumen: MicroCellerVolumes.registered(b),
 	        enMapa: Boolean(estadoNodo && estadoNodo.enMapa),
 	        variedadNodo: variedades,
 	        detalle: [b.tipo_roble, b.tostado].filter(Boolean).join(" · "),
@@ -22349,9 +22361,9 @@ function renderPlano() {
     }
     const etiqueta = item.codigo ? String(item.codigo) : String(item.id);
     const capacidad = item.capacidad != null ? Number(item.capacidad) : null;
-    const volumen = item.volumen != null ? Number(item.volumen) : 0;
+    const volumen = MicroCellerVolumes.quantity(item.volumen);
     const porcentaje =
-      capacidad && capacidad > 0 ? Math.min(100, Math.round((volumen / capacidad) * 100)) : 0;
+      volumen !== null && capacidad && capacidad > 0 ? Math.min(100, Math.round((volumen / capacidad) * 100)) : null;
 
     const header = document.createElement("div");
     header.className = "plano-card-header";
@@ -22365,11 +22377,11 @@ function renderPlano() {
       <div class="plano-card-title-row">
         <span class="plano-card-dot" aria-hidden="true"></span>
         <span class="plano-card-code">${etiqueta}</span>
-        <span class="plano-card-pct" title="Porcentaje de llenado">${porcentaje}%</span>
+        <span class="plano-card-pct" title="Porcentaje de llenado">${porcentaje === null ? "Sin verificar" : porcentaje + "%"}</span>
       </div>
       <small><span class="plano-card-material-dot" aria-hidden="true"></span>${subtitulo}</small>
     `;
-    const estaVacio = !Number.isFinite(volumen) || volumen <= 0;
+    const estaVacio = volumen !== null && volumen <= 0;
     bloque.appendChild(header);
 
     const body = document.createElement("div");
@@ -22427,10 +22439,10 @@ function renderPlano() {
     const barra = document.createElement("div");
     barra.className = "plano-card-progress-bar";
     barra.style.background = colorTarjeta;
-    const alturaBarra = capacidad && capacidad > 0 ? porcentaje : 0;
+    const alturaBarra = porcentaje ?? 0;
     barra.style.height = `${alturaBarra}%`;
     const etiquetaPorcentaje = document.createElement("span");
-    etiquetaPorcentaje.textContent = `${porcentaje}%`;
+    etiquetaPorcentaje.textContent = `${porcentaje === null ? "Sin verificar" : porcentaje + "%"}`;
     progress.appendChild(barra);
     progress.appendChild(etiquetaPorcentaje);
 
@@ -22697,28 +22709,27 @@ function actualizarCachePlano(item, x, y) {
 
 // ---------- Resumen (bodega) ----------
 async function cargarResumen() {
+  const carga = ++secuenciaResumen;
   try {
-    const resumenKilos = document.getElementById("resumenKilos");
-    const resumenDepositos = document.getElementById("resumenDepositos");
-    const resumenBarricas = document.getElementById("resumenBarricas");
-    // 1) Resumen principal (kilos, depósitos, barricas)
     const res = await fetch("/api/resumen");
-    if (!res.ok) return;
+    if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
     const data = await res.json();
-    const calculado = calcularLitrosResumenDesdeCaches();
-    if (resumenKilos) {
-      resumenKilos.textContent =
-        (Number(calculado.kilos_entrados || 0) || Number(data.kilos_entrados || 0) || 0).toFixed(0) + " kg";
+    if (carga !== secuenciaResumen) return;
+    for (const key of ["kilos_entrados", "depositos", "barricas", "litros_depositos", "litros_mastelones", "litros_barricas"]) {
+      if (MicroCellerVolumes.quantity(data?.[key]) === null) throw new Error("Resumen sin verificar");
     }
-    if (resumenDepositos) {
-      resumenDepositos.textContent = data.depositos || 0;
-    }
-    if (resumenBarricas) {
-      resumenBarricas.textContent = data.barricas || 0;
-    }
-    actualizarGraficosResumen({ ...data, ...calculado });
-
+    const asignar = (id, texto) => { const el = document.getElementById(id); if (el) el.textContent = texto; };
+    asignar("resumenKilos", `${Number(data.kilos_entrados).toLocaleString("es-ES", { maximumFractionDigits: 12 })} kg`);
+    asignar("resumenDepositos", data.depositos);
+    asignar("resumenBarricas", data.barricas);
+    actualizarGraficosResumen(data);
   } catch (err) {
+    if (carga !== secuenciaResumen) return;
+    for (const id of ["resumenKilos", "resumenDepositos", "resumenBarricas"]) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "Sin verificar · vuelve a cargar";
+    }
+    actualizarGraficosResumen(null);
     console.error("Error cargando resumen:", err);
   }
 }
@@ -23799,15 +23810,16 @@ async function crearEntradaUvaSinBloqueo(ev, guard) {
         }
 // ---------- Depósitos (con edición de volumen, contenido y fecha) ----------
 async function cargarDepositos() {
+  const carga = ++secuenciaCargaVolumen.depositos;
+  estadoCargaVolumen.depositos = "cargando";
+  actualizarCoherenciaVolumen();
   try {
     mostrarSkeletonTabla("tablaDepositos", 10);
     const res = await fetch("/api/depositos");
-    if (!res.ok) {
-      console.error("Error HTTP al cargar depósitos:", res.status);
-      return;
-    }
-
+    if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
     const datos = await res.json();
+    if (carga !== secuenciaCargaVolumen.depositos) return;
+    if (!Array.isArray(datos) || datos.some(item => !item || typeof item !== "object" || item.id == null)) throw new Error("Respuesta de depósitos inválida");
     const separados = datos.reduce(
       (acc, item) => {
         const clase = (item.clase || "deposito").toLowerCase();
@@ -23823,23 +23835,8 @@ async function cargarDepositos() {
 
 	    cacheDepositos = separados.depositos;
 	    cacheMastelones = separados.mastelones;
-	    // Volúmenes desde nodos (último eslabón)
-	    cacheDepositos.forEach(d => {
-	      const volNodo = obtenerVolumenFinalNodoContenedor("deposito", d.id);
-	      const volActual = normalizarNumeroFlexible(d.litros_actuales);
-	      const tieneActual = Number.isFinite(volActual) && volActual > 0;
-	      if (Number.isFinite(volNodo) && (volNodo > 0 || !tieneActual)) {
-	        d.litros_actuales = Math.max(0, volNodo);
-	      }
-	    });
-	    cacheMastelones.forEach(d => {
-	      const volNodo = obtenerVolumenFinalNodoContenedor("deposito", d.id);
-	      const volActual = normalizarNumeroFlexible(d.litros_actuales);
-	      const tieneActual = Number.isFinite(volActual) && volActual > 0;
-	      if (Number.isFinite(volNodo) && (volNodo > 0 || !tieneActual)) {
-	        d.litros_actuales = Math.max(0, volNodo);
-	      }
-	    });
+    estadoCargaVolumen.depositos = "listo";
+    actualizarCoherenciaVolumen();
     mapaDepositosPorId = new Map(cacheDepositos.map(d => [d.id, d]));
     mapaMastelonesPorId = new Map(cacheMastelones.map(d => [d.id, d]));
     if (typeof poblarSelectBitacoraContenedores === "function") {
@@ -23860,6 +23857,12 @@ async function cargarDepositos() {
     renderCatas();
     programarActualizacionCopiloto();
   } catch (err) {
+    if (carga === secuenciaCargaVolumen.depositos) {
+      estadoCargaVolumen.depositos = "error";
+      actualizarIndicadores();
+      renderTablaContenedores([...cacheDepositos, ...cacheMastelones], "tablaDepositos", "No se pudieron actualizar los depósitos.");
+      actualizarCoherenciaVolumen();
+    }
     console.error("Error cargando depósitos:", err);
   }
 }
@@ -24853,8 +24856,7 @@ function formatearUbicacionMovimiento(tipo, id) {
 }
 
 function formatearLitrosPlano(valor) {
-  if (valor == null || Number.isNaN(Number(valor))) return "—";
-  return `${Number(valor).toLocaleString("es-ES", { maximumFractionDigits: 1 })} L`;
+  return MicroCellerVolumes.format(valor);
 }
 
 function formatearFechaCorta(valor) {
@@ -25063,25 +25065,13 @@ function resolverEstadoVisualContenedor(tipo, item) {
       ? obtenerEstadoBarricaDesdeNodo(item?.id)
       : obtenerEstadoDepositoDesdeNodo(item?.id);
   const enMapa = Boolean(estadoNodo && estadoNodo.enMapa);
-  const volumenNodo = Number.isFinite(estadoNodo?.volumen) ? Number(estadoNodo.volumen) : null;
-  const volumenPersistidoRaw = normalizarNumeroFlexible(item?.litros_actuales ?? item?.volumen);
-  const volumenPersistido = Number.isFinite(volumenPersistidoRaw) ? Number(volumenPersistidoRaw) : 0;
-  let volumenFinal = 0;
-  if (enMapa && volumenNodo != null && volumenNodo > 0) {
-    volumenFinal = Math.max(0, volumenNodo);
-  } else if (volumenPersistido > 0) {
-    volumenFinal = Math.max(0, volumenPersistido);
-  } else if (enMapa && volumenNodo != null) {
-    volumenFinal = Math.max(0, volumenNodo);
-  } else {
-    volumenFinal = Math.max(0, volumenPersistido);
-  }
+  const volumenFinal = MicroCellerVolumes.registered(item);
   const tieneVino = volumenFinal > 0;
   const variedadNodo = formatearVariedadLinea(estadoNodo?.variedad || "");
   const variedadPersistida = obtenerVariedadPersistidaContenedor(item);
   const variedadVisible = tieneVino
     ? (variedadNodo || variedadPersistida || "—")
-    : (enMapa ? "Vacío" : "Sin vino");
+    : (volumenFinal === null ? "Sin verificar" : "Sin vino");
   return {
     enMapa,
     volumenFinal,
@@ -25404,20 +25394,18 @@ async function construirHistorialLocal(tipo, id) {
 }
         // ---------- Barricas ----------
         async function cargarBarricas() {
+            const carga = ++secuenciaCargaVolumen.barricas;
+            estadoCargaVolumen.barricas = "cargando";
+            actualizarCoherenciaVolumen();
             try {
                 mostrarSkeletonTabla("tablaBarricas", 12);
                 const res = await fetch("/api/barricas");
-                if (!res.ok) return;
+                if (!res.ok) throw new Error(`Error HTTP ${res.status}`);
                 const datos = await res.json();
+                if (carga !== secuenciaCargaVolumen.barricas) return;
+                if (!Array.isArray(datos) || datos.some(item => !item || typeof item !== "object" || item.id == null)) throw new Error("Respuesta de barricas inválida");
+                estadoCargaVolumen.barricas = "listo";
 	                cacheBarricas = datos;
-	                cacheBarricas.forEach(b => {
-	                    const volNodo = obtenerVolumenFinalNodoContenedor("barrica", b.id);
-	                    const volActual = normalizarNumeroFlexible(b.litros_actuales);
-	                    const tieneActual = Number.isFinite(volActual) && volActual > 0;
-	                    if (Number.isFinite(volNodo) && (volNodo > 0 || !tieneActual)) {
-	                        b.litros_actuales = Math.max(0, volNodo);
-	                    }
-	                });
                 mapaBarricasPorId = new Map(datos.map(b => [b.id, b]));
                 if (typeof poblarSelectBitacoraContenedores === "function") {
                     poblarSelectBitacoraContenedores();
@@ -25426,6 +25414,10 @@ async function construirHistorialLocal(tipo, id) {
                     window.__bitacoraSelectWarned = true;
                 }
                 renderPlano();
+                actualizarCoherenciaVolumen();
+                actualizarIndicadores();
+                refrescarGraficosResumenDesdeCaches();
+                actualizarMapaFlujo();
 
                 const tbody = document.getElementById("tablaBarricas");
                 tbody.innerHTML = "";
@@ -25477,12 +25469,17 @@ async function construirHistorialLocal(tipo, id) {
     `;
                     tbody.appendChild(tr);
 });
-                actualizarIndicadores();
-                refrescarGraficosResumenDesdeCaches();
                 actualizarAprovechamientoAnual();
                 actualizarMapaFlujo();
                 programarActualizacionCopiloto();
             } catch (err) {
+                if (carga === secuenciaCargaVolumen.barricas) {
+                    estadoCargaVolumen.barricas = "error";
+                    actualizarIndicadores();
+                    const tbody = document.getElementById("tablaBarricas");
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="12">No se pudieron actualizar las barricas. Vuelve a cargar la aplicación.</td></tr>';
+                    actualizarCoherenciaVolumen();
+                }
                 console.error("Error cargando barricas:", err);
             }
         }
