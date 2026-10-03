@@ -14,6 +14,7 @@ import { initTimelineService, listTimeline } from "./services/timelineService.js
 import {
   initContenedoresEstadoService,
   recalcularCantidad,
+  calcularCantidadDesdeHistorial,
   obtenerCantidadConsolidada,
 } from "./services/contenedoresEstadoService.js";
 import { evaluar as evaluarReglas } from "./rules/rulesEngine.js";
@@ -310,6 +311,7 @@ async function ensureTables() {
     "updated_at",
   ]);
   await ensureColumn("depositos", "anada_creacion", "INTEGER");
+  await ensureColumn("depositos", "lifecycle_revision", "INTEGER NOT NULL DEFAULT 0");
   await assertColumns("depositos", [
     "user_id",
     "bodega_id",
@@ -327,6 +329,7 @@ async function ensureTables() {
     "activo",
   ]);
   await ensureColumn("barricas", "anada_creacion", "INTEGER");
+  await ensureColumn("barricas", "lifecycle_revision", "INTEGER NOT NULL DEFAULT 0");
   await assertColumns("barricas", [
     "user_id",
     "bodega_id",
@@ -2322,6 +2325,13 @@ async function obtenerContenedor(tipo, id, bodegaId, userId) {
   return fila;
 }
 
+async function obtenerContenedorActivo(tipo, id, bodegaId, userId) {
+  const row = await obtenerContenedor(tipo, id, bodegaId, userId);
+  if (!row || Number(row.activo) !== 1 || Number(row.user_id) !== Number(userId)) return null;
+  if (tipo !== "barrica" && normalizarClaseDeposito(row.clase) !== tipo) return null;
+  return row;
+}
+
 async function logEventoContenedor({
   userId,
   bodegaId,
@@ -2482,6 +2492,7 @@ async function registrarBitacoraEntry({
   partida_id = null,
   campania_libro_id = null,
   created_at = null,
+  deduplicate = true,
 }) {
   if (!userId || !bodegaId) return null;
   const texto = (text || "").toString().trim();
@@ -2530,7 +2541,7 @@ async function registrarBitacoraEntry({
     campaniaLibroIdFinal = await resolverCampaniaLibroId(bodegaId, partidaIdFinal);
   }
 
-  const existente = await db.get(
+  const existente = deduplicate ? await db.get(
     `SELECT id FROM bitacora_entries
      WHERE user_id = ?
        AND bodega_id = ?
@@ -2551,7 +2562,7 @@ async function registrarBitacoraEntry({
     deposito_id || "",
     madera_id || "",
     linea_id || ""
-  );
+  ) : null;
   if (existente?.id) return existente.id;
 
   const id = generarBitacoraId();
@@ -2867,7 +2878,7 @@ async function registrarMovimientoEmbotellado(origen_tipo, origen_id, litros, no
   if (!bodegaId || !userId) {
     throw new Error("Usuario o bodega inválidos");
   }
-  const cont = await obtenerContenedor(origenTipo, origenId, bodegaId, userId);
+  const cont = await obtenerContenedorActivo(origenTipo, origenId, bodegaId, userId);
   if (!cont) {
     throw new Error("El contenedor de origen no existe");
   }
@@ -3893,6 +3904,7 @@ function mapExistingDeposito(row) {
   const capacidadL = Number(row.capacidad_hl);
   return {
     id: row.id,
+    activo: row.activo,
     codigo: row.codigo,
     bodega_id: row.bodega_id,
     tipo: row.tipo || "deposito",
@@ -3906,6 +3918,7 @@ function mapExistingBarrica(row) {
   const capacidadL = Number(row.capacidad_l);
   return {
     id: row.id,
+    activo: row.activo,
     codigo: row.codigo,
     bodega_id: row.bodega_id,
     tipo: "barrica",
@@ -3958,6 +3971,7 @@ app.get("/api/depositos", async (req, res) => {
         d.pos_x,
         d.pos_y,
         d.activo,
+        d.lifecycle_revision,
         d.clase,
         d.capacidad_hl * 100 AS capacidad_l,
         COALESCE(ce.cantidad, 0) AS litros_actuales,
@@ -4135,7 +4149,7 @@ app.post("/api/depositos", async (req, res) => {
   const anadaCreacion = Number.isFinite(anioActivo) ? anioActivo : obtenerAnioVitivinicola();
   if (await existeCodigo("depositos", codigoLimpio, bodegaId)) {
     const existingRow = await db.get(
-      "SELECT id, codigo, bodega_id, tipo, capacidad_hl, ubicacion FROM depositos WHERE bodega_id = ? AND codigo = ? LIMIT 1",
+      "SELECT id, codigo, bodega_id, tipo, capacidad_hl, ubicacion, activo FROM depositos WHERE bodega_id = ? AND codigo = ? LIMIT 1",
       bodegaId,
       codigoLimpio
     );
@@ -4202,7 +4216,7 @@ app.post("/api/depositos", async (req, res) => {
     console.error("Error al crear depósito:", err);
     if (String(err?.message || "").includes("UNIQUE constraint failed")) {
       const existingRow = await db.get(
-        "SELECT id, codigo, bodega_id, tipo, capacidad_hl, ubicacion FROM depositos WHERE bodega_id = ? AND codigo = ? LIMIT 1",
+        "SELECT id, codigo, bodega_id, tipo, capacidad_hl, ubicacion, activo FROM depositos WHERE bodega_id = ? AND codigo = ? LIMIT 1",
         bodegaId,
         codigoLimpio
       );
@@ -4240,51 +4254,78 @@ app.get("/api/depositos/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/depositos/:id", async (req, res) => {
+app.delete("/api/depositos/:id", databaseContext.jsonRoute((req, res) => cambiarEstadoContenedor(req, res, "deposito", false)));
+app.post("/api/depositos/:id/recuperar", databaseContext.jsonRoute((req, res) => cambiarEstadoContenedor(req, res, "deposito", true)));
+
+async function fichaCicloContenedor(kind, row) {
+  const type = kind === "barrica" ? "barrica" : normalizarClaseDeposito(row.clase);
+  const state = await obtenerEstadoContenedor(type, row.id, row.bodega_id, row.user_id);
+  const cantidad = state ? state.cantidad : 0;
+  const ficha = { ...row, container_kind: kind, capacidad_l: kind === "barrica" ? row.capacidad_l : row.capacidad_hl * 100,
+    litros_actuales: cantidad, litros_registrados: cantidad, partida_id_actual: state?.partida_id_actual ?? null };
+  return { ...ficha, edit_revision: containerEditRevision(kind, ficha) };
+}
+
+app.get("/api/contenedores/archivados", async (req, res) => {
   try {
-    const bodegaId = req.session.bodegaId;
-    const userId = req.session.userId;
-    const id = Number(req.params.id);
-    const existente = await db.get(
-      "SELECT id, codigo, anada_creacion FROM depositos WHERE id = ? AND bodega_id = ?",
-      id,
-      bodegaId
-    );
-    if (!existente) {
-      return res.status(404).json({ error: "Depósito no encontrado" });
+    const { bodegaId, userId } = req.session;
+    const filas = [];
+    for (const [kind, table] of [["deposito", "depositos"], ["barrica", "barricas"]]) {
+      const rows = await db.all(`SELECT c.*, ca.alias FROM ${table} c LEFT JOIN container_alias ca
+        ON ca.container_type=? AND ca.container_id=c.id AND ca.bodega_id=c.bodega_id AND ca.campania_id=?
+        WHERE c.activo=0 AND c.bodega_id=? AND c.user_id=? ORDER BY c.codigo COLLATE NOCASE`, kind, req.campaniaId, bodegaId, userId);
+      for (const row of rows) filas.push(await fichaCicloContenedor(kind, row));
     }
-    const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
-    const bloqueo = resolverBloqueoPorAnada(existente.anada_creacion, anioActivo);
-    if (bloqueo) {
-      return res.status(bloqueo.status).json({ error: bloqueo.error });
-    }
-    await db.run(
-      "DELETE FROM depositos WHERE id = ? AND bodega_id = ?",
-      id,
-      bodegaId
-    );
-    if (existente) {
-      try {
-        const texto = `Depósito ${existente.codigo || existente.id} eliminado`;
-        await registrarBitacoraEntry({
-          userId,
-          bodegaId,
-          text: texto,
-          scope: "deposito",
-          origin: "depositos",
-          note_type: "accion",
-          deposito_id: String(existente.id),
-        });
-      } catch (err) {
-        console.warn("No se pudo registrar bitácora de depósito:", err);
-      }
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Error borrando depósito:", err);
-    res.status(500).send("Error borrando depósito");
+    res.json(filas);
+  } catch (error) {
+    console.error("Error listando contenedores archivados:", error);
+    res.status(500).json({ error: "No se pudieron cargar los contenedores archivados." });
   }
 });
+
+async function cambiarEstadoContenedor(req, res, kind, recuperar) {
+  const table = kind === "barrica" ? "barricas" : "depositos";
+  const label = kind === "barrica" ? "Barrica" : "Depósito";
+  try {
+    const id = Number(req.params.id), { bodegaId, userId } = req.session;
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: "ID inválido" });
+    const row = await db.get(`SELECT * FROM ${table} WHERE id=? AND bodega_id=? AND user_id=?`, id, bodegaId, userId);
+    if (!row) return res.status(404).json({ error: `${label} no encontrado.` });
+    if (Number(row.activo) !== (recuperar ? 0 : 1)) return res.status(409).json({ error: recuperar ? "El contenedor ya está activo. Actualiza la lista." : "El contenedor ya está archivado. Actualiza la lista." });
+    const ficha = await fichaCicloContenedor(kind, row);
+    if (typeof req.body?.base_revision !== "string" || req.body.base_revision !== ficha.edit_revision) {
+      return res.status(409).json({ error: "El contenedor ha cambiado o falta su revisión. Actualiza la lista antes de continuar." });
+    }
+    const type = kind === "barrica" ? "barrica" : normalizarClaseDeposito(row.clase);
+    if (kind === "deposito" && type === "barrica") return res.status(409).json({ error: "Revisa la clase y el historial de este contenedor antes de archivarlo o recuperarlo." });
+    if (kind === "deposito") {
+      const otherType = type === "mastelone" ? "deposito" : "mastelone";
+      const otherState = await obtenerEstadoContenedor(otherType, id, bodegaId, userId);
+      const otherBalance = await calcularCantidadDesdeHistorial(otherType, id, bodegaId, userId);
+      if ((otherState && (typeof otherState.cantidad !== "number" || otherState.cantidad !== 0)) || !Number.isFinite(otherBalance) || Math.abs(otherBalance) > 1e-7) {
+        return res.status(409).json({ error: "Hay saldos de otra clase asociados a este contenedor. Revisa su historial antes de continuar." });
+      }
+    }
+    const cantidad = ficha.litros_registrados;
+    const historial = await calcularCantidadDesdeHistorial(type, id, bodegaId, userId);
+    if (typeof cantidad !== "number" || !Number.isFinite(cantidad) || cantidad < 0 || !Number.isFinite(historial) || Math.abs(historial - cantidad) > 1e-7) {
+      return res.status(409).json({ error: "Los litros no coinciden con el historial o no se pueden verificar. Revisa el contenedor antes de continuar." });
+    }
+    if (!recuperar && cantidad > 0) return res.status(409).json({ error: `${label} ${row.codigo} todavía contiene ${cantidad} L. No se puede archivar con vino.` });
+    if (recuperar && cantidad > 0 && (!Number.isFinite(ficha.capacidad_l) || cantidad > ficha.capacidad_l + 1e-7)) {
+      return res.status(409).json({ error: "Revisa la capacidad y los litros antes de recuperar este contenedor." });
+    }
+    await db.run(`UPDATE ${table} SET activo=?, lifecycle_revision=lifecycle_revision+1 WHERE id=? AND bodega_id=? AND user_id=?`, recuperar ? 1 : 0, id, bodegaId, userId);
+    const scope = resolverScopeBitacoraPorContenedor(type, id);
+    const auditId = await registrarBitacoraEntry({ userId, bodegaId, text: `${label} ${row.codigo} ${recuperar ? "recuperado" : "archivado"}`,
+      ...scope, origin: kind === "barrica" ? "maderas" : "depositos", note_type: "accion", deduplicate: false });
+    if (!auditId) throw new Error("No se pudo registrar el cambio en la bitácora.");
+    res.json({ ok: true, id, codigo: row.codigo, activo: recuperar ? 1 : 0 });
+  } catch (error) {
+    console.error("Error cambiando estado del contenedor:", error);
+    res.status(error.status || 500).json({ error: error.status ? error.message : "No se pudo completar el archivado o la recuperación." });
+  }
+}
 
 async function editarContenedorCompleto(req, res, kind) {
   const table = kind === "barrica" ? "barricas" : "depositos";
@@ -4456,7 +4497,7 @@ app.post("/api/barricas", async (req, res) => {
   const anadaCreacion = Number.isFinite(anioActivo) ? anioActivo : obtenerAnioVitivinicola();
   if (await existeCodigo("barricas", codigoLimpio, bodegaId)) {
     const existingRow = await db.get(
-      "SELECT id, codigo, bodega_id, capacidad_l, ubicacion FROM barricas WHERE bodega_id = ? AND codigo = ? LIMIT 1",
+      "SELECT id, codigo, bodega_id, capacidad_l, ubicacion, activo FROM barricas WHERE bodega_id = ? AND codigo = ? LIMIT 1",
       bodegaId,
       codigoLimpio
     );
@@ -4507,7 +4548,7 @@ app.post("/api/barricas", async (req, res) => {
     console.error("Error al crear barrica:", err);
     if (String(err?.message || "").includes("UNIQUE constraint failed")) {
       const existingRow = await db.get(
-        "SELECT id, codigo, bodega_id, capacidad_l, ubicacion FROM barricas WHERE bodega_id = ? AND codigo = ? LIMIT 1",
+        "SELECT id, codigo, bodega_id, capacidad_l, ubicacion, activo FROM barricas WHERE bodega_id = ? AND codigo = ? LIMIT 1",
         bodegaId,
         codigoLimpio
       );
@@ -4523,51 +4564,8 @@ app.post("/api/barricas", async (req, res) => {
   }
 });
 
-app.delete("/api/barricas/:id", async (req, res) => {
-  try {
-    const bodegaId = req.session.bodegaId;
-    const userId = req.session.userId;
-    const id = Number(req.params.id);
-    const existente = await db.get(
-      "SELECT id, codigo, anada_creacion FROM barricas WHERE id = ? AND bodega_id = ?",
-      id,
-      bodegaId
-    );
-    if (!existente) {
-      return res.status(404).json({ error: "Barrica no encontrada" });
-    }
-    const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
-    const bloqueo = resolverBloqueoPorAnada(existente.anada_creacion, anioActivo);
-    if (bloqueo) {
-      return res.status(bloqueo.status).json({ error: bloqueo.error });
-    }
-    await db.run(
-      "DELETE FROM barricas WHERE id = ? AND bodega_id = ?",
-      id,
-      bodegaId
-    );
-    if (existente) {
-      try {
-        const texto = `Barrica ${existente.codigo || existente.id} eliminada`;
-        await registrarBitacoraEntry({
-          userId,
-          bodegaId,
-          text: texto,
-          scope: "madera",
-          origin: "maderas",
-          note_type: "accion",
-          madera_id: String(existente.id),
-        });
-      } catch (err) {
-        console.warn("No se pudo registrar bitácora de barrica:", err);
-      }
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Error borrando barrica:", err);
-    res.status(500).send("Error borrando barrica");
-  }
-});
+app.delete("/api/barricas/:id", databaseContext.jsonRoute((req, res) => cambiarEstadoContenedor(req, res, "barrica", false)));
+app.post("/api/barricas/:id/recuperar", databaseContext.jsonRoute((req, res) => cambiarEstadoContenedor(req, res, "barrica", true)));
 
 app.put("/api/barricas/:id", databaseContext.jsonRoute((req, res) => editarContenedorCompleto(req, res, "barrica")));
 
@@ -5883,7 +5881,7 @@ app.post("/api/express/invert", databaseContext.jsonRoute(async (req, res) => {
         }
       }
       if (invDestinoTipo && invDestinoId != null) {
-        const destino = await obtenerContenedor(invDestinoTipo, invDestinoId, bodegaId, userId);
+        const destino = await obtenerContenedorActivo(invDestinoTipo, invDestinoId, bodegaId, userId);
         if (!destino) return res.status(409).json({ ok: false, error: "El contenedor de destino ya no existe" });
         const capacidad = invDestinoTipo === "barrica" ? Number(destino.capacidad_l) : Number(destino.capacidad_hl) * 100;
         const actual = await obtenerLitrosActuales(invDestinoTipo, invDestinoId, bodegaId, userId);
@@ -6066,7 +6064,7 @@ app.post("/api/embotellados", databaseContext.jsonRoute(async (req, res) => {
     const bodegaId = req.session.bodegaId;
     const userId = req.session.userId;
     const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
-    const contenedor = await obtenerContenedor(contenedorTipo, contenedorIdNum, bodegaId, userId);
+    const contenedor = await obtenerContenedorActivo(contenedorTipo, contenedorIdNum, bodegaId, userId);
     if (!contenedor) {
       return res.status(404).json({ error: "Contenedor no encontrado" });
     }
@@ -6217,6 +6215,7 @@ app.delete("/api/embotellados/:id", databaseContext.jsonRoute(async (req, res) =
         );
       }
       if (actual.contenedor_tipo && actual.contenedor_id != null) {
+        if (!await obtenerContenedorActivo(actual.contenedor_tipo, actual.contenedor_id, bodegaId, userId)) throw Object.assign(new Error("Recupera el contenedor antes de deshacer este embotellado."), { status: 409 });
         await recalcularCantidad(actual.contenedor_tipo, actual.contenedor_id, bodegaId, userId);
         await ajustarOcupacionContenedor(
           actual.contenedor_tipo,
@@ -7200,7 +7199,7 @@ app.post("/api/registro-express", databaseContext.jsonRoute(async (req, res) => 
     const userId = req.session.userId;
     const campaniaId = req.campaniaId;
     const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
-    const contenedor = await obtenerContenedor(contenedorTipo, contenedorId, bodegaId, userId);
+    const contenedor = await obtenerContenedorActivo(contenedorTipo, contenedorId, bodegaId, userId);
     if (!contenedor) {
       return res.status(404).json({ error: "Contenedor no encontrado" });
     }
@@ -7329,7 +7328,7 @@ app.post("/api/registro-express", databaseContext.jsonRoute(async (req, res) => 
       return res.status(400).json({ error: "Destino obligatorio para trasiego" });
     }
 
-    const origen = await obtenerContenedor(origenTipo, origenId, bodegaId, userId);
+    const origen = await obtenerContenedorActivo(origenTipo, origenId, bodegaId, userId);
     if (!origen) {
       return res.status(404).json({ error: "Contenedor de origen no encontrado" });
     }
@@ -7338,7 +7337,7 @@ app.post("/api/registro-express", databaseContext.jsonRoute(async (req, res) => 
       return res.status(bloqueoOrigen.status).json({ error: bloqueoOrigen.error });
     }
     if (destinoTipo && destinoId != null) {
-      const destino = await obtenerContenedor(destinoTipo, destinoId, bodegaId, userId);
+      const destino = await obtenerContenedorActivo(destinoTipo, destinoId, bodegaId, userId);
       if (!destino) {
         return res.status(404).json({ error: "Contenedor de destino no encontrado" });
       }
@@ -7353,7 +7352,7 @@ app.post("/api/registro-express", databaseContext.jsonRoute(async (req, res) => 
       return res.status(400).json({ error: `El contenedor origen solo tiene ${disponibles.toFixed(2)} L disponibles` });
     }
     if (destinoTipo && destinoId != null) {
-      const destino = await obtenerContenedor(destinoTipo, destinoId, bodegaId, userId);
+      const destino = await obtenerContenedorActivo(destinoTipo, destinoId, bodegaId, userId);
       const capacidad = destinoTipo === "barrica" ? Number(destino.capacidad_l) : Number(destino.capacidad_hl) * 100;
       const actuales = await obtenerLitrosActuales(destinoTipo, destinoId, bodegaId, userId);
       if (capacidad > 0 && actuales + litrosNum > capacidad + 0.0001) {
@@ -9689,6 +9688,9 @@ app.get("/api/movimientos", async (req, res) => {
 
 // Crear movimiento nuevo (trasiego, merma, ajuste, embotellado…)
 async function recalcularSaldoMovimiento(tipo, id, bodegaId, userId) {
+  if (!await obtenerContenedorActivo(tipo, id, bodegaId, userId)) {
+    throw Object.assign(new Error("El contenedor está archivado o no está disponible. Recupéralo antes de registrar o deshacer movimientos."), { status: 409 });
+  }
   const cantidad = await recalcularCantidad(tipo, id, bodegaId, userId);
   if (!Number.isFinite(cantidad) || cantidad < -0.0001) {
     throw Object.assign(new Error("La operación dejaría un contenedor con saldo negativo"), { status: 409 });
@@ -9766,7 +9768,7 @@ async function crearMovimientoVino(req, res) {
     const campaniaId = req.campaniaId;
     const anioActivo = await obtenerAnioCampaniaActiva(bodegaId);
     if (origenTipo && origenId != null) {
-      const cont = await obtenerContenedor(origenTipo, origenId, bodegaId, userId);
+      const cont = await obtenerContenedorActivo(origenTipo, origenId, bodegaId, userId);
       if (!cont) {
         return res.status(400).json({ error: "El contenedor origen no existe" });
       }
@@ -9783,7 +9785,7 @@ async function crearMovimientoVino(req, res) {
     }
 
     if (destinoTipo && destinoId != null) {
-      const cont = await obtenerContenedor(destinoTipo, destinoId, bodegaId, userId);
+      const cont = await obtenerContenedorActivo(destinoTipo, destinoId, bodegaId, userId);
       if (!cont) {
         return res.status(400).json({ error: "El contenedor destino no existe" });
       }

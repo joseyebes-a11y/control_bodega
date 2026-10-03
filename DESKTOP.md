@@ -61,6 +61,18 @@ Un aviso desplegable muestra diferencias entre litros registrados y mapa, nodos 
 
 Pruebas HTTP y de las funciones reales de la página: ceros, precisión decimal, campañas, contenedores inactivos, aislamiento de bodega y propietario del saldo, mapa discrepante guardado, lecturas sin escrituras, datos incompletos, errores de red/HTML y respuestas fuera de orden. El plano y la tabla reales se comprobaron en un DOM: depósito vacío frente a mapa con vino, mastelone con 100,125 L, barrica sin nodo con 80,075 L, total registrado de 180,2 L y avisos de diferencia separados de cambios pendientes. Esta comprobación de interfaz no sustituye la prueba pendiente en Windows.
 
+## Archivado y recuperación de contenedores
+
+Los botones de depósitos, mastelones y barricas ahora muestran «Archivar». La confirmación identifica el contenedor por su código y alias. El servidor vuelve a comprobar el estado, los litros y la revisión de la ficha dentro de una transacción: un contenedor con vino, saldo inválido, historial discrepante o saldos de otra clase no se puede archivar. La revisión incluye un contador de cambios de estado, de modo que una pantalla anterior a un ciclo de archivado y recuperación no pueda repetir la operación.
+
+El archivado conserva la ficha y marca el contenedor como inactivo; no elimina movimientos, saldo, nombres, aliases, ubicación, posición ni referencias históricas. La bitácora y el cambio de estado se guardan juntos; si falla cualquiera, se revierte la operación completa. Cada transición confirmada deja una nota, incluso si se archiva, recupera y vuelve a archivar en poco tiempo. Un código archivado sigue reservado; al intentar crearlo de nuevo, la pantalla conduce a su recuperación.
+
+«Contenedores archivados» está disponible en ambos catálogos y permite consultar la bitácora o recuperar el contenedor con el mismo ID, código e historial. Los contenedores recuperados reaparecen en los catálogos, el plano y el resumen. La recuperación admite contenedores de versiones anteriores con vino verificable dentro de su capacidad, sin modificar sus litros.
+
+Los movimientos y sus anulaciones no pueden añadir vino a un contenedor archivado. Archivar y registrar vino simultáneamente se resuelve bajo el mismo bloqueo de escritura. Para anular un movimiento o embotellado que afecte a un contenedor archivado, se debe recuperar antes; una anulación rechazada conserva también los stocks de botellas y sus trazas.
+
+La interfaz bloquea dobles acciones y el cierre del diálogo mientras se espera la respuesta. Conserva la información y distingue una operación no confirmada de un cambio confirmado cuya vista no se pudo actualizar. Una lista fallida o desactualizada no habilita la recuperación. Las pruebas HTTP cubren los tres tipos de contenedor, conflictos, concurrencia, fallos de actualización y bitácora, aislamiento, saldos inválidos, recuperación de vino antiguo, códigos reservados y anulación de embotellados. El diálogo y la tabla reales se comprobaron en un DOM, incluida la bitácora y nombres tratados como texto. El diálogo nativo queda pendiente de comprobación en Windows junto al próximo instalador.
+
 ## Desarrollo y construcción
 
 ```sh
@@ -79,10 +91,10 @@ En Linux el constructor utiliza el lector de desinstaladores de electron-builder
 
 ## Verificación de esta versión
 
-- 104 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
+- 136 pruebas de integridad y 13 de escritorio y recuperación aprobadas; smoke checks y flowEngine aprobados.
 - Interfaz Electron ejecutada en Linux: configuración inicial, acceso, registro, copia desde el menú, cierre y reapertura, conservación de datos y puerto estable; sin errores de página. Copia automática inicial, restauración desde menú, conservación de dos registros posteriores en la copia previa, limpieza de borradores antiguos y recuperación ante fallo simulado del servicio restaurado. Importación en una instalación nueva probada.
 - El bloqueo de instancia única se sustituye únicamente en la prueba Linux por las restricciones de sockets del entorno de pruebas. El producto conserva el bloqueo real.
 - Pendiente ejecutar el instalador, la aplicación y el bloqueo de instancia única en un equipo Windows real.
-- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 117 pruebas aprobadas.
+- El test previo `contenedoresEstado.test.mjs` mantiene una discrepancia de expectativa (65 frente a 100), documentada en la revisión de integridad; no forma parte de las 149 pruebas aprobadas.
 
 El instalador no tiene firma digital. Esta entrega es una versión inicial para comprobar en Windows; no constituye una certificación de todas las funciones existentes de la aplicación.

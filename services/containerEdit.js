@@ -6,7 +6,7 @@ const fields = {
 };
 export function containerEditRevision(kind, row) {
   return crypto.createHash("sha256").update(JSON.stringify([
-    kind, row.id, row.anada_creacion, row.activo,
+    kind, row.id, row.anada_creacion, row.activo, Number(row.lifecycle_revision ?? 0),
     ...fields[kind].map(field => row[field] ?? null),
     Number(row.litros_actuales ?? 0), row.partida_id_actual ?? null,
   ])).digest("hex");

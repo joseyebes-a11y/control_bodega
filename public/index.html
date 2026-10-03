@@ -6227,6 +6227,10 @@ label {
 	                scroll-behavior: auto !important;
 	            }
 	        }
+        .container-archive-dialog { width: min(760px, calc(100vw - 32px)); max-height: 80vh; border: 1px solid #b7a5bf; border-radius: 16px; padding: 20px; color: #281234; background: #fff; }
+        .container-archive-dialog::backdrop { background: rgba(20, 10, 28, .55); }
+        .container-archive-dialog .small-btn { margin: 3px; }
+        .container-archive-scroll { max-height: 48vh; overflow: auto; }
         .volume-consistency { padding: 12px 16px; margin-bottom: 16px; border: 1px solid #d79a3b; border-radius: 12px; background: #fff4dd; color: #563811; }
         .volume-consistency[hidden], .flow-discrepancia[hidden] { display: none; }
         .volume-consistency summary { cursor: pointer; font-weight: 600; }
@@ -7302,7 +7306,8 @@ label {
         <!-- SECCIÓN DEPÓSITOS -->
         <section id="depositos" class="card" style="display:none;">
             <h1><span class="h1-emoji">🛢</span>Depósitos</h1>
-            <p>Registro de depósitos con su capacidad, tipo y material. La variedad y los litros asignados se actualizan automáticamente cuando un nodo se conecta al depósito.</p>
+            <button type="button" class="btnSecundario" onclick="containerArchiveUI.open()">Contenedores archivados</button>
+            <p>Registro de depósitos con su capacidad, tipo y material. Los litros muestran el volumen registrado. Puedes archivar los contenedores vacíos y recuperarlos con su historial.</p>
 
 <table>
     <thead>
@@ -7313,10 +7318,10 @@ label {
         <th>Tipo</th>
         <th>Material</th>
         <th>Variedad asignada</th>
-        <th>Volumen transferido</th>
+        <th>Litros registrados</th>
         <th>Acciones</th>
         <th>Bitácora</th>
-        <th>Borrar</th>
+        <th>Archivar</th>
       </tr>
     </thead>
     <tbody id="tablaDepositos"></tbody>
@@ -7819,6 +7824,7 @@ label {
                 <img src="/barricas.png" alt="Maderas" class="h1-emoji h1-emoji-img">
                 Maderas
             </h1>
+            <button type="button" class="btnSecundario" onclick="containerArchiveUI.open()">Contenedores archivados</button>
             <p>Control de maderas y litros dentro.</p>
 
             <table>
@@ -7835,7 +7841,7 @@ label {
                         <th>Volumen actual (L)</th>
                         <th>Acciones</th>
                         <th>Bitácora</th>
-                        <th>Borrar</th>
+                        <th>Archivar</th>
                     </tr>
                 </thead>
                 <tbody id="tablaBarricas"></tbody>
@@ -7998,12 +8004,23 @@ label {
             <div id="bitacoraTexto" class="bitacora-plain" style="margin-top:12px;"></div>
         </section>
 
+        <dialog id="containerArchiveDialog" class="container-archive-dialog" aria-labelledby="containerArchiveTitle">
+            <h2 id="containerArchiveTitle">Contenedores archivados</h2>
+            <p>Recupera un contenedor para volver a utilizarlo con el mismo código y su historial.</p>
+            <p id="containerArchiveStatus" role="status" aria-live="polite"></p>
+            <div class="container-archive-scroll">
+                <table><thead><tr><th>Contenedor</th><th>Litros registrados</th><th>Acciones</th></tr></thead><tbody id="containerArchiveRows"></tbody></table>
+            </div>
+            <button type="button" class="btnSecundario" id="containerArchiveReload">Actualizar lista</button>
+            <button type="button" class="btnSecundario" id="containerArchiveClose">Cerrar</button>
+        </dialog>
     </div> <!-- fin .content -->
 
   <link rel="stylesheet" href="/css/form-save-guard.css">
   <script src="/js/form-save-guard.js"></script>
   <script src="/js/flowPersistence.js"></script>
   <script src="/js/volumeConsistency.js"></script>
+  <script src="/js/containerArchive.js"></script>
   <script>
 // ---- Mostrar secciones del menú lateral ---
 function mostrarSeccion(id) {
@@ -8052,6 +8069,21 @@ let cacheMastelones = [];
 const estadoCargaVolumen = { depositos: "pendiente", barricas: "pendiente" };
 const secuenciaCargaVolumen = { depositos: 0, barricas: 0 };
 let secuenciaResumen = 0;
+const containerArchiveUI = MicroCellerContainerArchive.create({
+  fetch: (...args) => window.fetch(...args),
+  confirm: message => window.confirm(message),
+  notify: (message, kind) => mostrarAviso(message, kind),
+  getContainer: (kind, id) => kind === "barrica" ? cacheBarricas.find(item => item.id === id) : [...cacheDepositos, ...cacheMastelones].find(item => item.id === id),
+  refresh: async () => {
+    await Promise.all([cargarDepositos(), cargarBarricas(), cargarResumen()]);
+    if (Object.values(estadoCargaVolumen).some(state => state !== "listo")) throw new Error("No se pudo actualizar el catálogo.");
+  },
+  history: (item, nombre) => {
+    const contenedorTipo = item.container_kind === "barrica" ? "barrica" : item.clase === "mastelone" ? "mastelone" : "deposito";
+    if (typeof window.abrirModalBitacora === "function") window.abrirModalBitacora({ contenedorTipo, contenedorId: item.id, nombre });
+    else mostrarAviso("No se pudo abrir la bitácora.", "error");
+  },
+});
 let cacheMovimientos = [];
 let cacheLimpieza = [];
 let cacheEnologicos = [];
@@ -23881,7 +23913,6 @@ function renderTablaContenedores(lista, tablaId, mensajeVacio) {
     const estadoVisual = resolverEstadoVisualContenedor("deposito", d);
     const variedadVisible = estadoVisual.variedadVisible;
     const volumenVisible = estadoVisual.volumenVisible;
-    const volumenParaEliminar = estadoVisual.volumenFinal;
     const capacidad =
       d.capacidad_l != null
         ? Number(d.capacidad_l).toFixed(0)
@@ -23916,9 +23947,9 @@ function renderTablaContenedores(lista, tablaId, mensajeVacio) {
       </td>
       <td>
         <button
-          onclick="eliminarDeposito(${d.id}, ${volumenParaEliminar})"
+          data-container-action="archive" data-container-kind="deposito" data-container-id="${d.id}" onclick="eliminarDeposito(${d.id})"
           style="background:#c00; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
-          Borrar
+          Archivar
         </button>
       </td>
     `;
@@ -23945,39 +23976,8 @@ function abrirBitacoraContenedor(tipo, id) {
   }
   window.abrirModalBitacora({ contenedorTipo: tipoNorm, contenedorId: idNum, nombre });
 }
-  // No dejar borrar si tiene vino dentro
-async function eliminarDeposito(id, volumen) {
-  const registro =
-    cacheDepositos.find(d => d.id === id) ||
-    cacheMastelones.find(d => d.id === id);
-  const clase = registro ? (registro.clase || "deposito") : "deposito";
-  const etiqueta = clase === "mastelone" ? "mastelone" : "depósito";
-
-  if (volumen > 0) {
-    alert(`No puedes borrar un ${etiqueta} que todavía tiene vino. Pon el volumen a 0 primero.`);
-    return;
-  }
-
-  const ok = confirm(`¿Seguro que quieres borrar este ${etiqueta}?`);
-  if (!ok) return;
-
-  try {
-    const res = await fetch(`/api/depositos/${id}`, {
-      method: "DELETE"
-    });
-
-    if (!res.ok) {
-      alert("Error borrando el depósito.");
-      console.error("Error HTTP al borrar depósito:", res.status);
-      return;
-    }
-
-    alert("Depósito borrado.");
-    cargarDepositos();
-  } catch (err) {
-    console.error("Error borrando depósito:", err);
-    alert("Error borrando el depósito (mira la consola del servidor).");
-  }
+async function eliminarDeposito(id) {
+  return containerArchiveUI.archive("deposito", id);
 }
 
 function mostrarModalUsarContenedorExistente({ tipo, existing }) {
@@ -24113,6 +24113,11 @@ async function crearDepositoSinBloqueo(ev, guard) {
     if (res.status === 409) {
       const data = await res.json().catch(() => ({}));
       if (data?.error === "YA_EXISTE" && data?.existing) {
+        if (Number(data.existing.activo) === 0) {
+          mostrarAviso(`El contenedor ${data.existing.codigo} está archivado. Recupéralo para volver a utilizarlo.`, "info");
+          await containerArchiveUI.open();
+          return;
+        }
         const usar = await mostrarModalUsarContenedorExistente({
           tipo: "deposito",
           existing: data.existing,
@@ -24771,24 +24776,8 @@ async function editarBarricaDatos(id) {
   abrirModalBarrica(bar);
 }
 
-async function eliminarBarrica(id, volumen) {
-    if (volumen > 0) {
-        mostrarAviso("No puedes borrar una barrica que aún tiene vino. Ajusta el volumen a 0 primero.", "error");
-        return;
-    }
-
-    if (!confirm("¿Seguro que quieres borrar esta barrica?")) return;
-
-    try {
-        const res = await fetch(`/api/barricas/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error();
-        mostrarAviso("Barrica borrada.", "success");
-        await cargarBarricas();
-        await cargarResumen();
-    } catch (err) {
-        console.error("Error borrando barrica:", err);
-        mostrarAviso("No se pudo borrar la barrica.", "error");
-    }
+async function eliminarBarrica(id) {
+  return containerArchiveUI.archive("barrica", id);
 }
 
 function formatContainerLabel(item, { tipo = "", withType = false } = {}) {
@@ -25433,7 +25422,6 @@ async function construirHistorialLocal(tipo, id) {
                     const estadoVisual = resolverEstadoVisualContenedor("barrica", b);
                     const variedadVisible = estadoVisual.variedadVisible;
                     const volumenVisible = estadoVisual.volumenVisible;
-                    const volumenParaEliminar = estadoVisual.volumenFinal;
                     const tr = document.createElement("tr");
                     tr.innerHTML = `
         <td>${b.id}</td>
@@ -25461,9 +25449,9 @@ async function construirHistorialLocal(tipo, id) {
         </td>
         <td>
             <button
-                onclick="eliminarBarrica(${b.id}, ${volumenParaEliminar})"
+                data-container-action="archive" data-container-kind="barrica" data-container-id="${b.id}" onclick="eliminarBarrica(${b.id})"
                 style="background:#c00; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
-                Borrar
+                Archivar
             </button>
         </td>
     `;
@@ -25514,6 +25502,11 @@ async function crearBarricaSinBloqueo(ev, guard) {
                 if (res.status === 409) {
                     const data = await res.json().catch(() => ({}));
                     if (data?.error === "YA_EXISTE" && data?.existing) {
+        if (Number(data.existing.activo) === 0) {
+          mostrarAviso(`El contenedor ${data.existing.codigo} está archivado. Recupéralo para volver a utilizarlo.`, "info");
+          await containerArchiveUI.open();
+          return;
+        }
                         const usar = await mostrarModalUsarContenedorExistente({
                             tipo: "barrica",
                             existing: data.existing,

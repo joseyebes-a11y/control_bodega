@@ -19,7 +19,7 @@ function normalizarTipoContenedor(tipo) {
   return TIPOS_CONTENEDOR.has(limpio) ? limpio : null;
 }
 
-export async function recalcularCantidad(tipo, id, bodegaId, userId) {
+export async function calcularCantidadDesdeHistorial(tipo, id, bodegaId, userId) {
   const database = ensureDb();
   const tipoFinal = normalizarTipoContenedor(tipo);
   const contenedorId = Number(id);
@@ -79,6 +79,14 @@ export async function recalcularCantidad(tipo, id, bodegaId, userId) {
     (movimientosDestino?.litros ?? 0) -
     (movimientosOrigen?.litros ?? 0);
 
+  return cantidad;
+}
+
+export async function recalcularCantidad(tipo, id, bodegaId, userId) {
+  const database = ensureDb();
+  const tipoFinal = normalizarTipoContenedor(tipo);
+  const contenedorId = Number(id);
+  const cantidad = await calcularCantidadDesdeHistorial(tipo, id, bodegaId, userId);
   await database.run(
     `
     INSERT INTO contenedores_estado
