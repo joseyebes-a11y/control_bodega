@@ -6236,7 +6236,8 @@ label {
         .volume-consistency summary { cursor: pointer; font-weight: 600; }
         .volume-consistency p, .volume-consistency ul { margin: 10px 0 0; }
 	    </style>
-	    <style id="modernUiTheme"></style>
+	    <link rel="stylesheet" href="/css/ui-tokens.css">
+    <link rel="stylesheet" href="/css/ui-theme.css">
     <!-- Librerías para exportar PDF de la tabla de control -->
     <!-- Integridad eliminada por fallo SRI; pendiente fijar hash correcto o self-host -->
     <script src="/vendor/jspdf.umd.min.js" referrerpolicy="no-referrer"></script>
@@ -6311,7 +6312,7 @@ label {
                 <div class="copiloto-header">
                     <div class="copiloto-header-main">
                         <div class="copiloto-title-row">
-                            <h2 class="copiloto-title"><span class="h1-emoji">🏠</span>Copiloto de bodega</h2>
+                            <h2 class="copiloto-title"><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#home"></use></svg></span>Copiloto de bodega</h2>
                         </div>
                         <p class="copiloto-subtitle">Cabina de mando diaria para saber qué está vivo y qué pide atención.</p>
                         <div class="copiloto-chips">
@@ -6827,24 +6828,26 @@ label {
             <div class="card" style="margin-top:24px;">
                 <h2>Aprovechamiento por añada</h2>
                 <p>Relación entre los kilos de uva registrados y los litros actuales por cada añada.</p>
-                <table>
+                <div class="table-scroll" role="region" aria-label="Aprovechamiento por añada" tabindex="0">
+<table>
                     <thead>
                         <tr>
                             <th>Añada</th>
-                            <th>Kilos de uva</th>
-                            <th>Litros actuales</th>
-                            <th>Aprovechamiento</th>
+                            <th class="table-number">Kilos de uva</th>
+                            <th class="table-number">Litros actuales</th>
+                            <th class="table-number">Aprovechamiento</th>
                         </tr>
                     </thead>
                     <tbody id="tablaAprovechamiento">
                         <tr><td colspan="4">Cargando...</td></tr>
                     </tbody>
                 </table>
+</div>
             </div>
         </section>
         <!-- SECCIÓN HERRAMIENTAS -->
         <section id="herramientas" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🧮</span>Herramientas</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#calculator"></use></svg></span>Herramientas</h1>
             <p>Cálculo rápido enológico para trabajo diario. Todo en local.</p>
             <div class="herramientas-grid">
                 <article class="herramienta-card">
@@ -6903,7 +6906,7 @@ label {
                 <button type="button" class="btnSecundario" onclick="descargarCopiaLocalFlujo()">Descargar copia del mapa</button>
                 <button type="button" class="btnSecundario" id="flowUseServerBtn" onclick="usarVersionServidorFlujo()" hidden>Cargar versión del servidor</button>
             </div>
-	            <h1><span class="h1-emoji">🗺</span>Mapa de nodos de vinificación</h1>
+	            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#map"></use></svg></span>Mapa de nodos de vinificación</h1>
 	            <p>Diseña visualmente el recorrido de cada partida: arrastra nodos, conéctalos y edita la información con doble clic.</p>
 		            <div class="flow-toolbar">
 	                <div class="flow-toolbar-group">
@@ -7061,7 +7064,7 @@ label {
                     <div class="entrada-block-header">
                         <div>
                             <div class="entrada-block-eyebrow">Cabecera técnica</div>
-                            <h1 class="entrada-title"><span class="h1-emoji">🍇</span>Entrada de uva</h1>
+                            <h1 class="entrada-title"><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#grapes"></use></svg></span>Entrada de uva</h1>
                             <div class="entrada-block-subtitle" id="entradaFechaLectura">Fecha —</div>
                         </div>
                         <span class="entrada-chip" id="entradaChipAnada">Vendimia —</span>
@@ -7265,7 +7268,8 @@ label {
 
             <div class="entrada-historial">
                 <h2>Historial</h2>
-                <table>
+                <div class="table-scroll" role="region" aria-label="Entradas de uva" tabindex="0">
+<table>
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -7287,8 +7291,10 @@ label {
                     </thead>
                     <tbody id="tablaEntradas"></tbody>
                 </table>
+</div>
                 <h2 style="margin-top:24px;">Resumen por parcela (interno)</h2>
-                <table>
+                <div class="table-scroll" role="region" aria-label="Resumen de parcelas" tabindex="0">
+<table>
                     <thead>
                         <tr>
                             <th>Parcela</th>
@@ -7300,25 +7306,27 @@ label {
                     </thead>
                     <tbody id="tablaResumenParcelas"></tbody>
                 </table>
+</div>
             </div>
         </section>
 
         <!-- SECCIÓN DEPÓSITOS -->
         <section id="depositos" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🛢</span>Depósitos</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#tank"></use></svg></span>Depósitos</h1>
             <button type="button" class="btnSecundario" onclick="containerArchiveUI.open()">Contenedores archivados</button>
             <p>Registro de depósitos con su capacidad, tipo y material. Los litros muestran el volumen registrado. Puedes archivar los contenedores vacíos y recuperarlos con su historial.</p>
 
+<div class="table-scroll" role="region" aria-label="Depósitos" tabindex="0">
 <table>
     <thead>
       <tr>
         <th>ID</th>
         <th>Nombre de depósito</th>
-        <th>Capacidad (L)</th>
+        <th class="table-number">Capacidad (L)</th>
         <th>Tipo</th>
         <th>Material</th>
         <th>Variedad asignada</th>
-        <th>Litros registrados</th>
+        <th class="table-number">Litros registrados</th>
         <th>Acciones</th>
         <th>Bitácora</th>
         <th>Archivar</th>
@@ -7326,6 +7334,7 @@ label {
     </thead>
     <tbody id="tablaDepositos"></tbody>
 </table>
+</div>
 
 <h2 style="margin-top:40px;">Nuevo depósito</h2>
 
@@ -7549,24 +7558,26 @@ label {
 
         <!-- SECCIÓN ALMACÉN LIMPIEZA -->
         <section id="limpieza" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🧽</span>Almacén de limpieza</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#clean"></use></svg></span>Almacén de limpieza</h1>
             <p>Control de stock y consumo de productos de limpieza con trazabilidad por lote.</p>
 
             <div class="grid-almacen">
                 <div>
                     <h2>Stock disponible</h2>
-                    <table>
+                    <div class="table-scroll" role="region" aria-label="Productos de limpieza" tabindex="0">
+<table>
                         <thead>
                             <tr>
                                 <th>Producto</th>
                                 <th>Lote</th>
                                 <th>Unidad</th>
-                                <th>Disponible</th>
+                                <th class="table-number">Disponible</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tablaLimpieza"></tbody>
                     </table>
+</div>
                 </div>
                 <div>
                     <h2>Registrar producto</h2>
@@ -7594,24 +7605,26 @@ label {
 
         <!-- SECCIÓN PRODUCTOS ENOLÓGICOS -->
         <section id="enologicos" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🧪</span>Productos enológicos</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#flask"></use></svg></span>Productos enológicos</h1>
             <p>Registro de aditivos y productos empleados en la elaboración del vino.</p>
 
             <div class="grid-almacen">
                 <div>
                     <h2>Stock disponible</h2>
-                    <table>
+                    <div class="table-scroll" role="region" aria-label="Productos enológicos" tabindex="0">
+<table>
                         <thead>
                             <tr>
                                 <th>Producto</th>
                                 <th>Lote</th>
                                 <th>Unidad</th>
-                                <th>Disponible</th>
+                                <th class="table-number">Disponible</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tablaEnologicos"></tbody>
                     </table>
+</div>
                 </div>
                 <div>
                     <h2>Registrar producto</h2>
@@ -7639,18 +7652,19 @@ label {
 
         <!-- SECCIÓN EMBOTELLADO -->
         <section id="embotellado" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🍾</span>Registro de embotellado</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#bottle"></use></svg></span>Registro de embotellado</h1>
             <p>Documenta cada lote embotellado con trazabilidad completa.</p>
 
             <div class="grid-almacen">
                 <div>
                     <h2>Historial</h2>
-                    <table>
+                    <div class="table-scroll" role="region" aria-label="Embotellados" tabindex="0">
+<table>
                         <thead>
                             <tr>
                                 <th>Fecha</th>
                                 <th>Origen</th>
-                                <th>Botellas</th>
+                                <th class="table-number">Botellas</th>
                                 <th>Formatos</th>
                                 <th>Lote</th>
                                 <th>Nota</th>
@@ -7658,6 +7672,7 @@ label {
                         </thead>
                         <tbody id="tablaEmbotellados"></tbody>
                     </table>
+</div>
                 </div>
                 <div>
                     <h2>Registrar embotellado</h2>
@@ -7712,7 +7727,7 @@ label {
 
         <!-- SECCIÓN ALMACÉN VINO -->
         <section id="almacenVino" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🍷</span>Almacén de vino embotellado</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#wine"></use></svg></span>Almacén de vino embotellado</h1>
             <p>Vista de estantería por lotes y estado, con trazabilidad completa de entradas y salidas.</p>
 
             <div class="almacen-vino-stage">
@@ -7721,14 +7736,15 @@ label {
                 <div id="almacenEstanteriaMobile" class="almacen-estanteria-mobile"></div>
                 <details class="almacen-vista-tecnica">
                     <summary><strong>Vista técnica (tabla)</strong></summary>
-                    <table>
+                    <div class="table-scroll" role="region" aria-label="Lotes de vino embotellado" tabindex="0">
+<table>
                         <thead>
                             <tr>
                                 <th>Lote ID</th>
                                 <th>Añada</th>
                                 <th>Partida / vino</th>
-                                <th>Formato</th>
-                                <th>Stock</th>
+                                <th class="table-number">Formato</th>
+                                <th class="table-number">Stock</th>
                                 <th>Entradas / salidas / mermas</th>
                                 <th>Estado</th>
                                 <th>Traza / acción</th>
@@ -7736,6 +7752,7 @@ label {
                         </thead>
                         <tbody id="tablaAlmacenVino"></tbody>
                     </table>
+</div>
                 </details>
             </div>
             <div class="almacen-acciones-rapidas">
@@ -7803,7 +7820,7 @@ label {
 
         <!-- SECCIÓN PLANO BODEGA -->
         <section id="plano" class="card" style="display:none;">
-            <h1><span class="h1-emoji">🗺</span>Plano de la bodega</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#map"></use></svg></span>Plano de la bodega</h1>
             <p>Arrastra para colocar, haz clic para ver el desglose, y usa el zoom para navegar por toda la bodega.</p>
 
             <div class="plano-layout">
@@ -7827,18 +7844,19 @@ label {
             <button type="button" class="btnSecundario" onclick="containerArchiveUI.open()">Contenedores archivados</button>
             <p>Control de maderas y litros dentro.</p>
 
-            <table>
+            <div class="table-scroll" role="region" aria-label="Barricas" tabindex="0">
+<table>
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Código</th>
-                        <th>Capacidad&nbsp;(L)</th>
+                        <th class="table-number">Capacidad&nbsp;(L)</th>
                         <th>Roble / tostado</th>
                         <th>Marca</th>
                         <th>Año barrica</th>
                         <th>Añada</th>
                         <th>Tipo de vino</th>
-                        <th>Volumen actual (L)</th>
+                        <th class="table-number">Volumen actual (L)</th>
                         <th>Acciones</th>
                         <th>Bitácora</th>
                         <th>Archivar</th>
@@ -7846,6 +7864,7 @@ label {
                 </thead>
                 <tbody id="tablaBarricas"></tbody>
             </table>
+</div>
 
             <h2 style="margin-top:40px;">Nueva madera</h2>
 
@@ -7902,7 +7921,7 @@ label {
 
         <!-- SECCIÓN REGISTROS ANALÍTICOS -->
         <section id="analiticos" class="card" style="display:none;">
-            <h1><span class="h1-emoji">📊</span>Registros analíticos</h1>
+            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#chart"></use></svg></span>Registros analíticos</h1>
             <p>Densidad, temperatura, etc. por depósito, mastelone o barrica.</p>
 
             <div style="display:flex; gap:20px; flex-wrap:wrap;">
@@ -7961,7 +7980,8 @@ label {
                         </div>
                     </div>
 
-                    <table>
+                    <div class="table-scroll" role="region" aria-label="Historial analítico" tabindex="0">
+<table>
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -7972,13 +7992,14 @@ label {
                         </thead>
                         <tbody id="tablaRegistros"></tbody>
                     </table>
+</div>
                 </div>
             </div>
         </section>
 
         <!-- SECCIÓN BITÁCORA -->
         <section id="bitacora" class="card" style="display:none;">
-            <h1 style="margin-top:0;"><span class="h1-emoji">📕</span>Bitácora</h1>
+            <h1 style="margin-top:0;"><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#book"></use></svg></span>Bitácora</h1>
             <div class="bitacora-libro-bar">
                 <div class="bitacora-libro-controls">
                     <div class="bitacora-libro-select">
@@ -23968,7 +23989,7 @@ function renderTablaContenedores(lista, tablaId, mensajeVacio) {
       <td>
         <button
           data-container-action="archive" data-container-kind="deposito" data-container-id="${d.id}" onclick="eliminarDeposito(${d.id})"
-          style="background:#c00; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
+          class="btnArchivo">
           Archivar
         </button>
       </td>
@@ -25479,7 +25500,7 @@ async function construirHistorialLocal(tipo, id) {
         <td>
             <button
                 data-container-action="archive" data-container-kind="barrica" data-container-id="${b.id}" onclick="eliminarBarrica(${b.id})"
-                style="background:#c00; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
+                class="btnArchivo">
                 Archivar
             </button>
         </td>

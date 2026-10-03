@@ -85,6 +85,16 @@ Los movimientos y sus anulaciones no pueden añadir vino a un contenedor archiva
 
 La interfaz bloquea dobles acciones y el cierre del diálogo mientras se espera la respuesta. Conserva la información y distingue una operación no confirmada de un cambio confirmado cuya vista no se pudo actualizar. Una lista fallida o desactualizada no habilita la recuperación. Las pruebas HTTP cubren los tres tipos de contenedor, conflictos, concurrencia, fallos de actualización y bitácora, aislamiento, saldos inválidos, recuperación de vino antiguo, códigos reservados y anulación de embotellados. El diálogo y la tabla reales se comprobaron en un DOM, incluida la bitácora y nombres tratados como texto. El diálogo nativo queda pendiente de comprobación en Windows junto al próximo instalador.
 
+## Revisión visual de la aplicación
+
+La cabecera es más compacta y utiliza la misma paleta vino, papel y blanco que los formularios, tablas y ventanas de edición. Se unifican tipografía, botones, bordes, estados de foco e iconos de sección locales, con menos degradados y sombras. Los valores y acciones conservan su comportamiento.
+
+Las tablas se desplazan dentro de su panel cuando falta espacio. Los formularios de almacén y entradas reorganizan sus columnas según el ancho disponible. Se ajustan también el resumen, la bitácora y los controles del mapa y plano. El acceso servido por el servidor, la configuración inicial, la espera y la recuperación del escritorio comparten estos estilos sin fuentes ni recursos externos nuevos.
+
+Express mantiene espacio para sus campos cuando se carga el historial reciente; los checkboxes se muestran junto a su etiqueta. Las ventanas de edición aparecen por encima de la cabecera y los editores marcados como ocultos permanecen ocultos.
+
+Comprobación visual en Chromium con datos de prueba: las 13 secciones a 1440 y 390 px, resumen a 1024 px, edición de depósito, Express con historial, menú, acceso y configuración inicial. Sin errores de página ni desbordamiento horizontal del documento en las secciones comprobadas. Esta revisión no sustituye la comprobación pendiente del próximo instalador en Windows.
+
 ## Desarrollo y construcción
 
 ```sh

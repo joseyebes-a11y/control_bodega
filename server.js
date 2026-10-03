@@ -10164,9 +10164,12 @@ const LOGIN_HTML = `<!doctype html>
     .msg.error { color: #ffb3c7; }
     .msg.info { color: #d7cbe8; }
   </style>
+  <link rel="stylesheet" href="/css/ui-tokens.css">
+  <link rel="stylesheet" href="/css/access.css">
 </head>
 <body>
-  <div class="card">
+  <div class="login-shell">
+    <div class="login-brand">MicroCellerStudio</div>
     <h1 id="titulo">Entrar</h1>
     <p id="subtitulo">Introduce tu usuario y contraseña.</p>
     <form id="login-form" autocomplete="off">

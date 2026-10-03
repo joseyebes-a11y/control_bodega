@@ -1,0 +1,19 @@
+/* Shared, local-only palette for the desktop shell, access and application. */
+:root {
+  --mc-font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --mc-ink: #302631;
+  --mc-muted: #6b606c;
+  --mc-wine: #713854;
+  --mc-wine-hover: #562940;
+  --mc-wine-soft: #f5edf1;
+  --mc-frame: #211723;
+  --mc-surface: #ffffff;
+  --mc-paper: #faf8f6;
+  --mc-line: #ded8dc;
+  --mc-line-strong: #b9adb6;
+  --mc-gold: #e2bf93;
+  --mc-danger: #9a3441;
+  --mc-focus: #713854;
+  --mc-radius: 12px;
+  --mc-shadow: 0 3px 12px rgb(36 21 34 / 6%);
+}
