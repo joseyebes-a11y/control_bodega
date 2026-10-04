@@ -9531,6 +9531,8 @@ const FLOW_CORE = (() => {
     "estado_vino",
     "estado_vino_texto",
     "asignaciones",
+    "estado_operativo", "crianza_meses", "meses", "fecha_inicio_crianza",
+    "inicio_crianza", "fecha_crianza", "merma",
   ]);
   const sourceWhitelist = new Set([
     "name",
@@ -9639,6 +9641,8 @@ const FLOW_CORE = (() => {
           entryId: entradaId,
           type: datos.type || "entrada",
           role: "SOURCE",
+          ...(datos.distribucion != null ? { distribucion: datos.distribucion } : {}),
+          ...(datos.reparto_manual != null ? { reparto_manual: datos.reparto_manual } : {}),
         },
       };
       Object.keys(limpio.datos).forEach(k => {
@@ -9647,9 +9651,8 @@ const FLOW_CORE = (() => {
       return limpio;
     }
     if (role === "PROCESS") {
-      Object.keys(datos).forEach(k => {
-        if (typeof datos[k] === "number") delete datos[k];
-      });
+      // Numeric process inputs (e.g. yield loss) are saved instructions.
+      // Derived stock fields were already removed by FLOW_SANITIZE_KEYS.
       return { ...nodo, role: "PROCESS", datos };
     }
     if (role === "CONTAINER") {
@@ -9680,6 +9683,8 @@ const FLOW_CORE = (() => {
           estado_vino: datos.estado_vino ?? null,
           estado_vino_texto: datos.estado_vino_texto ?? null,
           asignaciones: datos.asignaciones || {},
+          ...Object.fromEntries(["estado_operativo", "crianza_meses", "meses", "fecha_inicio_crianza",
+            "inicio_crianza", "fecha_crianza", "merma"].filter(key => Object.hasOwn(datos, key)).map(key => [key, datos[key]])),
         },
       };
       Object.keys(limpio.datos).forEach(k => {
@@ -12456,12 +12461,7 @@ function obtenerTextoVolumenNodo(nodo) {
     return `${cajas.toLocaleString("es-ES")} ${etiqueta}`;
   }
 
-  const capBase =
-    normalizarNumero(nodo.datos?.capacidad) ??
-    normalizarNumero(nodo.datos?.capacidad_l) ??
-    (nodo.datos?.capacidad_hl != null
-      ? normalizarNumero(nodo.datos.capacidad_hl * 100)
-      : null);
+  const capBase = obtenerCapacidadNodoContenedor(nodo);
 
   const redondear = v => (Number.isFinite(v) ? Number(v.toFixed(0)) : null);
   const cap = redondear(capBase);
@@ -12898,31 +12898,29 @@ function obtenerVolumenBaseNodoParaUI(nodo) {
   return calcularVolumenNodoPorFlujo(nodo);
 }
 
-function obtenerVolumenRestanteNodo(nodo) {
-  if (!nodo) return null;
+function obtenerResumenBalanceFlujoNodo(nodo) {
   const base = obtenerVolumenBaseNodoParaUI(nodo);
-  if (!Number.isFinite(base)) return null;
-  const role = obtenerRolNodo(nodo);
-  if (role === "PROCESS" || nodo.tipo === "entrada") {
-    return Number(base);
-  }
-  const targets = (nodo.targets || [])
-    .map(id => normalizarIdNodo(id))
-    .filter(Boolean);
-  if (!targets.length) return Number(base);
-  const memo = new Map();
-  const stack = new Set();
+  if (!Number.isFinite(base)) return { disponible: null, transferido: null, restante: null };
+  const memo = new Map(), stack = new Set();
   const nodoId = normalizarIdNodo(nodo);
   if (nodoId) memo.set(nodoId, base);
-  let asignado = 0;
-  targets.forEach(tid => {
+  let transferido = 0;
+  for (const tid of new Set((nodo.targets || []).map(normalizarIdNodo).filter(Boolean))) {
     const dest = buscarNodoPorId(tid);
-    if (!dest) return;
+    if (!dest) continue;
     const vol = calcularVolumenTransferido(nodo, dest, memo, stack);
-    if (Number.isFinite(vol) && vol > 0) asignado += vol;
-  });
-  const restante = Math.max(0, Number(base) - asignado);
-  return Number(restante.toFixed(2));
+    if (Number.isFinite(vol) && vol > 0) transferido += vol;
+  }
+  return { disponible: base, transferido: Number(transferido.toFixed(2)),
+    restante: Number(Math.max(0, base - transferido).toFixed(2)) };
+}
+
+function obtenerVolumenRestanteNodo(nodo) {
+  if (!nodo) return null;
+  const resumen = obtenerResumenBalanceFlujoNodo(nodo);
+  // Processes show their produced volume; untransferred wine is shown separately.
+  return obtenerRolNodo(nodo) === "PROCESS" || nodo.tipo === "entrada"
+    ? resumen.disponible : resumen.restante;
 }
 
 function obtenerAsignacionDestino(destino, origenId) {
@@ -12997,7 +12995,9 @@ function calcularVolumenTransferido(origen, destino, memo, stack) {
     return bruto;
   }
 
-  const capacidadLibreBase = obtenerCapacidadDisponibleContenedor(destino);
+  // This recalculates the whole route, not an extra delivery on top of the
+  // ledger. Subtracting its final balance here counts the same wine twice.
+  const capacidadLibreBase = obtenerCapacidadNodoContenedor(destino);
   if (capacidadLibreBase == null) return bruto;
   if (!(capacidadLibreBase > 0)) return 0;
 
@@ -13090,7 +13090,7 @@ function calcularVolumenNodoPorFlujo(nodo, memo = new Map(), stack = new Set(), 
     });
   }
   let valorFinal = null;
-  if (tieneAportes) {
+  if (tieneAportes || predecesores.length) {
     valorFinal = Number(total.toFixed(2));
   } else {
     const base = getVolumenFromDatos(nodo.datos);
@@ -13916,36 +13916,22 @@ function capacidadDisponibleContenedorDesdeInfo(info, fallbackCap, fallbackVol) 
   return Math.max(0, capacidad - volumen);
 }
 
+function obtenerCapacidadNodoContenedor(nodo) {
+  if (!nodo || !["deposito", "barrica"].includes(nodo.tipo)) return null;
+  const ficha = resolverFichaVolumenNodo(nodo);
+  const datos = nodo.datos || {};
+  const capacidad = MicroCellerVolumes.quantity(
+    ficha?.capacidad_l ?? (ficha?.capacidad_hl == null ? null : ficha.capacidad_hl * 100) ??
+    datos.capacidad_l ?? datos.capacidad ?? (datos.capacidad_hl == null ? null : datos.capacidad_hl * 100)
+  );
+  return capacidad;
+}
+
 function obtenerCapacidadDisponibleContenedor(nodoDestino) {
-  if (!nodoDestino) return null;
-  const datos = nodoDestino.datos || {};
-  if (nodoDestino.tipo === "deposito") {
-    const info = resolverInfoDepositoDesdeNodo(nodoDestino);
-    const capRaw =
-      (info && (info.capacidad_l ?? (info.capacidad_hl != null ? info.capacidad_hl * 100 : null))) ??
-      datos.capacidad ??
-      datos.capacidad_l;
-    const capacidad = Number(capRaw);
-    if (!Number.isFinite(capacidad) || capacidad <= 0) return null;
-    // Para el mapa usamos ocupación del propio flujo (balance del nodo), no litros históricos de BD.
-    const balance = obtenerBalanceNodo(nodoDestino.id);
-    const volNodo = Number.isFinite(balance) ? balance : getVolumenFromDatos(datos) || 0;
-    return Math.max(0, capacidad - Math.max(0, Number(volNodo) || 0));
-  }
-  if (nodoDestino.tipo === "barrica") {
-    const info = resolverInfoBarricaDesdeNodo(nodoDestino);
-    const capRaw =
-      (info && (info.capacidad_l ?? (info.capacidad_hl != null ? info.capacidad_hl * 100 : null))) ??
-      datos.capacidad ??
-      datos.capacidad_l;
-    const capacidad = Number(capRaw);
-    if (!Number.isFinite(capacidad) || capacidad <= 0) return null;
-    // Para el mapa usamos ocupación del propio flujo (balance del nodo), no litros históricos de BD.
-    const balance = obtenerBalanceNodo(nodoDestino.id);
-    const volNodo = Number.isFinite(balance) ? balance : getVolumenFromDatos(datos) || 0;
-    return Math.max(0, capacidad - Math.max(0, Number(volNodo) || 0));
-  }
-  return null;
+  const capacidad = obtenerCapacidadNodoContenedor(nodoDestino);
+  if (capacidad === null) return null;
+  const volumen = obtenerVolumenNumericoNodo(nodoDestino);
+  return Number.isFinite(volumen) ? Math.max(0, capacidad - volumen) : null;
 }
 
 function obtenerTotalesDestino(nodo) {
@@ -17334,23 +17320,16 @@ function buildCompactTitleParts(nodo, ctx = {}) {
 
   if (role === "CONTAINER") {
     const nombre = obtenerNombreCortoContenedor(nodo) || config.label || "Contenedor";
+    // State, fill meter and visible quantity must describe the same graph stock.
+    const volumen = obtenerVolumenNumericoNodo(nodo);
+    if (!Number.isFinite(volumen)) return { title: nombre, stateText: "SIN VERIFICAR", stateKey: "DESCONOCIDO" };
+    if (volumen <= 0) return { title: nombre, stateText: "VACÍO", stateKey: "VACIO" };
     const op = resolveOperationalState(nodo, ctx);
-    if (op.key) {
-      if (op.key === "CRIANZA") {
-        const meses = op.months != null ? op.months : null;
-        const estadoTxt =
-          meses != null && meses > 0 ? `CRIANZA + ${meses} meses` : "CRIANZA";
-        return { title: nombre, stateText: estadoTxt, stateKey: "CRIANZA" };
-      }
-      return { title: nombre, stateText: op.key, stateKey: op.key };
+    if (op.key === "CRIANZA") {
+      const estadoTxt = op.months > 0 ? `CRIANZA + ${op.months} meses` : "CRIANZA";
+      return { title: nombre, stateText: estadoTxt, stateKey: "CRIANZA" };
     }
-    const balance =
-      (ctx?.balances instanceof Map && ctx.balances.get(String(nodo?.id)) != null
-        ? ctx.balances.get(String(nodo?.id))
-        : obtenerBalanceNodo(nodo?.id));
-    const enUso = Number.isFinite(balance) && balance > 0;
-    const estadoTxt = enUso ? "EN USO" : "VACÍO";
-    return { title: nombre, stateText: estadoTxt, stateKey: enUso ? "USO" : "VACIO" };
+    return { title: nombre, stateText: op.key || "EN USO", stateKey: op.key || "USO" };
   }
 
   return { title: (nodo.titulo || config.label || "Nodo").toString().trim() };
@@ -17904,7 +17883,7 @@ function toggleExpandirTodosFlow() {
         salida: [["Cliente", datos.cliente], ["Caja", cantidadSalida?.tipoCaja], ["Botellas", cantidadSalida?.totalBotellas.toLocaleString("es-ES")]],
         prensado: [["Presión", datos.presion], ["Merma", datos.merma == null || datos.merma === "" ? "" : `${datos.merma} %`], ["Notas", datos.notas]],
       };
-      const capacidad = MicroCellerVolumes.quantity(datos.capacidad_l ?? datos.capacidad ?? ficha?.capacidad_l ?? (ficha?.capacidad_hl == null ? null : ficha.capacidad_hl * 100));
+      const capacidad = obtenerCapacidadNodoContenedor(nodo);
       const tipoFicha = tipoFichaVolumenNodo(nodo);
       window.MicroCellerWorkspace?.renderNodeCard(div, {
         header: headerWrap, body, controls,
@@ -17916,6 +17895,8 @@ function toggleExpandirTodosFlow() {
         volume: MicroCellerVolumes.quantity(obtenerVolumenNumericoNodo(nodo)), capacity: capacidad,
         registered: diag?.verificable ? diag.volumenFicha : null,
         historical: MicroCellerVolumes.quantity(obtenerHistoricoNodo(nodo)),
+        untransferred: obtenerRolNodo(nodo) === "PROCESS" && (nodo.targets || []).length
+          ? obtenerResumenBalanceFlujoNodo(nodo).restante : null,
         state: compactParts.stateText || estadoInline?.label || "",
         wine: nombreVinoVisible,
         variety: variedadVisible || ficha?.vino_tipo || "",

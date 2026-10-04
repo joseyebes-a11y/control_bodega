@@ -142,6 +142,7 @@
     quantity.dataset.empty = String(vessel ? model.volume === null : !/\d/.test(model.quantityText || ''));
     body.append(quantity);
     if (yieldParts) body.append(text('div', 'flow-card-output', `Tras merma: ${format(Number(yieldParts[2]))} L`));
+    if (model.untransferred > 0) body.append(text('div', 'flow-card-output', `Sin transferir: ${format(model.untransferred)} L`));
     if (vessel) {
       const capacity = model.capacity === null ? 'Capacidad sin indicar' : `Capacidad ${format(model.capacity)} L`;
       const fraction = model.volume !== null && model.capacity > 0 ? model.volume / model.capacity : null;
