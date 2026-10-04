@@ -12396,7 +12396,7 @@ function actualizarCoherenciaVolumen() {
     const nodo = flujoNodos.find(n => String(n.id) === elemento.dataset.id);
     const diag = obtenerDiagnosticoVolumenContenedor(nodo);
     const badge = elemento.querySelector(".flow-discrepancia");
-    const registrados = elemento.querySelector(".flow-vessel-registered");
+    const registrados = elemento.querySelector(".flow-card-registered");
     if (registrados && diag) {
       registrados.textContent = `Registrados: ${diag.verificable ? MicroCellerVolumes.format(diag.volumenFicha) : "Sin verificar"}`;
     }
@@ -17770,7 +17770,7 @@ function toggleExpandirTodosFlow() {
       nombreVinoVisible
     ) {
       const vinoEl = document.createElement("div");
-      vinoEl.className = "flow-node-subtitle flow-entry-variedad";
+      vinoEl.className = "flow-node-subtitle flow-entry-variedad flow-subtitle-wine";
       vinoEl.textContent = nombreVinoVisible;
       vinoEl.title = nombreVinoVisible;
       body.appendChild(vinoEl);
@@ -17779,7 +17779,7 @@ function toggleExpandirTodosFlow() {
     if (nodo.tipo === "salida") {
       const salidaInfo = obtenerResumenSalidaNodo(nodo);
       const cajasEl = document.createElement("div");
-      cajasEl.className = "flow-node-subtitle";
+      cajasEl.className = "flow-node-subtitle flow-outbound-summary";
       if (salidaInfo.cajas > 0) {
         cajasEl.textContent =
           `Cajas: ${salidaInfo.cajas.toLocaleString("es-ES")} · ${salidaInfo.tipoCaja}` +
@@ -17793,7 +17793,7 @@ function toggleExpandirTodosFlow() {
     const textoVolumen = obtenerTextoVolumenNodo(nodo);
     if (textoVolumen) {
       const volEl = document.createElement("div");
-      volEl.className = `flow-node-subtitle${nodo.tipo === "entrada" ? " flow-entry-kilos" : ""}`;
+      volEl.className = `flow-node-subtitle flow-node-quantity${nodo.tipo === "entrada" ? " flow-entry-kilos" : ""}`;
       volEl.textContent = textoVolumen;
       body.appendChild(volEl);
       if (nodo.tipo === "entrada") {
@@ -17886,16 +17886,31 @@ function toggleExpandirTodosFlow() {
 
     let menu = null;
     extra.appendChild(controls);
-    if (estaExpandido && (nodo.tipo === "deposito" || nodo.tipo === "barrica")) {
-      const ficha = resolverFichaVolumenNodo(nodo);
-      const diag = obtenerDiagnosticoVolumenContenedor(nodo);
+    if (estaExpandido) {
+      const esContenedor = nodo.tipo === "deposito" || nodo.tipo === "barrica";
+      const ficha = esContenedor ? resolverFichaVolumenNodo(nodo) : null;
+      const diag = esContenedor ? obtenerDiagnosticoVolumenContenedor(nodo) : null;
       const datos = nodo.datos || {};
+      const cantidadSalida = nodo.tipo === "salida" ? obtenerResumenSalidaNodo(nodo) : null;
+      const detallesPorTipo = {
+        entrada: [["Añada", datos.anada]],
+        fermentacion: [["Fermentación", datos.estilo]],
+        estilo: [["Descripción", datos.descripcion]],
+        coupage: [["Notas", datos.descripcion]],
+        embotellado: [["Lote", datos.lote], ["Formato", datos.botella], ["Cierre", datos.cierre], ["Filtrado", datos.filtrado]],
+        almacen: [["Caja", datos.caja_botellas], ["Guarda", datos.condicion], ["Fecha de entrada", datos.fecha]],
+        salida: [["Cliente", datos.cliente], ["Caja", cantidadSalida?.tipoCaja], ["Botellas", cantidadSalida?.totalBotellas.toLocaleString("es-ES")]],
+        prensado: [["Presión", datos.presion], ["Merma", datos.merma == null || datos.merma === "" ? "" : `${datos.merma} %`], ["Notas", datos.notas]],
+      };
       const capacidad = MicroCellerVolumes.quantity(datos.capacidad_l ?? datos.capacidad ?? ficha?.capacidad_l ?? (ficha?.capacidad_hl == null ? null : ficha.capacidad_hl * 100));
       const tipoFicha = tipoFichaVolumenNodo(nodo);
       window.MicroCellerWorkspace?.renderNodeCard(div, {
         header: headerWrap, body, controls,
         title: ficha?.codigo || datos.codigo || tituloAbierto,
-        kind: tipoFicha || nodo.tipo,
+        kind: tipoFicha || nodo.tipo, vessel: esContenedor,
+        quantityText: cantidadSalida ? `${cantidadSalida.cajas.toLocaleString("es-ES")} ${cantidadSalida.cajas === 1 ? "caja" : "cajas"}` : textoVolumen,
+        quantityLabel: nodo.tipo === "entrada" ? "Kilos de entrada" : ["almacen", "salida"].includes(nodo.tipo) ? "Cajas" : nodo.tipo === "embotellado" ? "Botellas" : "Volumen del nodo",
+        details: (detallesPorTipo[nodo.tipo] || []).map(([label, value]) => ({ label, value })),
         volume: MicroCellerVolumes.quantity(obtenerVolumenNumericoNodo(nodo)), capacity: capacidad,
         registered: diag?.verificable ? diag.volumenFicha : null,
         historical: MicroCellerVolumes.quantity(obtenerHistoricoNodo(nodo)),

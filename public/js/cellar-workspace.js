@@ -119,45 +119,62 @@
   }
   function renderNodeCard(element, model) {
     const { header, body, controls } = model;
-    element.classList.add('flow-vessel-card');
-    element.dataset.vessel = model.kind;
+    element.classList.add('flow-node-card');
+    element.dataset.cardKind = model.kind;
     const heading = header.querySelector('h4');
     heading.textContent = model.title;
-    header.querySelector('.flow-node-icon').replaceChildren(icon(model.kind === 'barrica' ? 'barrel' : 'tank'));
+    const icons = { entrada: 'grapes', fermentacion: 'flask', estilo: 'flask', deposito: 'tank', barrica: 'barrel', coupage: 'blend', embotellado: 'bottle', almacen: 'boxes', salida: 'truck', prensado: 'press' };
+    header.querySelector('.flow-node-icon').replaceChildren(icon(icons[model.kind] || 'flow'));
+    header.querySelector('.grape-badge')?.remove();
+    const vessel = model.vessel;
+    const preserved = vessel ? [] : [...body.children].filter(child => !child.matches('.flow-subtitle-variedad, .flow-subtitle-wine, .flow-node-quantity, .flow-outbound-summary'));
     const notices = [...body.children].filter(child => child.matches('.flow-discrepancia, .flow-capacidad-alerta'));
     body.replaceChildren();
-    const wine = text('div', 'flow-vessel-wine', model.volume === 0 ? 'Sin vino' : model.wine || model.variety || 'Vino sin identificar');
+    const wine = text('div', 'flow-card-wine', vessel && model.volume === 0 ? 'Sin vino' : model.wine || model.variety || (model.kind === 'entrada' ? 'Variedad sin indicar' : 'Vino sin identificar'));
     body.append(wine);
     const wineMeta = [model.wine && model.variety && model.wine !== model.variety ? model.variety : '', model.vintage ? `Añada ${model.vintage}` : ''].filter(Boolean);
-    if (wineMeta.length) body.append(text('div', 'flow-vessel-meta', wineMeta.join(' · ')));
-    const state = text('span', 'flow-vessel-state', model.volume === null ? 'Litros sin verificar' : model.state || 'Estado sin indicar');
-    header.append(state);
-    body.append(text('div', 'flow-vessel-label', 'Litros en este nodo'));
-    body.append(text('div', 'flow-vessel-volume', model.volume === null ? 'Sin verificar' : `${format(model.volume)} L`));
-    const capacity = model.capacity === null ? 'Capacidad sin indicar' : `Capacidad ${format(model.capacity)} L`;
-    const fraction = model.volume !== null && model.capacity > 0 ? model.volume / model.capacity : null;
-    body.append(text('div', 'flow-vessel-capacity', fraction === null ? capacity : `${capacity} · ${Math.round(fraction * 100)} %`));
-    if (fraction !== null) {
-      const meter = text('div', 'flow-vessel-meter', '');
-      meter.setAttribute('role', 'meter'); meter.setAttribute('aria-label', 'Llenado del nodo');
-      meter.setAttribute('aria-valuemin', '0'); meter.setAttribute('aria-valuemax', String(model.capacity));
-      meter.setAttribute('aria-valuenow', String(Math.min(model.volume, model.capacity)));
-      meter.setAttribute('aria-valuetext', `${format(model.volume)} de ${format(model.capacity)} litros`);
-      const fill = text('span', '', ''); fill.style.width = `${Math.min(100, fraction * 100)}%`; meter.append(fill); body.append(meter);
-      if (fraction > 1) body.append(text('div', 'flow-vessel-alert', 'Supera la capacidad del contenedor'));
+    if (wineMeta.length) body.append(text('div', 'flow-card-meta', wineMeta.join(' · ')));
+    const state = vessel ? (model.volume === null ? 'Litros sin verificar' : model.state || 'Estado sin indicar') : model.state;
+    if (state) header.append(text('span', 'flow-card-state', state));
+    body.append(text('div', 'flow-card-label', model.quantityLabel || 'Litros en este nodo'));
+    const quantity = text('div', 'flow-card-volume', vessel ? (model.volume === null ? 'Sin verificar' : `${format(model.volume)} L`) : model.quantityText || 'Sin verificar');
+    quantity.dataset.empty = String(vessel ? model.volume === null : !/\d/.test(model.quantityText || ''));
+    body.append(quantity);
+    if (vessel) {
+      const capacity = model.capacity === null ? 'Capacidad sin indicar' : `Capacidad ${format(model.capacity)} L`;
+      const fraction = model.volume !== null && model.capacity > 0 ? model.volume / model.capacity : null;
+      body.append(text('div', 'flow-card-capacity', fraction === null ? capacity : `${capacity} · ${Math.round(fraction * 100)} %`));
+      if (fraction !== null) {
+        const meter = text('div', 'flow-card-meter', '');
+        meter.setAttribute('role', 'meter'); meter.setAttribute('aria-label', 'Llenado del nodo');
+        meter.setAttribute('aria-valuemin', '0'); meter.setAttribute('aria-valuemax', String(model.capacity));
+        meter.setAttribute('aria-valuenow', String(Math.min(model.volume, model.capacity)));
+        meter.setAttribute('aria-valuetext', `${format(model.volume)} de ${format(model.capacity)} litros`);
+        const fill = text('span', '', ''); fill.style.width = `${Math.min(100, fraction * 100)}%`; meter.append(fill); body.append(meter);
+        if (fraction > 1) body.append(text('div', 'flow-card-alert', 'Supera la capacidad del contenedor'));
+      }
     }
-    if (model.description) body.append(text('div', 'flow-vessel-material', model.description));
-    const details = document.createElement('details'); details.className = 'flow-vessel-details';
-    details.append(text('summary', '', 'Volumen e historial'));
-    const history = text('div', 'flow-vessel-detail-lines', '');
-    history.append(text('div', 'flow-vessel-registered', `Registrados: ${model.registered === null ? 'Sin verificar' : format(model.registered) + ' L'}`));
-    if (model.historical !== null) history.append(text('div', '', `Histórico del nodo: ${format(model.historical)} L`));
-    details.append(history);
-    details.addEventListener('toggle', () => requestAnimationFrame(() => options?.resize()));
-    details.addEventListener('pointerdown', event => event.stopPropagation());
-    details.addEventListener('click', event => event.stopPropagation());
-    details.addEventListener('dblclick', event => event.stopPropagation());
-    body.append(details, ...notices);
+    if (model.description) body.append(text('div', 'flow-card-material', model.description));
+    const detailLines = vessel ? [] : (model.details || []).filter(line => line.value !== '' && line.value != null);
+    if (vessel || preserved.some(child => child.textContent.trim()) || detailLines.length) {
+      const details = document.createElement('details'); details.className = 'flow-card-details';
+      details.append(text('summary', '', vessel ? 'Volumen e historial' : 'Datos del nodo'));
+      const history = text('div', 'flow-card-detail-lines', '');
+      if (vessel) {
+        history.append(text('div', 'flow-card-registered', `Registrados: ${model.registered === null ? 'Sin verificar' : format(model.registered) + ' L'}`));
+        if (model.historical !== null) history.append(text('div', '', `Histórico del nodo: ${format(model.historical)} L`));
+      } else {
+        history.append(...preserved);
+        detailLines.forEach(line => history.append(text('div', '', `${line.label}: ${line.value}`)));
+      }
+      details.append(history);
+      details.addEventListener('toggle', () => requestAnimationFrame(() => options?.resize()));
+      details.addEventListener('pointerdown', event => event.stopPropagation());
+      details.addEventListener('click', event => event.stopPropagation());
+      details.addEventListener('dblclick', event => event.stopPropagation());
+      body.append(details);
+    }
+    body.append(...notices);
     const edit = text('button', '', 'Editar'); edit.type = 'button'; edit.title = 'Editar este nodo';
     edit.addEventListener('pointerdown', event => event.stopPropagation());
     edit.addEventListener('click', event => { event.stopPropagation(); model.edit(); });

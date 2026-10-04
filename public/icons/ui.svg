@@ -12,4 +12,8 @@
   <symbol id="flask" viewBox="0 0 24 24"><path d="M9 2h6M10 2v6L4 19a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3L14 8V2M7 14h10"/></symbol>
   <symbol id="chart" viewBox="0 0 24 24"><path d="M3 3v18h18M7 17v-5m5 5V7m5 10v-8"/></symbol>
   <symbol id="clean" viewBox="0 0 24 24"><path d="M8 11 3 16l5 5 9-9-5-5-4 4Z"/><circle cx="17" cy="5" r="3"/><circle cx="20" cy="14" r="2"/><path d="M3 4h4M5 2v4"/></symbol>
+  <symbol id="blend" viewBox="0 0 24 24"><path d="M5 3v5c0 4 7 4 7 8v5M19 3v5c0 4-7 4-7 8M2 6l3 3 3-3M16 6l3 3 3-3M9 18l3 3 3-3"/></symbol>
+  <symbol id="boxes" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4v11l-9 4-9-4V7Zm0 0 9 4 9-4M12 11v11M7 5l9 4v5"/></symbol>
+  <symbol id="truck" viewBox="0 0 24 24"><path d="M2 4h12v13H2V4Zm12 5h4l4 5v3h-8M18 9v5h4"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/></symbol>
+  <symbol id="press" viewBox="0 0 24 24"><path d="M4 3h16M12 3v7M7 10h10M5 13h14v7H5v-7ZM9 13v7m6-7v7M3 22h18M5 3v19m14-19V3"/></symbol>
 </svg>

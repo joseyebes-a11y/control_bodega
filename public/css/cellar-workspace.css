@@ -83,49 +83,59 @@ th { font-size: 12px; text-transform: none; letter-spacing: .01em; }
 #flujo .flow-node-icon { box-shadow: none; border-radius: 6px; }
 #flujo .flow-edge :is(path, line) { filter: none; }
 
-/* Expanded vessels: read-only quantities and labelled actions on the canvas. */
-#flujo .flow-node.flow-vessel-card[data-state="open"] {
+/* Expanded nodes: shared cards, read-only quantities and labelled actions. */
+#flujo .flow-node.flow-node-card[data-state="open"] {
   width: 256px; min-width: 256px; max-width: 256px; height: auto;
-  padding: 12px; border-radius: 14px; border: 1px solid #ddd3dc;
+  padding: 12px; border-radius: 14px; border: 1px solid #ddd3dc; border-top: 3px solid #957386;
   background: #fffdfb; color: var(--mc-ink); box-shadow: 0 6px 20px rgb(0 0 0 / 20%);
   --vessel-fill: #713854;
 }
-#flujo .flow-node.flow-vessel-card[data-vino="white"] { --vessel-fill: #997426; }
-#flujo .flow-node.flow-vessel-card[data-vino="rosado"] { --vessel-fill: #bc607c; }
-#flujo .flow-node.flow-vessel-card[data-vessel="barrica"] { border-top: 3px solid #a08058; }
-#flujo .flow-node.flow-vessel-card[data-vessel="deposito"] { border-top: 3px solid #7a8c99; }
-#flujo .flow-vessel-card:is(.is-selected, .is-connect-source) { outline: 3px solid #dca8c3; outline-offset: 2px; }
-#flujo .flow-node.flow-vessel-card.temp-alert { border-color: #bf4a50; box-shadow: 0 0 0 3px rgb(191 74 80 / 35%); }
-#flujo .flow-node.flow-vessel-card.node--warn { border-color: #b7802f; }
-#flujo .flow-vessel-card::after, #flujo .flow-vessel-card > .fill-level, #flujo .flow-vessel-card > .flow-progress-ring { display: none; }
-#flujo .flow-vessel-card .flow-node__extra { gap: 8px; }
-#flujo .flow-vessel-card .flow-node-header { margin: 0; gap: 10px; min-width: 0; }
-#flujo .flow-vessel-card .flow-node-icon { flex: 0 0 36px; width: 36px; height: 36px; border: 0; border-radius: 9px; background: #edf0f2; color: #546673; box-shadow: none; }
-#flujo .flow-vessel-card[data-vessel="barrica"] .flow-node-icon { background: #f3ebdf; color: #85623c; }
-#flujo .flow-vessel-card .flow-node-icon svg { width: 25px; height: 25px; }
-#flujo .flow-vessel-card h4 { font-size: 17px; line-height: 1.3; font-weight: 650; color: var(--mc-ink); letter-spacing: 0; overflow-wrap: anywhere; min-width: 0; }
-#flujo .flow-vessel-card .flow-node-body { display: flex; align-items: stretch; gap: 4px; padding: 0; color: var(--mc-ink); }
-#flujo .flow-vessel-wine { font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
-#flujo .flow-vessel-meta, #flujo .flow-vessel-material { font-size: 12px; line-height: 1.4; color: var(--mc-muted); overflow-wrap: anywhere; }
-#flujo .flow-vessel-material { margin-top: 3px; }
-#flujo .flow-vessel-state { align-self: center; flex: 0 0 auto; max-width: 95px; border: 1px solid #dac9d4; border-radius: 5px; background: #f5edf1; color: #65324d; padding: 3px 7px; font-size: 10px; line-height: 1.3; font-weight: 600; margin: 0; }
-#flujo .flow-vessel-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-#flujo .flow-vessel-volume { font-size: 25px; font-weight: 650; line-height: 1.2; color: var(--mc-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-#flujo .flow-vessel-capacity { color: var(--mc-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-#flujo .flow-vessel-meter { height: 7px; border-radius: 7px; overflow: hidden; background: #eae3e7; margin: 5px 0; }
-#flujo .flow-vessel-meter span { display: block; height: 100%; background: var(--vessel-fill); }
-#flujo .flow-vessel-details { margin-top: 4px; color: var(--mc-muted); font-size: 11px; line-height: 1.5; }
-#flujo .flow-vessel-details summary { cursor: pointer; padding: 2px 0; font-weight: 600; }
-#flujo .flow-vessel-detail-lines { padding-top: 5px; }
-#flujo .flow-vessel-card :is(.flow-vessel-alert, .flow-discrepancia, .flow-capacidad-alerta) { white-space: normal; color: #903741; background: #fff0ef; padding: 6px 8px; border-radius: 6px; border: 1px solid #efc7c7; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
-#flujo .flow-vessel-card .flow-node-controls { position: static; display: flex; gap: 4px; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e7dfe4; }
-#flujo .flow-vessel-card .flow-node-controls button { position: relative; flex: 1 1 auto; width: auto; height: auto; min-height: 32px; padding: 5px 6px; font-size: 11px; line-height: 1.3; border: 1px solid #b9adb6; background: #fff; color: #713854; border-radius: 6px; margin: 0; box-shadow: none; transform: none; }
-#flujo .flow-vessel-card .flow-node-controls button:hover { background: #f5edf1; box-shadow: none; transform: none; }
-#flujo .flow-vessel-card .flow-node-controls button.red { color: #903741; border-color: #d7b9bf; }
-#flujo .flow-vessel-card .flow-node-controls button::before, #flujo .flow-vessel-card .flow-node-controls button::after { display: none; }
+#flujo .flow-node.flow-node-card[data-vino="white"] { --vessel-fill: #997426; }
+#flujo .flow-node.flow-node-card[data-vino="rosado"] { --vessel-fill: #bc607c; }
+#flujo .flow-node.flow-node-card[data-card-kind="barrica"] { border-top: 3px solid #a08058; }
+#flujo .flow-node.flow-node-card[data-card-kind="deposito"] { border-top: 3px solid #7a8c99; }
+#flujo .flow-node.flow-node-card[data-card-kind="entrada"] { border-top-color: #71865a; }
+#flujo .flow-node.flow-node-card[data-card-kind="entrada"] .flow-node-icon { background: #edf2e7; color: #5c7244; }
+#flujo .flow-node.flow-node-card:is([data-card-kind="almacen"], [data-card-kind="salida"]) { border-top-color: #68867e; }
+#flujo .flow-node.flow-node-card:is([data-card-kind="almacen"], [data-card-kind="salida"]) .flow-node-icon { background: #eaf1ee; color: #4c6d63; }
+#flujo .flow-node-card:is(.is-selected, .is-connect-source) { outline: 3px solid #dca8c3; outline-offset: 2px; }
+#flujo .flow-node.flow-node-card.temp-alert { border-color: #bf4a50; box-shadow: 0 0 0 3px rgb(191 74 80 / 35%); }
+#flujo .flow-node.flow-node-card.node--warn { border-color: #b7802f; }
+#flujo .flow-node-card::after, #flujo .flow-node-card > .fill-level, #flujo .flow-node-card > .flow-progress-ring { display: none; }
+#flujo .flow-node-card .flow-node__extra { gap: 8px; }
+#flujo .flow-node-card .flow-node-header { margin: 0; gap: 10px; min-width: 0; }
+#flujo .flow-node-card .flow-node-icon { flex: 0 0 36px; width: 36px; height: 36px; border: 0; border-radius: 9px; background: #edf0f2; color: #546673; box-shadow: none; }
+#flujo .flow-node-card[data-card-kind="barrica"] .flow-node-icon { background: #f3ebdf; color: #85623c; }
+#flujo .flow-node-card .flow-node-icon svg { width: 25px; height: 25px; }
+#flujo .flow-node-card h4 { font-size: 17px; line-height: 1.3; font-weight: 650; color: var(--mc-ink); letter-spacing: 0; overflow-wrap: anywhere; min-width: 0; }
+#flujo .flow-node-card .flow-node-body { display: flex; align-items: stretch; gap: 4px; padding: 0; color: var(--mc-ink); }
+#flujo .flow-card-wine { font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+#flujo .flow-card-meta, #flujo .flow-card-material { font-size: 12px; line-height: 1.4; color: var(--mc-muted); overflow-wrap: anywhere; }
+#flujo .flow-card-material { margin-top: 3px; }
+#flujo .flow-card-state { align-self: center; flex: 0 0 auto; max-width: 95px; border: 1px solid #dac9d4; border-radius: 5px; background: #f5edf1; color: #65324d; padding: 3px 7px; font-size: 10px; line-height: 1.3; font-weight: 600; margin: 0; }
+#flujo .flow-card-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#flujo .flow-card-volume { font-size: 25px; font-weight: 650; line-height: 1.2; color: var(--mc-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#flujo .flow-card-volume[data-empty="true"] { font-size: 17px; font-weight: 500; color: var(--mc-muted); line-height: 1.4; }
+#flujo .flow-card-capacity { color: var(--mc-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+#flujo .flow-card-meter { height: 7px; border-radius: 7px; overflow: hidden; background: #eae3e7; margin: 5px 0; }
+#flujo .flow-card-meter span { display: block; height: 100%; background: var(--vessel-fill); }
+#flujo .flow-card-details { margin-top: 4px; color: var(--mc-muted); font-size: 11px; line-height: 1.5; }
+#flujo .flow-card-details summary { cursor: pointer; padding: 2px 0; font-weight: 600; }
+#flujo .flow-card-detail-lines { padding-top: 5px; }
+#flujo .flow-node-card .flow-card-detail-lines .flow-node-subtitle { margin: 0; font-size: 12px; color: var(--mc-muted); white-space: normal; overflow-wrap: anywhere; }
+#flujo .flow-node-card .flow-card-detail-lines .flow-entry-fecha { font-size: 12px; }
+#flujo .flow-node-card .flow-entry-metrics { margin: 0 0 4px; }
+#flujo .flow-node-card .flow-chip { background: #f3ecef; color: #65324d; border-color: #e0d2da; }
+#flujo .flow-node-card .flow-node-metodo { color: var(--mc-muted); font-size: 12px; margin: 0; }
+#flujo .flow-node-card :is(.flow-card-alert, .flow-discrepancia, .flow-capacidad-alerta) { white-space: normal; color: #903741; background: #fff0ef; padding: 6px 8px; border-radius: 6px; border: 1px solid #efc7c7; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+#flujo .flow-node-card .flow-node-controls { position: static; display: flex; gap: 4px; justify-content: space-between; padding-top: 8px; border-top: 1px solid #e7dfe4; }
+#flujo .flow-node-card .flow-node-controls button { position: relative; flex: 1 1 auto; width: auto; height: auto; min-height: 32px; padding: 5px 6px; font-size: 11px; line-height: 1.3; border: 1px solid #b9adb6; background: #fff; color: #713854; border-radius: 6px; margin: 0; box-shadow: none; transform: none; }
+#flujo .flow-node-card .flow-node-controls button:hover { background: #f5edf1; box-shadow: none; transform: none; }
+#flujo .flow-node-card .flow-node-controls button.red { color: #903741; border-color: #d7b9bf; }
+#flujo .flow-node-card .flow-node-controls button::before, #flujo .flow-node-card .flow-node-controls button::after { display: none; }
 
-#flujo .flow-vessel-card .flow-node-header h4 { flex: 1 1 auto; }
-#flujo .flow-vessel-card:is(:hover, :focus-within, .is-selected, .dragging) { z-index: 6; }
-#flujo .flow-vessel-card .flow-node-controls button.green { background: #fff; color: #713854; }
-#flujo .flow-vessel-card .flow-node-controls button.red { background: #fff; }
-#flujo .flow-vessel-card .flow-node-controls button:is(.green, .red):hover { background: #f5edf1; }
+#flujo .flow-node-card .flow-node-header h4 { flex: 1 1 auto; }
+#flujo .flow-node-card:is(:hover, :focus-within, .is-selected, .dragging) { z-index: 6; }
+#flujo .flow-node-card .flow-node-controls button.green { background: #fff; color: #713854; }
+#flujo .flow-node-card .flow-node-controls button.red { background: #fff; }
+#flujo .flow-node-card .flow-node-controls button:is(.green, .red):hover { background: #f5edf1; }
