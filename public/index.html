@@ -6238,6 +6238,7 @@ label {
 	    </style>
 	    <link rel="stylesheet" href="/css/ui-tokens.css">
     <link rel="stylesheet" href="/css/ui-theme.css">
+    <link rel="stylesheet" href="/css/cellar-workspace.css">
     <!-- Librerías para exportar PDF de la tabla de control -->
     <!-- Integridad eliminada por fallo SRI; pendiente fijar hash correcto o self-host -->
     <script src="/vendor/jspdf.umd.min.js" referrerpolicy="no-referrer"></script>
@@ -6901,14 +6902,29 @@ label {
         </section>
         <!-- SECCIÓN FLUJO -->
         <section id="flujo" class="card" style="display:none;">
-            <div role="status" aria-live="polite" style="margin-bottom:12px;">
-                <span id="flowSaveStatus">Comprobando el mapa guardado…</span>
+            <div class="flow-save-actions" style="margin-bottom:12px;">
                 <button type="button" class="btnSecundario" onclick="descargarCopiaLocalFlujo()">Descargar copia del mapa</button>
                 <button type="button" class="btnSecundario" id="flowUseServerBtn" onclick="usarVersionServidorFlujo()" hidden>Cargar versión del servidor</button>
             </div>
 	            <h1><span class="h1-emoji" aria-hidden="true"><svg class="section-icon" focusable="false"><use href="/icons/ui.svg#map"></use></svg></span>Mapa de nodos de vinificación</h1>
 	            <p>Diseña visualmente el recorrido de cada partida: arrastra nodos, conéctalos y edita la información con doble clic.</p>
-		            <div class="flow-toolbar">
+		            <div class="flow-workspace-bar" id="flowWorkspaceBar">
+                  <div class="flow-workspace-status">
+                    <span class="flow-workspace-title">Mapa de nodos</span>
+                    <span id="flowSaveStatus" role="status" aria-live="polite">Comprobando el mapa guardado…</span>
+                  </div>
+                  <div class="flow-workspace-actions">
+                    <button type="button" class="btnSecundario" onclick="zoomMapaFlujo(-1)" aria-label="Alejar">−</button>
+                    <button type="button" class="btnSecundario" id="flowZoomLabel" onclick="resetZoomMapaFlujo()" aria-label="Restablecer zoom">100%</button>
+                    <button type="button" class="btnSecundario" onclick="zoomMapaFlujo(1)" aria-label="Acercar">+</button>
+                    <button type="button" class="btnSecundario" id="flowWorkspaceFit">Ajustar mapa</button>
+                    <button type="button" class="btnSecundario" id="flowWorkspaceDetails" aria-pressed="false">Detalles</button>
+                    <button type="button" class="btnSecundario" id="flowWorkspaceTools" aria-pressed="false">Herramientas</button>
+                    <button type="button" class="btnSecundario" id="flowWorkspaceSave">Guardar</button>
+                    <button type="button" class="btnSecundario" id="flowWorkspaceFull" aria-pressed="false">Pantalla completa</button>
+                  </div>
+                </div>
+                <div class="flow-toolbar">
 	                <div class="flow-toolbar-group">
 	                    <button class="btnPrimario" type="button" onclick="crearNodoManual('entrada')">🍇 Entrada de uva</button>
                     <button class="btnPrimario" type="button" onclick="crearNodoManual('estilo')">⚗️ Elaboración</button>
@@ -6939,11 +6955,7 @@ label {
                         <button class="btnSecundario" type="button" onclick="toggleFlowTimelinePanel()">Últimos cambios</button>
                         <button class="btnSecundario" type="button" onclick="toggleFlowBackupsPanel()">Restaurar mapa</button>
 		                </div>
-		                <div class="flow-toolbar-group flow-zoom-controls">
-		                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(-1)" title="Alejar" aria-label="Alejar">−</button>
-		                    <button class="btnSecundario flow-zoom-label" id="flowZoomLabel" type="button" onclick="resetZoomMapaFlujo()" title="Reset zoom" aria-label="Reset zoom">100%</button>
-		                    <button class="btnSecundario flow-zoom-btn" type="button" onclick="zoomMapaFlujo(1)" title="Acercar" aria-label="Acercar">+</button>
-		                </div>
+
 	                <div class="flow-toolbar-group">
 	                    <button class="btnSecundario flow-btn-danger" type="button" onclick="resetMapaFlujoLocal()">Limpiar mapa</button>
 	                </div>
@@ -7011,11 +7023,7 @@ label {
 	                <p>Doble clic en un nodo para editarlo. Pulsa “Conectar” en un nodo y luego haz clic sobre el destino para crear el hilo. Puedes arrastrar los nodos a cualquier punto del lienzo.</p>
 	            </div>
 
-            <div class="chart-card" style="margin-top:18px;">
-                <h3 style="margin-top:0;">Demo rápida: arrastra tanques y barricas</h3>
-                <p style="margin:6px 0 12px;">Usa el array <code>tanques</code> y esta zona sandbox para probar drag & drop ligero sin tocar el mapa principal.</p>
-	                <div id="demoFlowStage" class="demo-flow-stage"></div>
-	            </div>
+
 	        </section>
         <div id="flowModal" class="flow-modal">
             <div class="flow-modal-content">
@@ -8047,6 +8055,7 @@ label {
 // ---- Mostrar secciones del menú lateral ---
 function mostrarSeccion(id) {
   if (!MicroCellerUnsaved.canNavigate(id)) return false;
+  if (typeof MicroCellerWorkspace !== "undefined") MicroCellerWorkspace.onNavigate(id);
   const secciones = document.querySelectorAll("section.card, section#bitacora");
   secciones.forEach(sec => {
     const esObjetivo = sec.id === id;
@@ -16755,6 +16764,20 @@ function zoomMapaFlujo(direccion) {
   aplicarZoomMapaFlujo(flowZoom + delta * FLOW_ZOOM_STEP);
 }
 
+function ajustarMapaFlujoAVista() {
+  const editor = document.getElementById("flowEditor");
+  const elements = [...document.querySelectorAll("#flowCanvas .flow-node")];
+  if (!editor || !elements.length) return;
+  const boxes = elements.map(element => ({ x: parseFloat(element.style.left) || 0, y: parseFloat(element.style.top) || 0, w: element.offsetWidth, h: element.offsetHeight }));
+  const left = Math.min(...boxes.map(b => b.x)), top = Math.min(...boxes.map(b => b.y));
+  const right = Math.max(...boxes.map(b => b.x + b.w)), bottom = Math.max(...boxes.map(b => b.y + b.h));
+  const scale = limitarZoomFlow(Math.min((editor.clientWidth - 80) / Math.max(1, right - left), (editor.clientHeight - 80) / Math.max(1, bottom - top), 1));
+  aplicarZoomMapaFlujo(scale, { mantenerCentro: false });
+  editor.scrollLeft = Math.max(0, ((left + right) / 2) * scale - editor.clientWidth / 2);
+  editor.scrollTop = Math.max(0, ((top + bottom) / 2) * scale - editor.clientHeight / 2);
+  programarActualizacionMinimapFlow();
+}
+
 function resetZoomMapaFlujo() {
   aplicarZoomMapaFlujo(1);
 }
@@ -23956,6 +23979,7 @@ async function cargarDepositos() {
 	    cacheDepositos = separados.depositos;
 	    cacheMastelones = separados.mastelones;
     estadoCargaVolumen.depositos = "listo";
+    window.MicroCellerWorkspace?.renderCatalog("deposito");
     actualizarCoherenciaVolumen();
     mapaDepositosPorId = new Map(cacheDepositos.map(d => [d.id, d]));
     mapaMastelonesPorId = new Map(cacheMastelones.map(d => [d.id, d]));
@@ -23979,6 +24003,7 @@ async function cargarDepositos() {
   } catch (err) {
     if (carga === secuenciaCargaVolumen.depositos) {
       estadoCargaVolumen.depositos = "error";
+      window.MicroCellerWorkspace?.renderCatalog("deposito");
       actualizarIndicadores();
       renderTablaContenedores([...cacheDepositos, ...cacheMastelones], "tablaDepositos", "No se pudieron actualizar los depósitos.");
       actualizarCoherenciaVolumen();
@@ -25492,6 +25517,7 @@ async function construirHistorialLocal(tipo, id) {
                 if (!Array.isArray(datos) || datos.some(item => !item || typeof item !== "object" || item.id == null)) throw new Error("Respuesta de barricas inválida");
                 estadoCargaVolumen.barricas = "listo";
 	                cacheBarricas = datos;
+                window.MicroCellerWorkspace?.renderCatalog("barrica");
                 mapaBarricasPorId = new Map(datos.map(b => [b.id, b]));
                 if (typeof poblarSelectBitacoraContenedores === "function") {
                     poblarSelectBitacoraContenedores();
@@ -25560,6 +25586,7 @@ async function construirHistorialLocal(tipo, id) {
             } catch (err) {
                 if (carga === secuenciaCargaVolumen.barricas) {
                     estadoCargaVolumen.barricas = "error";
+                    window.MicroCellerWorkspace?.renderCatalog("barrica");
                     actualizarIndicadores();
                     const tbody = document.getElementById("tablaBarricas");
                     if (tbody) tbody.innerHTML = '<tr><td colspan="12">No se pudieron actualizar las barricas. Vuelve a cargar la aplicación.</td></tr>';
@@ -30426,7 +30453,6 @@ async function expressMxHandleSaveSinBloqueo(guard) {
             inicializarCopilotoUI();
             initCopilotoHerramientas();
             actualizarCopiloto(true);
-            renderDemoFlow();
 
             const campoFechaEntrada = document.getElementById("entradaFecha");
             if (campoFechaEntrada) {
@@ -30444,5 +30470,23 @@ async function expressMxHandleSaveSinBloqueo(guard) {
         })();
     </script>
     <script type="module" src="/js/app.js"></script>
+    <script src="/js/cellar-workspace.js"></script>
+    <script>
+      MicroCellerWorkspace.init({
+        getZoom: () => flowZoom,
+        resize: () => { aplicarLayoutFlow(); renderFlowConnections(); programarActualizacionMinimapFlow(); },
+        fit: ajustarMapaFlujoAVista,
+        save: () => guardarFlujoEnServidor(),
+        registered: item => MicroCellerVolumes.registered(item),
+        getCatalog: kind => kind === "barrica" ? cacheBarricas : [...cacheDepositos, ...cacheMastelones],
+        getCatalogState: kind => estadoCargaVolumen[kind === "barrica" ? "barricas" : "depositos"],
+        getWine: (kind, item) => resolverEstadoVisualContenedor(kind, item).variedadVisible,
+        catalogAction: (kind, item, action) => {
+          if (action === "edit") return kind === "barrica" ? editarBarricaDatos(item.id) : editarDepositoDatos(item.id);
+          if (action === "archive") return kind === "barrica" ? eliminarBarrica(item.id) : eliminarDeposito(item.id);
+          return abrirBitacoraContenedor(kind === "barrica" ? kind : item.clase === "mastelone" ? "mastelone" : "deposito", item.id);
+        },
+      });
+    </script>
 </body>
 </html>
