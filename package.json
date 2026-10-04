@@ -1,6 +1,6 @@
 {
   "name": "bodega-control",
-  "version": "1.2.9",
+  "version": "1.2.10",
   "main": "desktop/main.cjs",
   "type": "module",
   "scripts": {
