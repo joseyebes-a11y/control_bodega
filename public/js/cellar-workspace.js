@@ -137,9 +137,11 @@
     const state = vessel ? (model.volume === null ? 'Litros sin verificar' : model.state || 'Estado sin indicar') : model.state;
     if (state) header.append(text('span', 'flow-card-state', state));
     body.append(text('div', 'flow-card-label', model.quantityLabel || 'Litros en este nodo'));
-    const quantity = text('div', 'flow-card-volume', vessel ? (model.volume === null ? 'Sin verificar' : `${format(model.volume)} L`) : model.quantityText || 'Sin verificar');
+    const yieldParts = model.kind === 'estilo' ? /^(\d+) L\/(\d+)L-m$/.exec(model.quantityText || '') : null;
+    const quantity = text('div', 'flow-card-volume', vessel ? (model.volume === null ? 'Sin verificar' : `${format(model.volume)} L`) : yieldParts ? `${format(Number(yieldParts[1]))} L` : model.quantityText || 'Sin verificar');
     quantity.dataset.empty = String(vessel ? model.volume === null : !/\d/.test(model.quantityText || ''));
     body.append(quantity);
+    if (yieldParts) body.append(text('div', 'flow-card-output', `Tras merma: ${format(Number(yieldParts[2]))} L`));
     if (vessel) {
       const capacity = model.capacity === null ? 'Capacidad sin indicar' : `Capacidad ${format(model.capacity)} L`;
       const fraction = model.volume !== null && model.capacity > 0 ? model.volume / model.capacity : null;
