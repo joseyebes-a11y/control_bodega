@@ -12396,6 +12396,10 @@ function actualizarCoherenciaVolumen() {
     const nodo = flujoNodos.find(n => String(n.id) === elemento.dataset.id);
     const diag = obtenerDiagnosticoVolumenContenedor(nodo);
     const badge = elemento.querySelector(".flow-discrepancia");
+    const registrados = elemento.querySelector(".flow-vessel-registered");
+    if (registrados && diag) {
+      registrados.textContent = `Registrados: ${diag.verificable ? MicroCellerVolumes.format(diag.volumenFicha) : "Sin verificar"}`;
+    }
     if (badge && diag) {
       badge.hidden = !diag.discrepancia;
       badge.textContent = `Mapa ${MicroCellerVolumes.format(diag.volumenMapa)} · Registrados ${MicroCellerVolumes.format(diag.volumenFicha)}`;
@@ -17882,6 +17886,27 @@ function toggleExpandirTodosFlow() {
 
     let menu = null;
     extra.appendChild(controls);
+    if (estaExpandido && (nodo.tipo === "deposito" || nodo.tipo === "barrica")) {
+      const ficha = resolverFichaVolumenNodo(nodo);
+      const diag = obtenerDiagnosticoVolumenContenedor(nodo);
+      const datos = nodo.datos || {};
+      const capacidad = MicroCellerVolumes.quantity(datos.capacidad_l ?? datos.capacidad ?? ficha?.capacidad_l ?? (ficha?.capacidad_hl == null ? null : ficha.capacidad_hl * 100));
+      const tipoFicha = tipoFichaVolumenNodo(nodo);
+      window.MicroCellerWorkspace?.renderNodeCard(div, {
+        header: headerWrap, body, controls,
+        title: ficha?.codigo || datos.codigo || tituloAbierto,
+        kind: tipoFicha || nodo.tipo,
+        volume: MicroCellerVolumes.quantity(obtenerVolumenNumericoNodo(nodo)), capacity: capacidad,
+        registered: diag?.verificable ? diag.volumenFicha : null,
+        historical: MicroCellerVolumes.quantity(obtenerHistoricoNodo(nodo)),
+        state: compactParts.stateText || estadoInline?.label || "",
+        wine: nombreVinoVisible,
+        variety: variedadVisible || ficha?.vino_tipo || "",
+        vintage: ficha?.vino_anio || datos.vino_anio || datos.anada || "",
+        description: ficha ? (tipoFicha === "barrica" ? [ficha.tipo_roble, ficha.tostado, ficha.marca] : [ficha.tipo, ficha.material || ficha.contenido]).filter(Boolean).join(" · ") : "",
+        edit: () => abrirFlowModal(nodo.id),
+      });
+    }
 
     const tempNodo = obtenerTemperaturaNodo(nodo);
     const estado = (nodo.datos?.estado || "").toLowerCase();
