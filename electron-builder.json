@@ -10,10 +10,14 @@
   "asarUnpack": ["**/node_modules/sqlite3/**"],
   "win": {
     "target": [{ "target": "nsis", "arch": ["x64"] }],
-    "signAndEditExecutable": false,
+    "icon": "public/icons/app.ico",
+    "signAndEditExecutable": true,
+    "signExecutable": false,
     "artifactName": "MicroCellerStudio-${version}-Windows-${arch}-Setup.${ext}"
   },
   "nsis": {
+    "installerIcon": "public/icons/app.ico",
+    "uninstallerIcon": "public/icons/app.ico",
     "include": "desktop/installer.nsh",
     "oneClick": false,
     "perMachine": false,

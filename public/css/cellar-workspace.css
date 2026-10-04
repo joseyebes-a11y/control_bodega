@@ -67,6 +67,7 @@ body.mc-flow-fullscreen #flujo .flow-helper { display: none; }
 
 /* Legible forms, tables and quiet node surfaces across the workspace. */
 body { font-size: 15px; }
+.microbrand .app-logo { width: 22px; height: 22px; margin-right: 8px; vertical-align: middle; border-radius: 5px; }
 .content label, .flow-modal-content form label { font-size: 14px; }
 table { font-size: 14px; }
 th { font-size: 12px; text-transform: none; letter-spacing: .01em; }

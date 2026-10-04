@@ -36,6 +36,7 @@ else {
 function secureWindow() {
   const result = new BrowserWindow({ width: 1440, height: 950, minWidth: 1000, minHeight: 680,
     title: "MicroCellerStudio", backgroundColor: "#0b0515", show: false,
+    icon: path.join(__dirname, "..", "public", "icons", process.platform === "win32" ? "app.ico" : "app.png"),
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true,
       nodeIntegration: false, sandbox: true, webSecurity: true } });
   result.webContents.setWindowOpenHandler(({ url }) => {

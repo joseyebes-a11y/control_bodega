@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>MicroCellerStudio · Copa de vino</title>
+  <rect width="512" height="512" rx="112" fill="#713854"/>
+  <path d="M157 83h198l14 101c10 79-38 137-113 137s-123-58-113-137l14-101Z" fill="#fffaf5"/>
+  <path d="M158 191c31-15 63 10 98 2s68-15 98-2l1 12c3 56-35 95-99 95s-102-39-99-95l1-12Z" fill="#b93758"/>
+  <path d="M172 115l-7 48" fill="none" stroke="#e9d9d9" stroke-width="9" stroke-linecap="round"/>
+  <path d="M168 209c2 23 10 38 23 48" fill="none" stroke="#e88aa0" stroke-width="9" stroke-linecap="round"/>
+  <path d="M256 319v93m-72 10h144" fill="none" stroke="#fffaf5" stroke-width="19" stroke-linecap="round"/>
+</svg>
